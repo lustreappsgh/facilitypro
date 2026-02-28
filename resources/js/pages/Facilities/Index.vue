@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, h, watch, computed } from 'vue';
-import { Head, router, usePage, useRemember } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage, useRemember } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import DataTable from '@/components/data-table/DataTable.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import InspectionModal from '@/components/InspectionModal.vue';
 import MaintenanceRequestModal from '@/components/MaintenanceRequestModal.vue';
 import { usePermissions } from '@/composables/usePermissions';
@@ -68,6 +69,9 @@ interface Props {
     };
     managers: Manager[];
     activeManagerId: string | number | null;
+    routes: {
+        bulkAssignManager: string;
+    };
     formOptions: {
         facilities: FacilityOption[];
         facilityTypes: FacilityTypeOption[];
@@ -103,6 +107,12 @@ const viewMode = ref<'table' | 'grid'>(getViewFromUrl(page.url) ?? 'table');
 const selectedManager = ref(props.activeManagerId ? String(props.activeManagerId) : 'all');
 const selectedCondition = ref(getQueryParam('condition') ?? 'all');
 const selectedFacilityType = ref(getQueryParam('facility_type_id') ?? 'all');
+const facilitiesPerPageFromProps = computed(() => {
+    const facilitiesAny = props.facilities as any;
+    const perPage = facilitiesAny.meta?.per_page ?? facilitiesAny.per_page;
+    return Number(perPage) || 50;
+});
+const selectedPerPage = ref(getQueryParam('per_page') ?? String(facilitiesPerPageFromProps.value));
 
 const facilitiesPaginationMeta = computed(() => {
     const facilitiesAny = props.facilities as any;
@@ -117,10 +127,11 @@ const facilitiesPagination = computed(() => {
     return {
         currentPage: Number(facilitiesPaginationMeta.value?.current_page ?? 1),
         lastPage: Number(facilitiesPaginationMeta.value?.last_page ?? 1),
-        perPage: Number(facilitiesPaginationMeta.value?.per_page ?? props.facilities.data.length),
+        perPage: Number(facilitiesPaginationMeta.value?.per_page ?? facilitiesPerPageFromProps.value),
         prevUrl: previous,
         nextUrl: next,
         only: ['facilities'],
+        onPageSizeChange: handlePerPageChange,
     };
 });
 
@@ -128,23 +139,40 @@ const canInspect = computed(() => can('inspections.create'));
 const canRequest = computed(() => can('maintenance.create') || can('maintenance_requests.create'));
 const canViewFacility = computed(() => can('facilities.view'));
 const canEditFacility = computed(() => can('facilities.update'));
+const canAssignManager = computed(() => can('facilities.assign_manager'));
+const managerOptions = computed(() =>
+    props.managers.filter((manager) => !['self', 'unassigned'].includes(String(manager.id))),
+);
 
 const inspectionModalOpen = ref(false);
 const requestModalOpen = ref(false);
+const assignDialogOpen = ref(false);
 const selectedFacilityIds = useRemember<number[]>([], 'facilities.selection');
 const modalFacilityIds = ref<number[]>([]);
+
+const assignManagerForm = useForm({
+    facility_ids: [] as number[],
+    manager_id: 'unassigned' as string,
+});
 
 const normalizeManagerId = (value: string) => {
     if (!value || value === 'all') return undefined;
     return value;
 };
 
+function handlePerPageChange(pageSize: number) {
+    selectedPerPage.value = String(pageSize);
+    applyFilters({ replace: true, only: ['facilities'] });
+}
+
 const applyFilters = (options: Record<string, unknown> = {}) => {
+    const parsedPerPage = Number(selectedPerPage.value);
     router.get(facilitiesIndex().url, {
         manager_id: normalizeManagerId(selectedManager.value),
         search: search.value || undefined,
         condition: selectedCondition.value === 'all' ? undefined : selectedCondition.value,
         facility_type_id: selectedFacilityType.value === 'all' ? undefined : selectedFacilityType.value,
+        per_page: Number.isFinite(parsedPerPage) && parsedPerPage > 0 ? parsedPerPage : undefined,
         view: viewMode.value
     }, {
         preserveState: true,
@@ -165,6 +193,12 @@ watch(() => props.activeManagerId, (value) => {
     selectedManager.value = value ? String(value) : 'all';
 });
 
+watch(() => facilitiesPerPageFromProps.value, (value) => {
+    if (value > 0) {
+        selectedPerPage.value = String(value);
+    }
+});
+
 watch(viewMode, () => {
     applyFilters({ replace: true, only: ['facilities'] });
 });
@@ -182,7 +216,7 @@ const conditionClass = (condition?: string) => {
 
 const manageableFacilityIds = computed(() => new Set(props.formOptions.facilities.map((facility) => facility.id)));
 const canSelectFacility = (facilityId: number) =>
-    manageableFacilityIds.value.has(facilityId) && (canInspect.value || canRequest.value);
+    manageableFacilityIds.value.has(facilityId) && (canInspect.value || canRequest.value || canAssignManager.value);
 
 const selectableFacilityIdsOnPage = computed(() =>
     props.facilities.data
@@ -230,6 +264,34 @@ const openInspectionModal = (facilityIds: number[]) => {
 const openRequestModal = (facilityIds: number[]) => {
     modalFacilityIds.value = facilityIds;
     requestModalOpen.value = true;
+};
+
+const openAssignDialog = () => {
+    if (!selectionCount.value) {
+        return;
+    }
+
+    assignManagerForm.reset();
+    assignManagerForm.clearErrors();
+    assignManagerForm.facility_ids = [...selectedFacilityIds.value];
+    assignManagerForm.manager_id = 'unassigned';
+    assignDialogOpen.value = true;
+};
+
+const submitAssignManager = () => {
+    assignManagerForm.facility_ids = [...selectedFacilityIds.value];
+    assignManagerForm.manager_id = assignManagerForm.manager_id || 'unassigned';
+    assignManagerForm.post(props.routes.bulkAssignManager, {
+        transform: (data) => ({
+            ...data,
+            manager_id: data.manager_id === 'unassigned' ? null : Number(data.manager_id),
+        }),
+        preserveScroll: true,
+        onSuccess: () => {
+            assignDialogOpen.value = false;
+            selectedFacilityIds.value = [];
+        },
+    });
 };
 
 watch(() => props.facilities.data, (rows) => {
@@ -433,6 +495,11 @@ const columns: ColumnDef<Facility>[] = [
                                 @click="openRequestModal([...selectedFacilityIds])">
                                 Bulk Request
                             </Button>
+                            <Button v-if="canAssignManager" variant="outline" size="sm" :disabled="!selectionCount"
+                                class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border hover:bg-primary/5 hover:text-primary transition-colors"
+                                @click="openAssignDialog">
+                                Assign Manager
+                            </Button>
                             <Button variant="ghost" size="sm" :disabled="!selectionCount"
                                 class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
                                 @click="selectedFacilityIds = []">
@@ -470,6 +537,11 @@ const columns: ColumnDef<Facility>[] = [
                             class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border hover:bg-primary/5 hover:text-primary transition-colors"
                             @click="openRequestModal([...selectedFacilityIds])">
                             Bulk Request
+                        </Button>
+                        <Button v-if="canAssignManager" variant="outline" size="sm" :disabled="!selectionCount"
+                            class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border hover:bg-primary/5 hover:text-primary transition-colors"
+                            @click="openAssignDialog">
+                            Assign Manager
                         </Button>
                         <Button variant="ghost" size="sm" :disabled="!selectionCount"
                             class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
@@ -557,6 +629,38 @@ const columns: ColumnDef<Facility>[] = [
             </div>
         </div>
 
+
+        <Dialog v-model:open="assignDialogOpen">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Bulk Assign Manager</DialogTitle>
+                    <DialogDescription>
+                        Assign {{ selectionCount }} selected facilities to a facility manager.
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-3">
+                    <Select v-model="assignManagerForm.manager_id">
+                        <SelectTrigger class="h-10 w-full">
+                            <SelectValue placeholder="Select manager or unassign" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            <SelectItem v-for="manager in managerOptions" :key="manager.id" :value="String(manager.id)">
+                                {{ manager.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p v-if="assignManagerForm.errors.manager_id" class="text-xs text-red-600">{{ assignManagerForm.errors.manager_id }}</p>
+                    <p v-if="assignManagerForm.errors.facility_ids" class="text-xs text-red-600">{{ assignManagerForm.errors.facility_ids }}</p>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" @click="assignDialogOpen = false">Cancel</Button>
+                    <Button :disabled="assignManagerForm.processing || !selectionCount" @click="submitAssignManager">
+                        Save assignment
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <InspectionModal v-if="canInspect" v-model:open="inspectionModalOpen" :facilities="formOptions.facilities"
             :conditions="formOptions.conditions" :selected-facility-ids="modalFacilityIds" :redirect-to="page.url"

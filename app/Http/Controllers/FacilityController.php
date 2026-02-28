@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domains\Facilities\DTOs\FacilityData;
+use App\Domains\Facilities\Requests\FacilityBulkAssignManagerRequest;
 use App\Domains\Facilities\Requests\FacilityHierarchyRequest;
 use App\Domains\Facilities\Requests\FacilityRequest;
 use App\Domains\Facilities\Services\FacilityService;
@@ -13,6 +14,7 @@ use App\Models\RequestType;
 use App\Models\User;
 use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -77,7 +79,8 @@ class FacilityController extends Controller
             $facilitiesQuery->where('facility_type_id', $facilityTypeId);
         }
 
-        $facilities = $facilitiesQuery->paginate(50)->withQueryString();
+        $perPage = max(10, min((int) $request->integer('per_page', 50), 100));
+        $facilities = $facilitiesQuery->paginate($perPage)->withQueryString();
 
         // Fetch facility managers for the sidebar
         $managersQuery = User::permission('inspections.view')
@@ -126,6 +129,9 @@ class FacilityController extends Controller
             'facilities' => $facilities,
             'managers' => $managers,
             'activeManagerId' => $managerId,
+            'routes' => [
+                'bulkAssignManager' => route('facilities.bulk-assign-manager'),
+            ],
             'formOptions' => [
                 'facilities' => (clone $formFacilitiesQuery)->orderBy('name')->get(['id', 'name']),
                 'facilityTypes' => FacilityType::orderBy('name')->get(['id', 'name']),
@@ -135,6 +141,24 @@ class FacilityController extends Controller
                 'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
             ],
         ]);
+    }
+
+    public function bulkAssignManager(FacilityBulkAssignManagerRequest $request): RedirectResponse
+    {
+        if (! $request->user()->can('facilities.assign_manager')) {
+            abort(403);
+        }
+
+        $facilityIds = $request->validated('facility_ids');
+        $managerId = $request->validated('manager_id');
+
+        $updated = Facility::query()
+            ->whereIn('id', $facilityIds)
+            ->update(['managed_by' => $managerId]);
+
+        $targetLabel = $managerId ? 'manager' : 'unassigned';
+
+        return back()->with('success', "Updated {$updated} facilities to {$targetLabel}.");
     }
 
     public function create(Request $request)

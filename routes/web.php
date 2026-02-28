@@ -42,6 +42,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('facilities/{facility}/hierarchy', [FacilityController::class, 'updateHierarchy'])
         ->name('facilities.hierarchy')
         ->middleware('throttle:admin-actions');
+    Route::post('facilities/bulk-assign-manager', [FacilityController::class, 'bulkAssignManager'])
+        ->name('facilities.bulk-assign-manager')
+        ->middleware('throttle:admin-actions');
     Route::resource('facilities', FacilityController::class);
 
     Route::get('inspections/my', [InspectionController::class, 'index'])->name('inspections.my');

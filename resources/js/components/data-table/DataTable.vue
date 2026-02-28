@@ -58,6 +58,7 @@ interface ServerPaginationConfig {
   prevUrl?: string | null
   nextUrl?: string | null
   only?: string[]
+  onPageSizeChange?: (pageSize: number) => void
 }
 
 const props = withDefaults(defineProps<{
@@ -144,6 +145,7 @@ const table = useVueTable({
   getFilteredRowModel: getFilteredRowModel(),
   getSortedRowModel: getSortedRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
+  manualPagination: isServerPagination.value,
   initialState: {
     pagination: {
       pageSize: props.pageSize,
@@ -209,6 +211,18 @@ const goToNext = () => {
     preserveScroll: true,
     only: props.serverPagination.only,
   })
+}
+
+const updatePageSize = (value: string | number) => {
+  const pageSize = Number(value)
+  if (!Number.isFinite(pageSize) || pageSize <= 0) return
+
+  if (isServerPagination.value) {
+    props.serverPagination?.onPageSizeChange?.(pageSize)
+    return
+  }
+
+  table.setPageSize(pageSize)
 }
 </script>
 
@@ -358,16 +372,12 @@ const goToNext = () => {
           <Label for="rows-per-page" class="text-sm font-medium">
             Rows per page
           </Label>
-          <template v-if="isServerPagination">
-            <div class="text-sm font-medium">{{ displayedPageSize }}</div>
-          </template>
           <Select
-            v-else
-            :model-value="table.getState().pagination.pageSize"
-            @update:model-value="(value) => table.setPageSize(Number(value))"
+            :model-value="`${displayedPageSize}`"
+            @update:model-value="updatePageSize"
           >
             <SelectTrigger id="rows-per-page" size="sm" class="w-20">
-              <SelectValue :placeholder="`${table.getState().pagination.pageSize}`" />
+              <SelectValue :placeholder="`${displayedPageSize}`" />
             </SelectTrigger>
             <SelectContent side="top">
               <SelectItem
