@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Models;
+
+use Carbon\Carbon;
+use App\Models\User;
+use App\Support\TextNormalizer;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Todo extends Model
+{
+    use HasFactory;
+
+    public $fillable = [
+        'user_id',
+        'facility_id',
+        'description',
+        'completed_at',
+        'status',
+        'week_start',
+    ];
+
+    public $appends = [
+        'month_week',
+    ];
+
+    protected $casts = [
+        'completed_at' => 'datetime',
+        'week_start' => 'date:Y-m-d',
+    ];
+
+    public function setDescriptionAttribute(?string $value): void
+    {
+        $this->attributes['description'] = TextNormalizer::fixMojibake($value);
+    }
+
+    public function getMonthWeekAttribute(): string
+    {
+        $reference = $this->week_start ?? $this->created_at;
+        $startOfWeek = $reference->copy()->startOfWeek(Carbon::SUNDAY);
+        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SATURDAY);
+
+        $weekNumber = $startOfWeek->weekOfMonth;
+        $monthName = $startOfWeek->format('F');
+
+        return $monthName.' wk '.$weekNumber.' ('.$startOfWeek->format('M d').' - '.$endOfWeek->format('M d').')';
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function facility(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class);
+    }
+
+
+
+    public function scopeUserVisible($query, ?User $user = null)
+    {
+        $user = $user ?? auth()->user();
+
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->can('users.manage')) {
+            return $query;
+        }
+
+        return $query->where('user_id', $user->id);
+    }
+}

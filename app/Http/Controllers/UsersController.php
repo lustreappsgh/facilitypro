@@ -1,0 +1,328 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
+use App\Domains\AuditLogs\DTOs\AuditLogData;
+use App\Domains\Users\Actions\CreateUserAction;
+use App\Domains\Users\Actions\GrantMaintenanceManagerAccessAction;
+use App\Domains\Users\Actions\RevokeMaintenanceManagerAccessAction;
+use App\Domains\Users\Actions\UpdateManagerReportsAction;
+use App\Domains\Users\Actions\UpdateUserAction;
+use App\Domains\Users\DTOs\ManagerAccessData;
+use App\Domains\Users\DTOs\ManagerReportsData;
+use App\Domains\Users\DTOs\UserData;
+use App\Domains\Users\Requests\UserBulkStatusRequest;
+use App\Domains\Users\Requests\ManagerReportsRequest;
+use App\Domains\Users\Requests\UserRequest;
+use App\Models\User;
+use DomainException;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
+use Spatie\Permission\Models\Role;
+
+class UsersController extends Controller
+{
+    use AuthorizesRequests;
+
+    public function __construct(
+        protected CreateUserAction $createUserAction,
+        protected UpdateUserAction $updateUserAction,
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected GrantMaintenanceManagerAccessAction $grantMaintenanceManagerAccessAction,
+        protected RevokeMaintenanceManagerAccessAction $revokeMaintenanceManagerAccessAction,
+        protected UpdateManagerReportsAction $updateManagerReportsAction
+    ) {}
+
+    public function index(Request $request): Response
+    {
+        $this->authorize('viewAny', User::class);
+
+        $search = $request->string('search')->trim()->toString();
+        $role = $request->string('role')->trim()->toString();
+        $status = $request->string('status')->trim()->toString();
+
+        $users = User::query()
+            ->with('roles')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($builder) use ($search) {
+                    $builder->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($role !== '', fn($query) => $query->whereHas('roles', fn($roles) => $roles->where('name', $role)))
+            ->when($status !== '', fn($query) => $query->where('is_active', $status === 'active'))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        return Inertia::render('Users/Index', [
+            'data' => [
+                'users' => $users,
+            ],
+            'filters' => [
+                'search' => $search ?: null,
+                'role' => $role ?: null,
+                'status' => $status ?: null,
+            ],
+            'roles' => Role::orderBy('name')->get(['id', 'name']),
+            'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
+            'routes' => [
+                'index' => route('users.index'),
+                'create' => route('users.create'),
+                'bulkStatus' => route('users.bulk-status'),
+            ],
+            'meta' => [
+                'generated_at' => now()->toDateTimeString(),
+            ],
+        ]);
+    }
+
+    public function create(): Response
+    {
+        $this->authorize('create', User::class);
+
+        return Inertia::render('Users/Create', [
+            'roles' => Role::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function store(UserRequest $request)
+    {
+        $this->authorize('create', User::class);
+
+        $payload = $request->validated();
+        $password = $payload['password'] ?? Str::password(16);
+
+        $data = new UserData(
+            name: $payload['name'],
+            email: $payload['email'],
+            password: $password,
+            is_active: $payload['is_active'] ?? true,
+            is_default_password: ! isset($payload['password']),
+            manager_id: $payload['manager_id'] ?? null,
+        );
+
+        $this->createUserAction->execute(
+            $data,
+            $payload['roles'] ?? []
+        );
+
+        return redirect()->route('users.index')->with('success', 'User created.');
+    }
+
+    public function edit(User $user): Response
+    {
+        $this->authorize('update', $user);
+
+        $disallowedSupervisorRoles = ['Admin', 'Manager', 'Super Admin'];
+        $manager = $user->manager;
+
+        $managerOptions = User::query()
+            ->role('Facility Manager')
+            ->whereDoesntHave('roles', fn($query) => $query->whereIn('name', $disallowedSupervisorRoles))
+            ->whereNull('manager_id')
+            ->whereKeyNot($user->id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn(User $option) => [
+                'id' => $option->id,
+                'name' => $option->name,
+                'email' => $option->email,
+                'disabled' => false,
+            ]);
+
+        if ($manager && ! $managerOptions->contains('id', $manager->id)) {
+            $managerOptions = $managerOptions->prepend([
+                'id' => $manager->id,
+                'name' => $manager->name,
+                'email' => $manager->email,
+                'disabled' => true,
+                'note' => 'Current (not eligible)',
+            ]);
+        }
+
+        $reportOptionsQuery = User::query()
+            ->role('Facility Manager')
+            ->whereKeyNot($user->id)
+            ->orderBy('name');
+
+        $reportOptions = $reportOptionsQuery->get(['id', 'name', 'email']);
+        $directReportIds = User::query()
+            ->role('Facility Manager')
+            ->where('manager_id', $user->id)
+            ->pluck('id')
+            ->values();
+
+        return Inertia::render('Users/Edit', [
+            'user' => $user->load(['roles', 'manager']),
+            'roles' => Role::orderBy('name')->get(['id', 'name']),
+            'assignedRoles' => $user->roles->pluck('name')->values(),
+            'managerOptions' => $managerOptions,
+            'managerAssignment' => [
+                'manager_id' => $user->manager_id,
+                'manager' => $manager
+                    ? [
+                        'id' => $manager->id,
+                        'name' => $manager->name,
+                        'email' => $manager->email,
+                    ]
+                    : null,
+                'has_maintenance_access' => $manager?->can('maintenance_requests.view') ?? false,
+                'other_direct_reports' => $manager
+                    ? $manager->subordinates()->whereKeyNot($user->id)->count()
+                    : 0,
+                'is_facility_manager' => $user->can('inspections.create'),
+            ],
+            'reportOptions' => $reportOptions->map(fn(User $report) => [
+                'id' => $report->id,
+                'name' => $report->name,
+                'email' => $report->email,
+            ]),
+            'directReportIds' => $directReportIds,
+            'routes' => [
+                'grantManagerAccess' => route('users.manager-access.grant', $user),
+                'revokeManagerAccess' => route('users.manager-access.revoke', $user),
+                'updateDirectReports' => route('users.manager-reports.update', $user),
+            ],
+        ]);
+    }
+
+    public function update(UserRequest $request, User $user)
+    {
+        $this->authorize('update', $user);
+
+        $payload = $request->validated();
+        $data = new UserData(
+            name: $payload['name'],
+            email: $payload['email'],
+            password: $payload['password'] ?? null,
+            is_active: $payload['is_active'] ?? $user->is_active,
+            is_default_password: isset($payload['password']) && $payload['password'] ? false : $user->is_default_password,
+            manager_id: $payload['manager_id'] ?? $user->manager_id,
+        );
+
+        $this->updateUserAction->execute(
+            $user,
+            $data,
+            $payload['roles'] ?? []
+        );
+
+        return redirect()->route('users.index')->with('success', 'User updated.');
+    }
+
+    public function bulkStatus(UserBulkStatusRequest $request)
+    {
+        if (! $request->user()->can('users.manage')) {
+            abort(403);
+        }
+
+        $action = $request->validated('action');
+        $userIds = $request->validated('user_ids');
+        $isActive = $action === 'activate';
+
+        if (! $isActive && in_array($request->user()->id, $userIds, true)) {
+            return back()->withErrors([
+                'user_ids' => 'You cannot deactivate your own account.',
+            ]);
+        }
+
+        $actorId = auth()->id();
+        if (! is_int($actorId)) {
+            abort(500, 'Audit actor is required.');
+        }
+
+        $users = User::query()
+            ->whereIn('id', $userIds)
+            ->get();
+
+        foreach ($users as $user) {
+            $before = $user->getOriginal();
+            $user->update(['is_active' => $isActive]);
+
+            $this->recordAuditLogAction->execute(new AuditLogData(
+                actor_id: $actorId,
+                action: 'user.status_updated',
+                auditable_type: $user->getMorphClass(),
+                auditable_id: $user->id,
+                before: $before,
+                after: $user->getAttributes(),
+            ));
+        }
+
+        $label = $isActive ? 'activated' : 'deactivated';
+
+        return back()->with('success', sprintf('Users %s.', $label));
+    }
+
+    public function grantManagerAccess(User $user)
+    {
+        $this->authorize('update', $user);
+
+        $manager = $user->manager;
+        if (! $manager) {
+            return back()->withErrors([
+                'manager_id' => 'Select a manager before granting maintenance access.',
+            ]);
+        }
+
+        $this->grantMaintenanceManagerAccessAction->execute(
+            new ManagerAccessData(
+                facility_manager_id: $user->id,
+                manager_id: $manager->id,
+            )
+        );
+
+        return back()->with('success', 'Maintenance manager access granted.');
+    }
+
+    public function revokeManagerAccess(User $user)
+    {
+        $this->authorize('update', $user);
+
+        $manager = $user->manager;
+        if (! $manager) {
+            return back()->withErrors([
+                'manager_id' => 'Select a manager before removing maintenance access.',
+            ]);
+        }
+
+        try {
+            $this->revokeMaintenanceManagerAccessAction->execute(
+                new ManagerAccessData(
+                    facility_manager_id: $user->id,
+                    manager_id: $manager->id,
+                )
+            );
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'manager_id' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Maintenance manager access removed.');
+    }
+
+    public function updateManagerReports(ManagerReportsRequest $request, User $user)
+    {
+        $this->authorize('update', $user);
+
+        try {
+            $this->updateManagerReportsAction->execute(
+                $user,
+                new ManagerReportsData(
+                    report_ids: $request->validated('report_ids', [])
+                )
+            );
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'report_ids' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Direct reports updated.');
+    }
+}

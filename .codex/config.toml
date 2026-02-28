@@ -1,0 +1,21 @@
+model = "gpt-5.2-codex"
+
+[mcp_servers.laravel-boost]
+startup_timeout_sec = 60
+command = "php"
+args = ["artisan", "boost:mcp"]
+
+[mcp_servers.shadcn]
+startup_timeout_sec = 60
+command = "npx"
+args = ["shadcn-vue@latest", "mcp"]
+
+[features]
+unified_exec = true
+powershell_utf8 = true
+experimental_windows_sandbox = true
+elevated_windows_sandbox = true
+
+[sandbox_workspace_write]
+network_access = true
+
