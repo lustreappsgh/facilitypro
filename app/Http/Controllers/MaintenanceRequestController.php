@@ -39,7 +39,6 @@ class MaintenanceRequestController extends Controller
         $startDateInput = $request->input('start_date');
         $endDateInput = $request->input('end_date');
         $facilityId = $request->input('facility_id');
-        $condition = $request->input('condition');
         $userId = $request->input('user_id');
 
         $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
@@ -51,9 +50,7 @@ class MaintenanceRequestController extends Controller
             [$startDate, $endDate] = [$endDate, $startDate];
         }
 
-        $facilitiesQuery = $canViewAllRequests || $user->can('users.manage')
-            ? Facility::query()
-            : Facility::maintenanceFacilities($user);
+        $facilitiesQuery = Facility::maintenanceFacilities($user);
 
         $baseQuery = MaintenanceRequest::maintenanceScope($user)->with([
             'facility',
@@ -93,7 +90,6 @@ class MaintenanceRequestController extends Controller
         $filteredRequests = (clone $baseQuery)
             ->whereBetween('created_at', ["{$startDate} 00:00:00", "{$endDate} 23:59:59"])
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
-            ->when($condition, fn ($query) => $query->whereHas('facility', fn ($facilityQuery) => $facilityQuery->where('condition', $condition)))
             ->when($canViewAllRequests && $userId, fn ($query) => $query->where('requested_by', $userId))
             ->orderByDesc('created_at')
             ->latest()
@@ -134,19 +130,12 @@ class MaintenanceRequestController extends Controller
                 'groups' => $groups,
                 'weeks_by_year_month' => $weeksByYearMonth,
                 'facilities' => $facilitiesQuery->orderBy('name')->get(),
-                'conditions' => (clone $facilitiesQuery)
-                    ->whereNotNull('condition')
-                    ->distinct()
-                    ->orderBy('condition')
-                    ->pluck('condition')
-                    ->values(),
                 'show_requester_name' => $showRequesterName,
                 'show_facility_manager_name' => $showFacilityManagerName,
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
                     'facility_id' => $facilityId,
-                    'condition' => $condition,
                     'user_id' => $canViewAllRequests ? $userId : null,
                 ],
             ],
