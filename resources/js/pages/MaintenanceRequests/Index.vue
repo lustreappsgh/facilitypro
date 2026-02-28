@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { complete, create, edit, index as maintenanceIndex, show, start } from '@/routes/maintenance';
+import { approve, close, create, edit, index as maintenanceIndex, reject, show } from '@/routes/maintenance';
 import { create as workOrderCreate, show as workOrderShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -99,9 +99,12 @@ const metrics = computed(() => {
 
     return {
         total: requests.length,
-        pending: requests.filter((request) => request.status === 'pending').length,
+        submitted: requests.filter((request) => ['submitted', 'pending'].includes(request.status)).length,
+        approved: requests.filter((request) => ['approved', 'assigned', 'work_order_created'].includes(request.status)).length,
         inProgress: requests.filter((request) => request.status === 'in_progress').length,
-        completed: requests.filter((request) => request.status === 'completed').length,
+        completedPendingPayment: requests.filter((request) => request.status === 'completed_pending_payment').length,
+        paid: requests.filter((request) => request.status === 'paid').length,
+        closed: requests.filter((request) => ['closed', 'completed'].includes(request.status)).length,
     };
 });
 
@@ -122,16 +125,27 @@ const clearFilters = () => {
 };
 
 const statusLabel = (status: string) => {
+    if (status === 'submitted') return 'Submitted';
+    if (status === 'approved') return 'Approved';
+    if (status === 'rejected') return 'Rejected';
+    if (status === 'assigned') return 'Assigned';
+    if (status === 'work_order_created') return 'Work Order Created';
     if (status === 'in_progress') return 'In Progress';
-    if (status === 'completed') return 'Completed';
+    if (status === 'completed_pending_payment') return 'Completed - Pending Payment';
+    if (status === 'paid') return 'Paid';
+    if (status === 'closed') return 'Closed';
+    if (status === 'completed') return 'Completed (Legacy)';
     if (status === 'cancelled') return 'Cancelled';
-    return 'Pending';
+    return 'Pending (Legacy)';
 };
 
 const statusClass = (status: string) => {
-    if (status === 'completed') return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+    if (status === 'rejected' || status === 'cancelled') return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
+    if (status === 'paid') return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+    if (status === 'closed' || status === 'completed') return 'bg-slate-500/10 text-slate-700 border-slate-500/20';
+    if (status === 'completed_pending_payment') return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
     if (status === 'in_progress') return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
-    if (status === 'cancelled') return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
+    if (status === 'approved' || status === 'assigned' || status === 'work_order_created') return 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20';
     return 'bg-amber-500/10 text-amber-700 border-amber-500/20';
 };
 
@@ -213,17 +227,22 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                 h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
                     h(Link, { href: show(row.original.id).url }, () => 'View'),
                 ),
-                (can('maintenance.update') || can('maintenance_requests.update')) && row.original.status === 'pending'
+                (can('maintenance.update') || can('maintenance_requests.update')) && ['submitted', 'pending'].includes(row.original.status)
                     ? h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
                         h(Link, { href: edit(row.original.id).url }, () => 'Edit'),
                     )
                     : null,
-                can('maintenance.start') && row.original.status === 'pending'
-                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-blue-500/10 text-blue-600 hover:bg-blue-500/20', asChild: true }, () =>
-                        h(Link, { href: start(row.original.id).url, method: 'post', as: 'button' }, () => 'Start'),
+                can('maintenance.review') && ['submitted', 'pending'].includes(row.original.status)
+                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20', asChild: true }, () =>
+                        h(Link, { href: approve(row.original.id).url, method: 'post', as: 'button' }, () => 'Approve'),
                     )
                     : null,
-                can('work_orders.create') && !row.original.latest_work_order_id
+                can('maintenance.review') && ['submitted', 'pending'].includes(row.original.status)
+                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-rose-500/10 text-rose-600 hover:bg-rose-500/20', asChild: true }, () =>
+                        h(Link, { href: reject(row.original.id).url, method: 'post', as: 'button' }, () => 'Reject'),
+                    )
+                    : null,
+                can('work_orders.create') && !row.original.latest_work_order_id && ['approved', 'assigned', 'work_order_created', 'in_progress'].includes(row.original.status)
                     ? h(Button, { size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
                         h(
                             Link,
@@ -241,9 +260,9 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                         h(Link, { href: workOrderShow(row.original.latest_work_order_id as number).url }, () => 'View work order'),
                     )
                     : null,
-                can('maintenance.complete') && row.original.status === 'in_progress'
-                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20', asChild: true }, () =>
-                        h(Link, { href: complete(row.original.id).url, method: 'post', as: 'button' }, () => 'Complete'),
+                can('maintenance.close') && row.original.status === 'paid'
+                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-slate-500/10 text-slate-700 hover:bg-slate-500/20', asChild: true }, () =>
+                        h(Link, { href: close(row.original.id).url, method: 'post', as: 'button' }, () => 'Close'),
                     )
                     : null,
             ]),
@@ -304,9 +323,12 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
 
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <StatsCard title="Total requests" :value="metrics.total" :icon="ClipboardCheck" accent-color="amber" description="All in range" />
-                <StatsCard title="Pending" :value="metrics.pending" :icon="Timer" accent-color="amber" description="Awaiting start" />
+                <StatsCard title="Submitted" :value="metrics.submitted" :icon="Timer" accent-color="amber" description="Awaiting approval" />
+                <StatsCard title="Approved Queue" :value="metrics.approved" :icon="ClipboardList" accent-color="blue" description="Ready for work order" />
                 <StatsCard title="In progress" :value="metrics.inProgress" :icon="Wrench" accent-color="blue" description="Being resolved" />
-                <StatsCard title="Completed" :value="metrics.completed" :icon="CheckCircle2" accent-color="emerald" description="Closed work" />
+                <StatsCard title="Pending payment" :value="metrics.completedPendingPayment" :icon="CheckCircle2" accent-color="amber" description="Completed work, unpaid" />
+                <StatsCard title="Paid" :value="metrics.paid" :icon="CheckCircle2" accent-color="emerald" description="Ready to close" />
+                <StatsCard title="Closed" :value="metrics.closed" :icon="CheckCircle2" accent-color="emerald" description="Finalized" />
             </div>
 
             <div class="space-y-4">
