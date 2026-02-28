@@ -10,6 +10,7 @@ import type {
   SortingState,
   VisibilityState,
 } from "@tanstack/vue-table"
+import { router } from "@inertiajs/vue3"
 import {
   FlexRender,
   getCoreRowModel,
@@ -50,6 +51,15 @@ interface PageSizeOption {
   label?: string
 }
 
+interface ServerPaginationConfig {
+  currentPage: number
+  lastPage: number
+  perPage?: number
+  prevUrl?: string | null
+  nextUrl?: string | null
+  only?: string[]
+}
+
 const props = withDefaults(defineProps<{
   data: TData[]
   columns: ColumnDef<TData, any>[]
@@ -61,6 +71,7 @@ const props = withDefaults(defineProps<{
   showSelectionSummary?: boolean
   showPagination?: boolean
   enableRowSelection?: boolean
+  serverPagination?: ServerPaginationConfig | null
 }>(), {
   pageSize: 10,
   pageSizeOptions: () => [
@@ -76,11 +87,13 @@ const props = withDefaults(defineProps<{
   showSelectionSummary: true,
   showPagination: true,
   enableRowSelection: true,
+  serverPagination: null,
 })
 
 const slots = useSlots()
 const hasTabs = computed(() => Boolean(slots.tabs))
 const hasFilters = computed(() => Boolean(slots.filters) || props.showSearch)
+const isServerPagination = computed(() => Boolean(props.serverPagination))
 
 const sorting = ref<SortingState>([])
 const columnFilters = ref<ColumnFiltersState>([])
@@ -137,6 +150,66 @@ const table = useVueTable({
     },
   },
 })
+
+const displayedPage = computed(() =>
+  isServerPagination.value
+    ? props.serverPagination?.currentPage ?? 1
+    : table.getState().pagination.pageIndex + 1,
+)
+
+const displayedPageCount = computed(() =>
+  isServerPagination.value
+    ? props.serverPagination?.lastPage ?? 1
+    : table.getPageCount(),
+)
+
+const displayedPageSize = computed(() =>
+  isServerPagination.value
+    ? props.serverPagination?.perPage ?? props.pageSize
+    : table.getState().pagination.pageSize,
+)
+
+const canGoPrevious = computed(() =>
+  isServerPagination.value
+    ? Boolean(props.serverPagination?.prevUrl)
+    : table.getCanPreviousPage(),
+)
+
+const canGoNext = computed(() =>
+  isServerPagination.value
+    ? Boolean(props.serverPagination?.nextUrl)
+    : table.getCanNextPage(),
+)
+
+const goToPrevious = () => {
+  if (!isServerPagination.value) {
+    table.previousPage()
+    return
+  }
+
+  if (!props.serverPagination?.prevUrl) return
+
+  router.get(props.serverPagination.prevUrl, {}, {
+    preserveState: true,
+    preserveScroll: true,
+    only: props.serverPagination.only,
+  })
+}
+
+const goToNext = () => {
+  if (!isServerPagination.value) {
+    table.nextPage()
+    return
+  }
+
+  if (!props.serverPagination?.nextUrl) return
+
+  router.get(props.serverPagination.nextUrl, {}, {
+    preserveState: true,
+    preserveScroll: true,
+    only: props.serverPagination.only,
+  })
+}
 </script>
 
 <template>
@@ -285,7 +358,11 @@ const table = useVueTable({
           <Label for="rows-per-page" class="text-sm font-medium">
             Rows per page
           </Label>
+          <template v-if="isServerPagination">
+            <div class="text-sm font-medium">{{ displayedPageSize }}</div>
+          </template>
           <Select
+            v-else
             :model-value="table.getState().pagination.pageSize"
             @update:model-value="(value) => table.setPageSize(Number(value))"
           >
@@ -304,16 +381,16 @@ const table = useVueTable({
           </Select>
         </div>
         <div class="text-sm font-medium">
-          Page {{ table.getState().pagination.pageIndex + 1 }} of
-          {{ table.getPageCount() }}
+          Page {{ displayedPage }} of
+          {{ displayedPageCount }}
         </div>
         <div class="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
             class="h-8 w-8"
-            :disabled="!table.getCanPreviousPage()"
-            @click="table.previousPage()"
+            :disabled="!canGoPrevious"
+            @click="goToPrevious"
           >
             <span class="sr-only">Go to previous page</span>
             <ChevronDown class="h-4 w-4 rotate-90" />
@@ -322,8 +399,8 @@ const table = useVueTable({
             variant="outline"
             size="icon"
             class="h-8 w-8"
-            :disabled="!table.getCanNextPage()"
-            @click="table.nextPage()"
+            :disabled="!canGoNext"
+            @click="goToNext"
           >
             <span class="sr-only">Go to next page</span>
             <ChevronDown class="h-4 w-4 -rotate-90" />

@@ -30,6 +30,7 @@ class FacilityController extends Controller
 
         $user = $request->user();
         $canManagePortfolio = $user->can('facilities.assign_manager')
+            || $user->can('users.manage')
             || $user->can('maintenance.manage_all');
         $canViewMaintenanceScope = $user->can('maintenance_requests.view');
         $isFacilityManager = $user->can('facilities.view') || $user->can('facilities.update');

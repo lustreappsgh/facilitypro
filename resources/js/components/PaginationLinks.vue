@@ -7,7 +7,10 @@ interface PaginationLink {
     active: boolean;
 }
 
-defineProps<{ links: PaginationLink[] }>();
+defineProps<{
+    links: PaginationLink[];
+    only?: string[];
+}>();
 </script>
 
 <template>
@@ -25,6 +28,9 @@ defineProps<{ links: PaginationLink[] }>();
             <Link
                 v-else
                 :href="link.url"
+                :only="only"
+                preserve-state
+                preserve-scroll
                 class="rounded-md border px-3 py-1 text-sm transition hover:bg-accent"
                 :class="
                     link.active
