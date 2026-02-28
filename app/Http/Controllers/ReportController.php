@@ -23,11 +23,47 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', Report::class);
 
+        $startDate = $request->string('start_date')->trim()->toString();
+        $endDate = $request->string('end_date')->trim()->toString();
+        $normalizedStartDate = $startDate !== '' ? $startDate : null;
+        $normalizedEndDate = $endDate !== '' ? $endDate : null;
+
+        $isAdminScope = $request->user()->can('users.manage')
+            || $request->user()->can('roles.manage')
+            || $request->user()->can('maintenance.manage_all');
+
+        $summary = $this->reportService->summary();
+        $adminInsights = null;
+
+        if ($isAdminScope) {
+            $adminDashboard = $this->reportService->adminDashboard($normalizedStartDate, $normalizedEndDate);
+            $spendDashboard = $this->reportService->dashboard($normalizedStartDate, $normalizedEndDate);
+
+            $summary = $adminDashboard['summary'];
+            $adminInsights = [
+                'costs' => $adminDashboard['costs'],
+                'aging' => $adminDashboard['aging'],
+                'statusBreakdown' => $adminDashboard['statusBreakdown'],
+                'trends' => $adminDashboard['trends'],
+                'approvals' => $spendDashboard['approvals'],
+                'spendBreakdowns' => $spendDashboard['breakdowns'],
+            ];
+        }
+
         return Inertia::render('Reports/Index', [
-            'data' => $this->reportService->summary(),
+            'data' => [
+                'summary' => $summary,
+                'adminInsights' => $adminInsights,
+            ],
+            'filters' => [
+                'start_date' => $normalizedStartDate,
+                'end_date' => $normalizedEndDate,
+            ],
+            'isAdminScope' => $isAdminScope,
             'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
             'routes' => [
                 'dashboard' => route('dashboard'),
+                'adminExport' => route('reports.admin.export'),
             ],
             'meta' => [
                 'generated_at' => now()->toDateTimeString(),

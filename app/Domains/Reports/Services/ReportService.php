@@ -150,7 +150,7 @@ class ReportService
     public function adminDashboard(?string $startDate = null, ?string $endDate = null): array
     {
         $cacheKey = sprintf(
-            'reports.admin_dashboard.%s.%s',
+            'reports.admin_dashboard.v2.%s.%s',
             $startDate ?? 'all',
             $endDate ?? 'all'
         );
@@ -250,6 +250,16 @@ class ReportService
                     'maintenanceRequests' => $this->buildMonthlySeries($maintenanceTrendRaw, $trendStart, 6, ['count']),
                     'workOrders' => $this->buildMonthlySeries($workOrderTrendRaw, $trendStart, 6, ['count']),
                 ],
+                'periodicTrends' => [
+                    'weekly' => [
+                        'payments' => $this->buildPaymentPeriodSeries($start, $end, 'week', 12),
+                        'requests' => $this->buildRequestPeriodSeries($start, $end, 'week', 12),
+                    ],
+                    'monthly' => [
+                        'payments' => $this->buildPaymentPeriodSeries($start, $end, 'month', 12),
+                        'requests' => $this->buildRequestPeriodSeries($start, $end, 'month', 12),
+                    ],
+                ],
             ];
         });
     }
@@ -272,5 +282,88 @@ class ReportService
             })
             ->values()
             ->toArray();
+    }
+
+    private function buildPaymentPeriodSeries(?Carbon $start, ?Carbon $end, string $unit, int $defaultPoints): array
+    {
+        $endAt = ($end ? $end->copy() : Carbon::now())->endOfDay();
+        $startAt = $start
+            ? $start->copy()->startOfDay()
+            : ($unit === 'week'
+                ? $endAt->copy()->startOfWeek()->subWeeks($defaultPoints - 1)
+                : $endAt->copy()->startOfMonth()->subMonths($defaultPoints - 1));
+
+        $periodExpression = $unit === 'week'
+            ? "DATE(DATE_SUB(created_at, INTERVAL WEEKDAY(created_at) DAY))"
+            : "DATE_FORMAT(created_at, '%Y-%m-01')";
+
+        $rows = Payment::query()
+            ->selectRaw("{$periodExpression} as period_start, COUNT(*) as count, SUM(cost) as total_cost")
+            ->whereBetween('created_at', [$startAt, $endAt])
+            ->groupBy('period_start')
+            ->orderBy('period_start')
+            ->get()
+            ->keyBy('period_start');
+
+        $series = [];
+        $cursor = $unit === 'week' ? $startAt->copy()->startOfWeek() : $startAt->copy()->startOfMonth();
+        $lastPeriod = $unit === 'week' ? $endAt->copy()->startOfWeek() : $endAt->copy()->startOfMonth();
+
+        while ($cursor->lte($lastPeriod)) {
+            $periodKey = $cursor->toDateString();
+            $row = $rows->get($periodKey);
+
+            $series[] = [
+                'period_start' => $periodKey,
+                'label' => $unit === 'week' ? $cursor->format('M d') : $cursor->format('M Y'),
+                'count' => (int) ($row->count ?? 0),
+                'total_cost' => (int) ($row->total_cost ?? 0),
+            ];
+
+            $cursor = $unit === 'week' ? $cursor->addWeek() : $cursor->addMonth();
+        }
+
+        return $series;
+    }
+
+    private function buildRequestPeriodSeries(?Carbon $start, ?Carbon $end, string $unit, int $defaultPoints): array
+    {
+        $endAt = ($end ? $end->copy() : Carbon::now())->endOfDay();
+        $startAt = $start
+            ? $start->copy()->startOfDay()
+            : ($unit === 'week'
+                ? $endAt->copy()->startOfWeek()->subWeeks($defaultPoints - 1)
+                : $endAt->copy()->startOfMonth()->subMonths($defaultPoints - 1));
+
+        $periodExpression = $unit === 'week'
+            ? "DATE(DATE_SUB(created_at, INTERVAL WEEKDAY(created_at) DAY))"
+            : "DATE_FORMAT(created_at, '%Y-%m-01')";
+
+        $rows = MaintenanceRequest::query()
+            ->selectRaw("{$periodExpression} as period_start, COUNT(*) as count")
+            ->whereBetween('created_at', [$startAt, $endAt])
+            ->groupBy('period_start')
+            ->orderBy('period_start')
+            ->get()
+            ->keyBy('period_start');
+
+        $series = [];
+        $cursor = $unit === 'week' ? $startAt->copy()->startOfWeek() : $startAt->copy()->startOfMonth();
+        $lastPeriod = $unit === 'week' ? $endAt->copy()->startOfWeek() : $endAt->copy()->startOfMonth();
+
+        while ($cursor->lte($lastPeriod)) {
+            $periodKey = $cursor->toDateString();
+            $row = $rows->get($periodKey);
+
+            $series[] = [
+                'period_start' => $periodKey,
+                'label' => $unit === 'week' ? $cursor->format('M d') : $cursor->format('M Y'),
+                'count' => (int) ($row->count ?? 0),
+            ];
+
+            $cursor = $unit === 'week' ? $cursor->addWeek() : $cursor->addMonth();
+        }
+
+        return $series;
     }
 }
