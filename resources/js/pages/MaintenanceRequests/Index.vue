@@ -58,12 +58,14 @@ interface Props {
         groups: MaintenanceRequestGroup[];
         weeks_by_year_month: WeeksByYearMonth[];
         facilities: Facility[];
+        conditions: string[];
         show_requester_name: boolean;
         show_facility_manager_name: boolean;
         filters: {
             start_date: string;
             end_date: string;
             facility_id: string | null;
+            condition: string | null;
         };
     };
     permissions: string[];
@@ -85,6 +87,7 @@ const { can } = usePermissions();
 const filterStartDate = ref(props.data.filters.start_date || '');
 const filterEndDate = ref(props.data.filters.end_date || '');
 const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
+const filterCondition = ref(props.data.filters.condition ?? 'all');
 
 const currencyFormat = new Intl.NumberFormat(undefined, {
     style: 'currency',
@@ -115,12 +118,17 @@ const applyFilters = () => {
             start_date: filterStartDate.value || undefined,
             end_date: filterEndDate.value || undefined,
             facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
+            condition: filterCondition.value === 'all' ? undefined : filterCondition.value,
         },
         { preserveState: true, preserveScroll: true },
     );
 };
 
 const clearFilters = () => {
+    filterStartDate.value = '';
+    filterEndDate.value = '';
+    filterFacilityId.value = 'all';
+    filterCondition.value = 'all';
     router.get(maintenanceIndex().url, {}, { preserveState: true, preserveScroll: true });
 };
 
@@ -298,7 +306,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             </div>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-end">
                     <div class="grid gap-2 sm:grid-cols-2">
                         <DatePicker v-model="filterStartDate" class="h-9 w-full" placeholder="Start date" />
                         <DatePicker v-model="filterEndDate" class="h-9 w-full" placeholder="End date" />
@@ -311,6 +319,17 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                             <SelectItem value="all">All facilities</SelectItem>
                             <SelectItem v-for="facility in data.facilities" :key="facility.id" :value="String(facility.id)">
                                 {{ facility.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select v-model="filterCondition">
+                        <SelectTrigger class="h-9 w-full">
+                            <SelectValue placeholder="All conditions" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All conditions</SelectItem>
+                            <SelectItem v-for="condition in data.conditions" :key="condition" :value="condition">
+                                {{ condition }}
                             </SelectItem>
                         </SelectContent>
                     </Select>
