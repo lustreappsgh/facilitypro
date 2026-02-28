@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
+use App\Enums\MaintenanceStatus;
 use App\Enums\TodoStatus;
 
 class DashboardService
@@ -30,7 +31,7 @@ class DashboardService
                 'inspectionsSubmitted' => Inspection::userVisible($user)
                     ->count(),
                 'openMaintenanceRequests' => MaintenanceRequest::userRequests($user)
-                    ->where('status', '!=', 'completed')
+                    ->whereIn('status', MaintenanceStatus::active())
                     ->count(),
                 'facilitiesManaged' => Facility::userFacilities(null, $user)
                     ->count(),
@@ -44,7 +45,7 @@ class DashboardService
                     ->whereIn('status', [TodoStatus::Pending->value, TodoStatus::Overdue->value])
                     ->count(),
                 'pendingRequests' => MaintenanceRequest::maintenanceScope($user)
-                    ->where('status', 'pending')
+                    ->whereIn('status', MaintenanceStatus::approvalQueue())
                     ->count(),
             ];
         }
@@ -55,16 +56,16 @@ class DashboardService
 
             $data['maintenanceManager'] = [
                 'openRequests' => MaintenanceRequest::userRequests($user)
-                ->whereIn('status', ['pending', 'in_progress'])
+                ->whereIn('status', MaintenanceStatus::active())
                     ->count(),
                 'pendingRequests' => MaintenanceRequest::userRequests($user)
-                    ->where('status', 'pending')
+                    ->whereIn('status', MaintenanceStatus::approvalQueue())
                     ->count(),
                 'requestsThisWeek' => MaintenanceRequest::userRequests($user)
                     ->whereBetween('created_at', ["{$weekStart->toDateString()} 00:00:00", "{$weekEnd->toDateString()} 23:59:59"])
                     ->count(),
                 'workOrdersInFlight' => WorkOrder::userVisible($user)
-                    ->where('status', '!=', 'completed')
+                    ->whereNotIn('status', ['completed', 'cancelled'])
                     ->count(),
                 'workOrdersThisWeek' => WorkOrder::userVisible($user)
                     ->whereBetween('assigned_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
@@ -132,7 +133,7 @@ class DashboardService
                 ],
                 'pending' => [
                     'maintenanceRequests' => MaintenanceRequest::query()
-                        ->whereIn('status', ['pending', 'in_progress'])
+                        ->whereIn('status', MaintenanceStatus::active())
                         ->count(),
                     'workOrders' => WorkOrder::query()
                         ->whereNotIn('status', ['completed', 'cancelled'])
@@ -154,7 +155,7 @@ class DashboardService
                         ->whereDate('scheduled_date', '<', Carbon::today())
                         ->count(),
                     'staleMaintenanceRequests' => MaintenanceRequest::query()
-                        ->whereIn('status', ['pending'])
+                        ->whereIn('status', MaintenanceStatus::approvalQueue())
                         ->where('created_at', '<=', $staleDate)
                         ->count(),
                     'staleThresholdDays' => $staleThresholdDays,

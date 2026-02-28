@@ -73,7 +73,7 @@ class UpdateWorkOrderAction
             return;
         }
 
-        $current = $workOrder->status ?? 'in_progress';
+        $current = $workOrder->status ?? 'assigned';
         $next = $payload['status'] ?? $current;
 
         if ($current === $next) {
@@ -81,6 +81,7 @@ class UpdateWorkOrderAction
         }
 
         $allowed = [
+            'assigned' => ['in_progress', 'cancelled'],
             'in_progress' => ['completed', 'cancelled'],
         ];
 
@@ -115,6 +116,7 @@ class UpdateWorkOrderAction
                 $maintenanceRequest->status,
                 [
                     MaintenanceStatus::Completed->value,
+                    MaintenanceStatus::Closed->value,
                     MaintenanceStatus::Cancelled->value,
                 ],
                 true
@@ -124,8 +126,26 @@ class UpdateWorkOrderAction
 
             $this->updateMaintenanceRequest(
                 $maintenanceRequest,
-                MaintenanceStatus::Completed->value,
+                MaintenanceStatus::CompletedPendingPayment->value,
                 'maintenance_request.completed'
+            );
+
+            return;
+        }
+
+        if ($nextStatus === 'in_progress') {
+            if ($maintenanceRequest->status === MaintenanceStatus::InProgress->value) {
+                return;
+            }
+
+            if (in_array($maintenanceRequest->status, MaintenanceStatus::terminal(), true)) {
+                return;
+            }
+
+            $this->updateMaintenanceRequest(
+                $maintenanceRequest,
+                MaintenanceStatus::InProgress->value,
+                'maintenance_request.started'
             );
 
             return;

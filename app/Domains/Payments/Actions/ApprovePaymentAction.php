@@ -4,6 +4,7 @@ namespace App\Domains\Payments\Actions;
 
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
+use App\Enums\MaintenanceStatus;
 use App\Models\Payment;
 use App\Models\PaymentApproval;
 use DomainException;
@@ -42,10 +43,25 @@ class ApprovePaymentAction
             'comments' => $comments,
         ]);
 
-        // Logic check: Does this approval finalize the payment?
-        // Simple logic for now: One approval moves it to 'approved'.
+        // Simple flow: one approval records payment as paid.
         if ($payment->status === 'pending') {
-            $payment->update(['status' => 'approved']);
+            $payment->update([
+                'status' => 'paid',
+                'amount_payed' => $payment->amount_payed > 0 ? $payment->amount_payed : $payment->cost,
+            ]);
+        }
+
+        $maintenanceRequest = $payment->maintenanceRequest;
+        if (
+            $maintenanceRequest
+            && in_array($maintenanceRequest->status, [
+                MaintenanceStatus::CompletedPendingPayment->value,
+                MaintenanceStatus::Completed->value,
+            ], true)
+        ) {
+            $maintenanceRequest->update([
+                'status' => MaintenanceStatus::Paid->value,
+            ]);
         }
 
         $payment = $payment->refresh();

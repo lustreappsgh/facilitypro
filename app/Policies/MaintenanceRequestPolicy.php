@@ -68,7 +68,7 @@ class MaintenanceRequestPolicy
         }
 
         return $maintenanceRequest->requested_by === $user->id
-            && $maintenanceRequest->status === MaintenanceStatus::Pending->value;
+            && in_array($maintenanceRequest->status, MaintenanceStatus::requesterEditable(), true);
     }
 
     public function review(User $user, MaintenanceRequest $maintenanceRequest): bool

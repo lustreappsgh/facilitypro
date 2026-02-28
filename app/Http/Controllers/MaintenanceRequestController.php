@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\RequestType;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
+use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -311,22 +312,76 @@ class MaintenanceRequestController extends Controller
     public function review(MaintenanceRequest $maintenance)
     {
         $this->authorize('review', $maintenance);
-        $this->maintenanceService->review($maintenance);
-        return back()->with('success', 'Maintenance started.');
+        try {
+            $this->maintenanceService->review($maintenance);
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'status' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Request approved.');
+    }
+
+    public function reject(MaintenanceRequest $maintenance)
+    {
+        $this->authorize('review', $maintenance);
+        try {
+            $this->maintenanceService->reject($maintenance);
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'status' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Request rejected.');
+    }
+
+    public function approve(MaintenanceRequest $maintenance)
+    {
+        return $this->review($maintenance);
     }
 
     public function start(MaintenanceRequest $maintenance)
     {
         $this->authorize('start', $maintenance);
-        $this->maintenanceService->start($maintenance);
+        try {
+            $this->maintenanceService->start($maintenance);
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'status' => $exception->getMessage(),
+            ]);
+        }
+
         return back()->with('success', 'Maintenance started.');
     }
 
     public function complete(MaintenanceRequest $maintenance)
     {
         $this->authorize('complete', $maintenance);
-        $this->maintenanceService->complete($maintenance);
-        return back()->with('success', 'Maintenance completed.');
+        try {
+            $this->maintenanceService->complete($maintenance);
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'status' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Maintenance marked complete and pending payment.');
+    }
+
+    public function close(MaintenanceRequest $maintenance)
+    {
+        $this->authorize('close', $maintenance);
+        try {
+            $this->maintenanceService->close($maintenance);
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'status' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Maintenance request closed.');
     }
 
     public function myRequests(Request $request)
@@ -381,15 +436,15 @@ class MaintenanceRequestController extends Controller
 
         $statsQuery = clone $query;
         $activeCount = (clone $statsQuery)
-            ->whereNotIn('status', [
-                MaintenanceStatus::Completed->value,
-                MaintenanceStatus::Cancelled->value,
-            ])
+            ->whereIn('status', MaintenanceStatus::active())
             ->count();
         $estimatedCost = (clone $statsQuery)->sum('cost');
         // Calculate average resolution days in PHP for SQLite compatibility
         $completedRequests = (clone $statsQuery)
-            ->where('status', MaintenanceStatus::Completed->value)
+            ->whereIn('status', [
+                MaintenanceStatus::Closed->value,
+                MaintenanceStatus::Completed->value,
+            ])
             ->get(['created_at', 'updated_at']);
 
         $avgResolutionDays = null;

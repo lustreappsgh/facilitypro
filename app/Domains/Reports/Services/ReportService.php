@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reports\Services;
 
+use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Inspection;
@@ -231,7 +232,7 @@ class ReportService
                 ],
                 'aging' => [
                     'openMaintenanceOver14Days' => MaintenanceRequest::query()
-                        ->whereIn('status', ['pending', 'in_progress'])
+                        ->whereIn('status', MaintenanceStatus::active())
                         ->where('created_at', '<=', Carbon::now()->subDays(14))
                         ->count(),
                     'overdueWorkOrders' => WorkOrder::query()

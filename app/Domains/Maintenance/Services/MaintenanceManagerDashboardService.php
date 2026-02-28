@@ -2,6 +2,7 @@
 
 namespace App\Domains\Maintenance\Services;
 
+use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
 use App\Models\User;
@@ -22,7 +23,7 @@ class MaintenanceManagerDashboardService
     {
         return [
             'open_requests' => MaintenanceRequest::query()
-            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereIn('status', MaintenanceStatus::active())
                 ->count(),
             'work_orders_in_flight' => WorkOrder::query()
                 ->whereNotIn('status', ['completed', 'cancelled'])
@@ -37,7 +38,11 @@ class MaintenanceManagerDashboardService
     {
         $pendingRequests = MaintenanceRequest::query()
             ->with(['facility', 'requestType'])
-            ->where('status', 'pending')
+            ->whereIn('status', [
+                MaintenanceStatus::Approved->value,
+                MaintenanceStatus::Assigned->value,
+                MaintenanceStatus::WorkOrderCreated->value,
+            ])
             ->latest()
             ->take(5)
             ->get()

@@ -60,8 +60,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('maintenance-dashboard', [MaintenanceManagerDashboardController::class, 'index'])
         ->name('maintenance.dashboard');
     Route::post('maintenance/{maintenance}/review', [MaintenanceRequestController::class, 'review'])->name('maintenance.review');
+    Route::post('maintenance/{maintenance}/approve', [MaintenanceRequestController::class, 'approve'])->name('maintenance.approve');
+    Route::post('maintenance/{maintenance}/reject', [MaintenanceRequestController::class, 'reject'])->name('maintenance.reject');
     Route::post('maintenance/{maintenance}/start', [MaintenanceRequestController::class, 'start'])->name('maintenance.start');
     Route::post('maintenance/{maintenance}/complete', [MaintenanceRequestController::class, 'complete'])->name('maintenance.complete');
+    Route::post('maintenance/{maintenance}/close', [MaintenanceRequestController::class, 'close'])->name('maintenance.close');
 
     Route::resource('vendors', VendorController::class);
     Route::get('work-orders/oversight', [WorkOrderController::class, 'oversight'])

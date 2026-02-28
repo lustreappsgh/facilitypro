@@ -9,7 +9,7 @@ class MaintenanceRequestData
         public int $request_type_id,
         public ?string $description,
         public ?int $cost,
-        public string $status,
+        public ?string $status,
         public int $requested_by,
     ) {}
 
@@ -20,20 +20,25 @@ class MaintenanceRequestData
             request_type_id: (int) $data['request_type_id'],
             description: $data['description'] ?? null,
             cost: isset($data['cost']) ? (int) $data['cost'] : null,
-            status: $data['status'] ?? 'pending',
+            status: $data['status'] ?? null,
             requested_by: $data['requested_by'] ?? auth()->id(),
         );
     }
 
     public function toArray(): array
     {
-        return [
+        $payload = [
             'facility_id' => $this->facility_id,
             'request_type_id' => $this->request_type_id,
             'description' => $this->description,
             'cost' => $this->cost,
-            'status' => $this->status,
             'requested_by' => $this->requested_by,
         ];
+
+        if ($this->status !== null) {
+            $payload['status'] = $this->status;
+        }
+
+        return $payload;
     }
 }

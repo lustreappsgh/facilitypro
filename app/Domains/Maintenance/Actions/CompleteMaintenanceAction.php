@@ -7,7 +7,7 @@ use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
-use Exception;
+use DomainException;
 
 class CompleteMaintenanceAction
 {
@@ -20,13 +20,13 @@ class CompleteMaintenanceAction
     public function execute(MaintenanceRequest $request): MaintenanceRequest
     {
         if ($request->status !== MaintenanceStatus::InProgress->value) {
-            throw new Exception('Request must be in progress to complete.');
+            throw new DomainException('Request must be in progress to complete.');
         }
 
         $before = $request->getOriginal();
 
         $request->update([
-            'status' => MaintenanceStatus::Completed->value,
+            'status' => MaintenanceStatus::CompletedPendingPayment->value,
         ]);
 
         $request = $request->refresh();

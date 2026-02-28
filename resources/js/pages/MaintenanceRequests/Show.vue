@@ -14,7 +14,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { edit, index as maintenanceIndex, start } from '@/routes/maintenance';
+import { edit, index as maintenanceIndex } from '@/routes/maintenance';
 import { create as workOrderCreate, show as workOrderShow } from '@/routes/work-orders';
 import { index as vendorsIndex } from '@/routes/vendors';
 import { show as paymentShow } from '@/routes/payments';
@@ -125,23 +125,39 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
 });
 
 const statusSteps = [
-    { value: 'pending', label: 'Pending' },
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'work_order_created', label: 'Work Order Created' },
     { value: 'in_progress', label: 'In progress' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'completed_pending_payment', label: 'Completed / Pending payment' },
+    { value: 'paid', label: 'Paid' },
+    { value: 'closed', label: 'Closed' },
+    { value: 'rejected', label: 'Rejected' },
 ];
 
 const statusBadgeClass = (status: string) => {
-    if (status === 'completed') {
+    if (status === 'paid') {
         return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    }
+
+    if (status === 'closed' || status === 'completed') {
+        return 'bg-slate-500/10 text-slate-700 dark:text-slate-300';
     }
 
     if (status === 'in_progress') {
         return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
     }
 
-    if (status === 'cancelled') {
+    if (status === 'completed_pending_payment') {
+        return 'bg-orange-500/10 text-orange-700 dark:text-orange-300';
+    }
+
+    if (status === 'cancelled' || status === 'rejected') {
         return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
+    }
+
+    if (status === 'approved' || status === 'assigned' || status === 'work_order_created') {
+        return 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300';
     }
 
     return 'bg-slate-500/10 text-slate-700 dark:text-slate-300';
@@ -227,15 +243,28 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             <Link :href="maintenanceIndex().url">Back to list</Link>
                         </Button>
                         <Button
-                            v-if="can('maintenance.start') && request.status === 'pending'"
+                            v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
                             variant="secondary"
                             as-child
                         >
-                            <Link :href="start(request).url" method="post" as="button">
-                                Start maintenance
+                            <Link :href="route('maintenance.approve', request.id)" method="post" as="button">
+                                Approve request
                             </Link>
                         </Button>
-                        <Button v-if="can('work_orders.create') && workOrders.length === 0" as-child>
+                        <Button
+                            v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
+                            variant="secondary"
+                            class="bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+                            as-child
+                        >
+                            <Link :href="route('maintenance.reject', request.id)" method="post" as="button">
+                                Reject request
+                            </Link>
+                        </Button>
+                        <Button
+                            v-if="can('work_orders.create') && workOrders.length === 0 && ['approved', 'assigned', 'work_order_created', 'in_progress'].includes(request.status)"
+                            as-child
+                        >
                             <Link :href="workOrderCreate({
                                 query: {
                                     maintenance_request_id: request.id,
@@ -254,11 +283,20 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </Link>
                         </Button>
                         <Button
-                            v-if="can('maintenance.update') && request.status === 'pending'"
+                            v-if="can('maintenance.update') && ['submitted', 'pending'].includes(request.status)"
                             variant="secondary"
                             as-child
                         >
                             <Link :href="edit(request).url">Edit request</Link>
+                        </Button>
+                        <Button
+                            v-if="can('maintenance.close') && request.status === 'paid'"
+                            variant="secondary"
+                            as-child
+                        >
+                            <Link :href="route('maintenance.close', request.id)" method="post" as="button">
+                                Close request
+                            </Link>
                         </Button>
                     </div>
                 </template>

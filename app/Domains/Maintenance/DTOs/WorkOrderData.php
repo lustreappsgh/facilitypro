@@ -25,7 +25,7 @@ class WorkOrderData
             estimated_cost: isset($data['estimated_cost']) ? (int) $data['estimated_cost'] : null,
             actual_cost: isset($data['actual_cost']) ? (int) $data['actual_cost'] : null,
             assigned_by: auth()->id(),
-            status: $data['status'] ?? 'in_progress',
+            status: $data['status'] ?? 'assigned',
         );
     }
 

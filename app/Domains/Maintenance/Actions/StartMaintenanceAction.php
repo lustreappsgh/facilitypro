@@ -7,7 +7,7 @@ use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
-use Exception;
+use DomainException;
 
 class StartMaintenanceAction
 {
@@ -19,8 +19,13 @@ class StartMaintenanceAction
 
     public function execute(MaintenanceRequest $request): MaintenanceRequest
     {
-        if ($request->status !== MaintenanceStatus::Pending->value) {
-            throw new Exception('Request must be pending to start.');
+        if (! in_array($request->status, [
+            MaintenanceStatus::Approved->value,
+            MaintenanceStatus::Assigned->value,
+            MaintenanceStatus::WorkOrderCreated->value,
+            MaintenanceStatus::Pending->value,
+        ], true)) {
+            throw new DomainException('Request must be approved and assigned before it can start.');
         }
 
         $before = $request->getOriginal();

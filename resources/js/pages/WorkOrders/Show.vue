@@ -81,6 +81,7 @@ const { can } = usePermissions();
 const statusMode = ref<string | null>(null);
 
 const statusSteps = [
+    { value: 'assigned', label: 'Assigned' },
     { value: 'in_progress', label: 'In progress' },
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' },
@@ -95,6 +96,10 @@ const statusBadgeClass = (status: string) => {
         return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
     }
 
+    if (status === 'assigned') {
+        return 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300';
+    }
+
     if (status === 'cancelled') {
         return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
     }
@@ -102,7 +107,7 @@ const statusBadgeClass = (status: string) => {
     return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
 };
 
-const currentStatus = computed(() => props.workOrder.status ?? 'in_progress');
+const currentStatus = computed(() => props.workOrder.status ?? 'assigned');
 const isInProgress = computed(() => currentStatus.value === 'in_progress');
 
 const paymentForm = useForm({
@@ -216,6 +221,15 @@ const paymentStatusBadgeClass = (status: string) => {
                                 name="status"
                                 :value="statusMode ?? currentStatus"
                             />
+                            <Button
+                                v-if="currentStatus === 'assigned'"
+                                size="sm"
+                                variant="outline"
+                                :disabled="processing"
+                                @click="statusMode = 'in_progress'"
+                            >
+                                Start work
+                            </Button>
                             <Button
                                 v-if="currentStatus === 'in_progress'"
                                 size="sm"

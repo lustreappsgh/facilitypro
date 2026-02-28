@@ -9,7 +9,7 @@ use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use DomainException;
 
-class ReviewMaintenanceAction
+class CloseMaintenanceAction
 {
     use ResolvesAuditActor;
 
@@ -19,21 +19,24 @@ class ReviewMaintenanceAction
 
     public function execute(MaintenanceRequest $request): MaintenanceRequest
     {
-        if (! in_array($request->status, MaintenanceStatus::approvalQueue(), true)) {
-            throw new DomainException('Only submitted requests can be approved.');
+        if (! in_array($request->status, [
+            MaintenanceStatus::Paid->value,
+            MaintenanceStatus::Completed->value,
+        ], true)) {
+            throw new DomainException('Only paid requests can be closed.');
         }
 
         $before = $request->getOriginal();
 
         $request->update([
-            'status' => MaintenanceStatus::Approved->value,
+            'status' => MaintenanceStatus::Closed->value,
         ]);
 
         $request = $request->refresh();
 
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),
-            action: 'maintenance_request.approved',
+            action: 'maintenance_request.closed',
             auditable_type: $request->getMorphClass(),
             auditable_id: $request->id,
             before: $before,

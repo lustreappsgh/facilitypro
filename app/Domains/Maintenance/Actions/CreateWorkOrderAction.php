@@ -27,12 +27,12 @@ class CreateWorkOrderAction
     {
         $request = MaintenanceRequest::findOrFail($data->maintenance_request_id);
 
-        if (in_array($request->status, [MaintenanceStatus::Completed->value, MaintenanceStatus::Cancelled->value], true)) {
-            throw new DomainException('Work orders cannot be created for completed or cancelled requests.');
+        if (! in_array($request->status, MaintenanceStatus::assignmentReady(), true)) {
+            throw new DomainException('Work orders can only be created for approved requests.');
         }
 
         $payload = $data->toArray();
-        $payload['status'] = $payload['status'] ?? 'in_progress';
+        $payload['status'] = $payload['status'] ?? 'assigned';
         $workOrder = WorkOrder::create($payload);
 
         if (! Payment::query()->where('work_order_id', $workOrder->id)->exists()) {
@@ -46,16 +46,16 @@ class CreateWorkOrderAction
             ));
         }
 
-        if ($request->status !== MaintenanceStatus::InProgress->value) {
+        if ($request->status !== MaintenanceStatus::WorkOrderCreated->value) {
             $before = $request->getOriginal();
             $request->update([
-                'status' => MaintenanceStatus::InProgress->value,
+                'status' => MaintenanceStatus::WorkOrderCreated->value,
             ]);
             $request->refresh();
 
             $this->recordAuditLogAction->execute(new AuditLogData(
                 actor_id: $this->resolveActorId(),
-                action: 'maintenance_request.started',
+                action: 'maintenance_request.work_order_created',
                 auditable_type: $request->getMorphClass(),
                 auditable_id: $request->id,
                 before: $before,

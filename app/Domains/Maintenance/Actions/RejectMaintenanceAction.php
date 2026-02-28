@@ -9,7 +9,7 @@ use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use DomainException;
 
-class ReviewMaintenanceAction
+class RejectMaintenanceAction
 {
     use ResolvesAuditActor;
 
@@ -20,20 +20,20 @@ class ReviewMaintenanceAction
     public function execute(MaintenanceRequest $request): MaintenanceRequest
     {
         if (! in_array($request->status, MaintenanceStatus::approvalQueue(), true)) {
-            throw new DomainException('Only submitted requests can be approved.');
+            throw new DomainException('Only submitted requests can be rejected.');
         }
 
         $before = $request->getOriginal();
 
         $request->update([
-            'status' => MaintenanceStatus::Approved->value,
+            'status' => MaintenanceStatus::Rejected->value,
         ]);
 
         $request = $request->refresh();
 
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),
-            action: 'maintenance_request.approved',
+            action: 'maintenance_request.rejected',
             auditable_type: $request->getMorphClass(),
             auditable_id: $request->id,
             before: $before,

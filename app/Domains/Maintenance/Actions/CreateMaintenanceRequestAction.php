@@ -29,7 +29,7 @@ class CreateMaintenanceRequestAction
         }
 
         $payload = $data->toArray();
-        $payload['status'] = MaintenanceStatus::Pending->value;
+        $payload['status'] = MaintenanceStatus::Submitted->value;
 
         $request = MaintenanceRequest::create($payload);
 

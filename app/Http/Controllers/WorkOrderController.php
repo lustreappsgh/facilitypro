@@ -7,6 +7,7 @@ use App\Domains\Maintenance\Actions\UpdateWorkOrderAction;
 use App\Domains\Maintenance\DTOs\WorkOrderData;
 use App\Domains\Maintenance\Requests\WorkOrderRequest;
 use App\Domains\Payments\Requests\PaymentUpdateRequest;
+use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
@@ -163,7 +164,7 @@ class WorkOrderController extends Controller
         return Inertia::render('WorkOrders/Create', [
             'maintenanceRequests' => MaintenanceRequest::maintenanceScope($request->user())
                 ->with(['facility', 'requestType'])
-                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->whereIn('status', MaintenanceStatus::assignmentReady())
                 ->get(),
             'vendors' => Vendor::where('status', 'active')->get(),
             'selectedRequestId' => $request->integer('maintenance_request_id') ?: null,
@@ -204,7 +205,7 @@ class WorkOrderController extends Controller
             'workOrder' => $workOrder->load(['vendor', 'maintenanceRequest']),
             'maintenanceRequests' => MaintenanceRequest::maintenanceScope(request()->user())
                 ->with(['facility', 'requestType'])
-                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->whereIn('status', MaintenanceStatus::assignmentReady())
                 ->get(),
             'vendors' => Vendor::where('status', 'active')->get(),
         ]);

@@ -3,7 +3,9 @@
 namespace App\Domains\Maintenance\Services;
 
 use App\Domains\Maintenance\Actions\CompleteMaintenanceAction;
+use App\Domains\Maintenance\Actions\CloseMaintenanceAction;
 use App\Domains\Maintenance\Actions\CreateMaintenanceRequestAction;
+use App\Domains\Maintenance\Actions\RejectMaintenanceAction;
 use App\Domains\Maintenance\Actions\ReviewMaintenanceAction;
 use App\Domains\Maintenance\Actions\StartMaintenanceAction;
 use App\Domains\Maintenance\Actions\UpdateMaintenanceRequestAction;
@@ -16,8 +18,10 @@ class MaintenanceService
         protected CreateMaintenanceRequestAction $createAction,
         protected UpdateMaintenanceRequestAction $updateAction,
         protected ReviewMaintenanceAction $reviewAction,
+        protected RejectMaintenanceAction $rejectAction,
         protected StartMaintenanceAction $startAction,
-        protected CompleteMaintenanceAction $completeAction
+        protected CompleteMaintenanceAction $completeAction,
+        protected CloseMaintenanceAction $closeAction
     ) {}
 
     public function create(MaintenanceRequestData $data): MaintenanceRequest
@@ -35,6 +39,11 @@ class MaintenanceService
         return $this->reviewAction->execute($request);
     }
 
+    public function reject(MaintenanceRequest $request): MaintenanceRequest
+    {
+        return $this->rejectAction->execute($request);
+    }
+
     public function start(MaintenanceRequest $request): MaintenanceRequest
     {
         return $this->startAction->execute($request);
@@ -43,5 +52,10 @@ class MaintenanceService
     public function complete(MaintenanceRequest $request): MaintenanceRequest
     {
         return $this->completeAction->execute($request);
+    }
+
+    public function close(MaintenanceRequest $request): MaintenanceRequest
+    {
+        return $this->closeAction->execute($request);
     }
 }

@@ -69,7 +69,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const selectClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
 
-const statusMode = ref<'in_progress'>('in_progress');
+const statusMode = ref<'assigned'>('assigned');
 const selectedVendor = ref<string | number | null>(
     props.selectedVendorId ?? null,
 );

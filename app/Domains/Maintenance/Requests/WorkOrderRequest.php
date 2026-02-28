@@ -29,7 +29,7 @@ class WorkOrderRequest extends FormRequest
             'status' => [
                 'nullable',
                 'string',
-                Rule::in(['in_progress', 'completed', 'cancelled']),
+                Rule::in(['assigned', 'in_progress', 'completed', 'cancelled']),
             ],
         ];
     }
