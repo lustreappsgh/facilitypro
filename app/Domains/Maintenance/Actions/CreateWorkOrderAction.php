@@ -10,7 +10,6 @@ use App\Domains\Payments\DTOs\PaymentData;
 use App\Domains\Payments\Services\PaymentService;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
-use App\Models\Payment;
 use App\Models\WorkOrder;
 use DomainException;
 
@@ -27,24 +26,29 @@ class CreateWorkOrderAction
     {
         $request = MaintenanceRequest::findOrFail($data->maintenance_request_id);
 
-        if (! in_array($request->status, MaintenanceStatus::assignmentReady(), true)) {
-            throw new DomainException('Work orders can only be created for approved requests.');
+        if (! in_array($request->status, [
+            MaintenanceStatus::Submitted->value,
+            MaintenanceStatus::Pending->value,
+            MaintenanceStatus::Rejected->value,
+            MaintenanceStatus::Approved->value,
+        ], true)) {
+            throw new DomainException('Work orders can only be created for submitted requests.');
         }
 
         $payload = $data->toArray();
         $payload['status'] = $payload['status'] ?? 'assigned';
+        $payload['vendor_id'] = null;
+        $payload['estimated_cost'] = $payload['estimated_cost'] ?? $request->cost;
         $workOrder = WorkOrder::create($payload);
 
-        if (! Payment::query()->where('work_order_id', $workOrder->id)->exists()) {
-            $this->paymentService->create(new PaymentData(
-                maintenance_request_id: $request->id,
-                work_order_id: $workOrder->id,
-                cost: 0,
-                amount_payed: 0,
-                status: 'pending',
-                comments: "Auto-created for work order #{$workOrder->id}.",
-            ));
-        }
+        $this->paymentService->create(new PaymentData(
+            maintenance_request_id: $request->id,
+            work_order_id: $workOrder->id,
+            cost: (int) ($workOrder->estimated_cost ?? $request->cost ?? 0),
+            amount_payed: 0,
+            status: 'pending',
+            comments: "Awaiting approval for work order #{$workOrder->id}.",
+        ));
 
         if ($request->status !== MaintenanceStatus::WorkOrderCreated->value) {
             $before = $request->getOriginal();

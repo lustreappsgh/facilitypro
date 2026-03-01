@@ -4,22 +4,12 @@ import WorkOrderController from '@/actions/App/Http/Controllers/WorkOrderControl
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { create as workOrdersCreate, index as workOrdersIndex } from '@/routes/work-orders';
-import { store as vendorStore } from '@/routes/vendors';
+import { index as workOrdersIndex } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link, useForm } from '@inertiajs/vue3';
-import { Plus } from 'lucide-vue-next';
+import { Form, Head, Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 interface Facility {
@@ -41,16 +31,9 @@ interface MaintenanceRequest {
     description?: string | null;
 }
 
-interface Vendor {
-    id: number;
-    name: string;
-}
-
 interface Props {
     maintenanceRequests: MaintenanceRequest[];
-    vendors: Vendor[];
     selectedRequestId?: number | null;
-    selectedVendorId?: number | null;
 }
 
 const props = defineProps<Props>();
@@ -61,7 +44,7 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: workOrdersIndex().url,
     },
     {
-        title: 'Assign vendor',
+        title: 'Create',
         href: '#',
     },
 ];
@@ -70,13 +53,9 @@ const selectClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
 
 const statusMode = ref<'assigned'>('assigned');
-const selectedVendor = ref<string | number | null>(
-    props.selectedVendorId ?? null,
-);
 const selectedRequestId = ref<string | number | null>(
     props.selectedRequestId ?? null,
 );
-const vendorDialogOpen = ref(false);
 const estimatedCost = ref('');
 const scheduledDate = ref('');
 
@@ -108,46 +87,14 @@ watch(
     },
     { immediate: true },
 );
-
-const vendorForm = useForm({
-    name: '',
-    email: '',
-    phone: '',
-    status: 'active',
-});
-
-const vendorRedirectTo = computed(() => {
-    if (!selectedRequestId.value) {
-        return workOrdersCreate().url;
-    }
-
-    return workOrdersCreate({
-        query: { maintenance_request_id: String(selectedRequestId.value) },
-    }).url;
-});
-
-const submitVendor = () => {
-    vendorForm
-        .transform((data) => ({
-            ...data,
-            redirect_to: vendorRedirectTo.value,
-        }))
-        .post(vendorStore().url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                vendorDialogOpen.value = false;
-                vendorForm.reset();
-            },
-        });
-};
 </script>
 
 <template>
-    <Head title="Assign work order" />
+    <Head title="Create work order" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Assign work order" subtitle="Assign a vendor and schedule work." />
+            <PageHeader title="Create work order" subtitle="Create from a maintenance request, then submit for approval." />
 
             <Form
                 v-bind="WorkOrderController.store.form()"
@@ -203,36 +150,9 @@ const submitVendor = () => {
                 </div>
 
                 <div class="grid gap-2">
-                    <div class="flex items-center justify-between">
-                        <Label for="vendor_id">Vendor</Label>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            class="h-8 w-8"
-                            @click="vendorDialogOpen = true"
-                            aria-label="Create vendor"
-                        >
-                            <Plus class="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <select
-                        id="vendor_id"
-                        name="vendor_id"
-                        :class="selectClass"
-                        required
-                        v-model="selectedVendor"
-                    >
-                        <option value="" disabled>Select a vendor</option>
-                        <option
-                            v-for="vendor in vendors"
-                            :key="vendor.id"
-                            :value="vendor.id"
-                        >
-                            {{ vendor.name }}
-                        </option>
-                    </select>
-                    <InputError :message="errors.vendor_id" />
+                    <p class="text-sm text-muted-foreground">
+                        Vendor assignment and status updates are enabled after admin approval.
+                    </p>
                 </div>
 
                 <div class="grid gap-2">
@@ -280,77 +200,6 @@ const submitVendor = () => {
                     </Button>
                 </div>
             </Form>
-
-            <Dialog v-model:open="vendorDialogOpen">
-                <DialogContent class="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Create vendor</DialogTitle>
-                        <DialogDescription>
-                            Add a vendor without leaving this work order.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div class="grid gap-4 py-2">
-                        <div class="grid gap-2">
-                            <Label for="vendor_name">Vendor name</Label>
-                            <Input
-                                id="vendor_name"
-                                v-model="vendorForm.name"
-                                placeholder="Acme Services"
-                                required
-                            />
-                            <InputError :message="vendorForm.errors.name" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="vendor_email">Email</Label>
-                            <Input
-                                id="vendor_email"
-                                v-model="vendorForm.email"
-                                type="email"
-                                placeholder="vendor@example.com"
-                            />
-                            <InputError :message="vendorForm.errors.email" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="vendor_phone">Phone</Label>
-                            <Input
-                                id="vendor_phone"
-                                v-model="vendorForm.phone"
-                                placeholder="(555) 000-0000"
-                            />
-                            <InputError :message="vendorForm.errors.phone" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="vendor_status">Status</Label>
-                            <select
-                                id="vendor_status"
-                                v-model="vendorForm.status"
-                                :class="selectClass"
-                            >
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                            <InputError :message="vendorForm.errors.status" />
-                        </div>
-                    </div>
-                    <DialogFooter class="gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            @click="vendorDialogOpen = false"
-                            :disabled="vendorForm.processing"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="button"
-                            :disabled="vendorForm.processing"
-                            @click="submitVendor"
-                        >
-                            Create vendor
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     </AppLayout>
 </template>

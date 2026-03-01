@@ -4,6 +4,7 @@ namespace App\Domains\Payments\Actions;
 
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
+use App\Enums\MaintenanceStatus;
 use App\Models\Payment;
 use App\Models\PaymentApproval;
 use DomainException;
@@ -40,6 +41,12 @@ class RejectPaymentAction
         ]);
 
         $payment->update(['status' => 'rejected']);
+
+        if ($payment->maintenanceRequest) {
+            $payment->maintenanceRequest->update([
+                'status' => MaintenanceStatus::Rejected->value,
+            ]);
+        }
 
         $payment = $payment->refresh();
 

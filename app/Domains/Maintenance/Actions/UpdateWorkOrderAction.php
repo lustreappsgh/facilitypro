@@ -69,6 +69,21 @@ class UpdateWorkOrderAction
 
     protected function validateTransition(WorkOrder $workOrder, array $payload): void
     {
+        $paymentStatus = $workOrder->payment?->status;
+        $paymentApproved = in_array($paymentStatus, ['approved', 'paid'], true);
+        $vendorChanging = array_key_exists('vendor_id', $payload)
+            && (string) ($payload['vendor_id'] ?? '') !== (string) ($workOrder->vendor_id ?? '');
+        $statusChanging = array_key_exists('status', $payload)
+            && ($payload['status'] ?? $workOrder->status) !== $workOrder->status;
+
+        if (($vendorChanging || $statusChanging) && ! $paymentApproved) {
+            throw new DomainException('Work order must be approved by admin before assigning vendor or changing status.');
+        }
+
+        if ($vendorChanging && empty($payload['vendor_id'])) {
+            throw new DomainException('Vendor is required once assignment begins.');
+        }
+
         if (! array_key_exists('status', $payload)) {
             return;
         }
@@ -94,6 +109,11 @@ class UpdateWorkOrderAction
             if ($actualCost === null) {
                 throw new DomainException('Completed work orders require an actual cost.');
             }
+
+            $vendorId = $payload['vendor_id'] ?? $workOrder->vendor_id;
+            if (! $vendorId) {
+                throw new DomainException('Assign a vendor before completing this work order.');
+            }
         }
     }
 
@@ -112,6 +132,11 @@ class UpdateWorkOrderAction
         }
 
         if ($nextStatus === 'completed') {
+            $paymentStatus = $workOrder->payment?->status;
+            $targetStatus = in_array($paymentStatus, ['approved', 'paid'], true)
+                ? MaintenanceStatus::Completed->value
+                : MaintenanceStatus::CompletedPendingPayment->value;
+
             if (in_array(
                 $maintenanceRequest->status,
                 [
@@ -126,7 +151,7 @@ class UpdateWorkOrderAction
 
             $this->updateMaintenanceRequest(
                 $maintenanceRequest,
-                MaintenanceStatus::CompletedPendingPayment->value,
+                $targetStatus,
                 'maintenance_request.completed'
             );
 

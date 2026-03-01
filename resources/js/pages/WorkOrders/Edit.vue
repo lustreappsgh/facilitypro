@@ -10,6 +10,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { index as workOrdersIndex, show as workOrdersShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 interface Facility {
     id: number;
@@ -40,6 +41,9 @@ interface WorkOrder {
     estimated_cost?: number | null;
     actual_cost?: number | null;
     status?: string | null;
+    payment?: {
+        status?: string | null;
+    } | null;
 }
 
 interface Props {
@@ -67,6 +71,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const selectClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
+
+const paymentStatus = computed(() => props.workOrder.payment?.status ?? 'pending');
+const executionUnlocked = computed(() =>
+    ['approved', 'paid'].includes(paymentStatus.value),
+);
 </script>
 
 <template>
@@ -107,7 +116,12 @@ const selectClass =
 
                 <div class="grid gap-2">
                     <Label for="vendor_id">Vendor</Label>
-                    <select id="vendor_id" name="vendor_id" :class="selectClass">
+                    <select
+                        id="vendor_id"
+                        name="vendor_id"
+                        :class="selectClass"
+                        :disabled="!executionUnlocked"
+                    >
                         <option value="" disabled>
                             Select a vendor
                         </option>
@@ -121,6 +135,12 @@ const selectClass =
                         </option>
                     </select>
                     <InputError :message="errors.vendor_id" />
+                    <p
+                        v-if="!executionUnlocked"
+                        class="text-xs text-muted-foreground"
+                    >
+                        Vendor assignment is available after admin approval.
+                    </p>
                 </div>
 
                 <div class="grid gap-2">
@@ -161,7 +181,12 @@ const selectClass =
 
                 <div class="grid gap-2">
                     <Label for="status">Status</Label>
-                    <select id="status" name="status" :class="selectClass">
+                    <select
+                        id="status"
+                        name="status"
+                        :class="selectClass"
+                        :disabled="!executionUnlocked"
+                    >
                         <option value="" disabled>Select status</option>
                         <option
                             value="in_progress"
@@ -183,6 +208,12 @@ const selectClass =
                         </option>
                     </select>
                     <InputError :message="errors.status" />
+                    <p
+                        v-if="!executionUnlocked"
+                        class="text-xs text-muted-foreground"
+                    >
+                        Status updates are available after admin approval.
+                    </p>
                 </div>
 
                 <div class="flex items-center gap-4">

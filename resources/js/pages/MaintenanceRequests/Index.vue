@@ -242,7 +242,9 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                         h(Link, { href: reject(row.original.id).url, method: 'post', as: 'button' }, () => 'Reject'),
                     )
                     : null,
-                can('work_orders.create') && !row.original.latest_work_order_id && ['approved', 'assigned', 'work_order_created', 'in_progress'].includes(row.original.status)
+                can('work_orders.create')
+                    && !row.original.latest_work_order_id
+                    && ['submitted', 'pending', 'rejected', 'approved'].includes(row.original.status)
                     ? h(Button, { size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
                         h(
                             Link,

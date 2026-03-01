@@ -262,7 +262,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </Link>
                         </Button>
                         <Button
-                            v-if="can('work_orders.create') && workOrders.length === 0 && ['approved', 'assigned', 'work_order_created', 'in_progress'].includes(request.status)"
+                            v-if="can('work_orders.create') && workOrders.length === 0 && ['submitted', 'pending', 'rejected', 'approved'].includes(request.status)"
                             as-child
                         >
                             <Link :href="workOrderCreate({

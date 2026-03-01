@@ -116,7 +116,12 @@ const paymentForm = useForm({
 });
 
 const paymentStatus = computed(() => props.workOrder.payment?.status ?? 'pending');
-const paymentIsPending = computed(() => paymentStatus.value === 'pending');
+const paymentIsEditable = computed(() =>
+    ['pending', 'rejected'].includes(paymentStatus.value),
+);
+const executionUnlocked = computed(() =>
+    ['approved', 'paid'].includes(paymentStatus.value),
+);
 
 const paymentStatusBadgeClass = (status: string) => {
     if (status === 'approved') {
@@ -222,19 +227,10 @@ const paymentStatusBadgeClass = (status: string) => {
                                 :value="statusMode ?? currentStatus"
                             />
                             <Button
-                                v-if="currentStatus === 'assigned'"
-                                size="sm"
-                                variant="outline"
-                                :disabled="processing"
-                                @click="statusMode = 'in_progress'"
-                            >
-                                Start work
-                            </Button>
-                            <Button
                                 v-if="currentStatus === 'in_progress'"
                                 size="sm"
                                 variant="outline"
-                                :disabled="processing"
+                                :disabled="processing || !executionUnlocked"
                                 @click="statusMode = 'completed'"
                             >
                                 Mark completed
@@ -243,7 +239,7 @@ const paymentStatusBadgeClass = (status: string) => {
                                 v-if="currentStatus === 'in_progress'"
                                 size="sm"
                                 variant="secondary"
-                                :disabled="processing"
+                                :disabled="processing || !executionUnlocked"
                                 @click="statusMode = 'cancelled'"
                             >
                                 Mark cancelled
@@ -253,6 +249,18 @@ const paymentStatusBadgeClass = (status: string) => {
                                 class="text-sm text-rose-600"
                             >
                                 {{ errors.status }}
+                            </p>
+                            <p
+                                v-if="currentStatus === 'assigned' && !executionUnlocked"
+                                class="text-sm text-muted-foreground"
+                            >
+                                Awaiting admin approval to move this work order to in progress.
+                            </p>
+                            <p
+                                v-if="!executionUnlocked"
+                                class="text-sm text-muted-foreground"
+                            >
+                                Approval is required before assigning vendors or updating work order status.
                             </p>
                         </Form>
                     </CardContent>
@@ -369,11 +377,11 @@ const paymentStatusBadgeClass = (status: string) => {
                                 type="submit"
                                 :disabled="
                                     paymentForm.processing ||
-                                    !paymentIsPending ||
+                                    !paymentIsEditable ||
                                     Number(paymentForm.cost) <= 0
                                 "
                             >
-                                Submit for approval
+                                {{ paymentStatus === 'rejected' ? 'Resubmit for approval' : 'Submit for approval' }}
                             </Button>
                         </div>
                     </form>

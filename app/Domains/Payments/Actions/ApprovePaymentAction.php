@@ -43,16 +43,59 @@ class ApprovePaymentAction
             'comments' => $comments,
         ]);
 
-        // Simple flow: one approval records payment as paid.
+        // Approval gates work-order creation; final settlement can happen later.
         if ($payment->status === 'pending') {
             $payment->update([
-                'status' => 'paid',
-                'amount_payed' => $payment->amount_payed > 0 ? $payment->amount_payed : $payment->cost,
+                'status' => 'approved',
             ]);
+        }
+
+        $workOrder = $payment->workOrder;
+        if ($workOrder && $workOrder->status === 'assigned') {
+            $workOrderBefore = $workOrder->getOriginal();
+            $workOrder->update([
+                'status' => 'in_progress',
+            ]);
+
+            $this->recordAuditLogAction->execute(new AuditLogData(
+                actor_id: $userId,
+                action: 'work_order.started',
+                auditable_type: $workOrder->getMorphClass(),
+                auditable_id: $workOrder->id,
+                before: $workOrderBefore,
+                after: $workOrder->getAttributes(),
+            ));
         }
 
         $maintenanceRequest = $payment->maintenanceRequest;
         if (
+            $maintenanceRequest
+            && $workOrder
+            && in_array($maintenanceRequest->status, [
+                MaintenanceStatus::Submitted->value,
+                MaintenanceStatus::Pending->value,
+                MaintenanceStatus::Rejected->value,
+                MaintenanceStatus::Approved->value,
+                MaintenanceStatus::WorkOrderCreated->value,
+            ], true)
+        ) {
+            $maintenanceRequest->update([
+                'status' => MaintenanceStatus::InProgress->value,
+                'cost' => $payment->cost,
+            ]);
+        } elseif (
+            $maintenanceRequest
+            && in_array($maintenanceRequest->status, [
+                MaintenanceStatus::Submitted->value,
+                MaintenanceStatus::Pending->value,
+                MaintenanceStatus::Rejected->value,
+            ], true)
+        ) {
+            $maintenanceRequest->update([
+                'status' => MaintenanceStatus::Approved->value,
+                'cost' => $payment->cost,
+            ]);
+        } elseif (
             $maintenanceRequest
             && in_array($maintenanceRequest->status, [
                 MaintenanceStatus::CompletedPendingPayment->value,

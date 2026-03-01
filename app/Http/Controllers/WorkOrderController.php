@@ -164,11 +164,14 @@ class WorkOrderController extends Controller
         return Inertia::render('WorkOrders/Create', [
             'maintenanceRequests' => MaintenanceRequest::maintenanceScope($request->user())
                 ->with(['facility', 'requestType'])
-                ->whereIn('status', MaintenanceStatus::assignmentReady())
+                ->whereIn('status', [
+                    MaintenanceStatus::Submitted->value,
+                    MaintenanceStatus::Pending->value,
+                    MaintenanceStatus::Rejected->value,
+                    MaintenanceStatus::Approved->value,
+                ])
                 ->get(),
-            'vendors' => Vendor::where('status', 'active')->get(),
             'selectedRequestId' => $request->integer('maintenance_request_id') ?: null,
-            'selectedVendorId' => $request->integer('vendor_id') ?: null,
         ]);
     }
 
@@ -202,10 +205,15 @@ class WorkOrderController extends Controller
         $this->authorize('update', $workOrder);
 
         return Inertia::render('WorkOrders/Edit', [
-            'workOrder' => $workOrder->load(['vendor', 'maintenanceRequest']),
+            'workOrder' => $workOrder->load(['vendor', 'maintenanceRequest', 'payment']),
             'maintenanceRequests' => MaintenanceRequest::maintenanceScope(request()->user())
                 ->with(['facility', 'requestType'])
-                ->whereIn('status', MaintenanceStatus::assignmentReady())
+                ->whereIn('status', [
+                    MaintenanceStatus::Submitted->value,
+                    MaintenanceStatus::Pending->value,
+                    MaintenanceStatus::Rejected->value,
+                    MaintenanceStatus::Approved->value,
+                ])
                 ->get(),
             'vendors' => Vendor::where('status', 'active')->get(),
         ]);
@@ -231,9 +239,9 @@ class WorkOrderController extends Controller
         $this->authorize('update', $workOrder);
 
         $payment = $workOrder->payment;
-        if ($payment && $payment->status !== 'pending') {
+        if ($payment && in_array($payment->status, ['approved', 'paid'], true)) {
             return back()->withErrors([
-                'cost' => 'Only pending payments can be updated.',
+                'cost' => 'Approved or paid payments cannot be updated.',
             ]);
         }
 
@@ -252,6 +260,7 @@ class WorkOrderController extends Controller
             $payment->fill([
                 'cost' => $data['cost'],
                 'comments' => $data['comments'] ?? null,
+                'status' => 'pending',
             ])->save();
         }
 
