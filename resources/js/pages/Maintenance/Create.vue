@@ -86,8 +86,6 @@ const selectedFacilityTypeId = ref<string | null>(
 const defaultRequestTypeId = ref<string | null>(
     props.requestTypes[0] ? String(props.requestTypes[0].id) : null,
 );
-const defaultDescription = ref('');
-const defaultCost = ref('');
 const defaultWeekStart = ref(getUpcomingMonday());
 const rows = ref<BulkRow[]>([]);
 
@@ -121,8 +119,8 @@ const initializeRows = () => {
         facility_id: facility.id,
         facility_name: facility.name,
         request_type_id: defaultRequestTypeId.value ?? '',
-        description: defaultDescription.value,
-        cost: defaultCost.value,
+        description: '',
+        cost: '',
         week_start: defaultWeekStart.value,
         selected: hasPrefilledFacility.value
             ? facility.id === props.selectedFacilityId
@@ -139,9 +137,6 @@ const applyDefaultsToSelected = () => {
         return {
             ...row,
             request_type_id: defaultRequestTypeId.value ?? row.request_type_id,
-            description: defaultDescription.value,
-            cost: defaultCost.value,
-            week_start: defaultWeekStart.value,
         };
     });
 };
@@ -203,36 +198,6 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 {{ type.name }}
                             </option>
                         </select>
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="default_description">Default description</Label>
-                        <textarea
-                            id="default_description"
-                            v-model="defaultDescription"
-                            :class="textAreaClass"
-                            placeholder="Describe the issue for selected facilities"
-                        />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="default_cost">Default estimated cost</Label>
-                        <Input
-                            id="default_cost"
-                            v-model="defaultCost"
-                            type="number"
-                            step="1"
-                            placeholder="0"
-                        />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="default_week_start">Default week start</Label>
-                        <Input
-                            id="default_week_start"
-                            v-model="defaultWeekStart"
-                            type="date"
-                        />
                     </div>
 
                     <div class="md:col-span-2">
