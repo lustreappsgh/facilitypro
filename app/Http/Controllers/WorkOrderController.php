@@ -185,10 +185,24 @@ class WorkOrderController extends Controller
     {
         $this->authorize('create', WorkOrder::class);
 
+        $requestedIds = collect($request->input('request_ids', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+        $intent = $request->string('intent')->toString();
+        if (! in_array($intent, ['review', 'create'], true)) {
+            $intent = null;
+        }
+
         $maintenanceRequests = MaintenanceRequest::maintenanceScope($request->user())
             ->with(['facility.facilityType', 'requestType'])
             ->whereIn('status', MaintenanceStatus::approvalQueue())
             ->whereDoesntHave('workOrders')
+            ->when(
+                $requestedIds->isNotEmpty(),
+                fn ($builder) => $builder->whereIn('id', $requestedIds->all()),
+            )
             ->orderByDesc('created_at')
             ->get();
 
@@ -220,6 +234,10 @@ class WorkOrderController extends Controller
                     'name' => $item->requestType->name,
                 ] : null,
             ])->values(),
+            'selection' => [
+                'request_ids' => $requestedIds->all(),
+                'intent' => $intent,
+            ],
         ]);
     }
 

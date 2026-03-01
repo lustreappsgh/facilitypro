@@ -55,6 +55,10 @@ interface Props {
     facilityManagers: FacilityManager[];
     vendors: Vendor[];
     maintenanceRequests: MaintenanceRequestRow[];
+    selection?: {
+        request_ids?: number[];
+        intent?: 'review' | 'create' | null;
+    };
 }
 
 const props = defineProps<Props>();
@@ -73,15 +77,30 @@ const breadcrumbs: BreadcrumbItem[] = [
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
+const selectedRequestIdSet = new Set((props.selection?.request_ids ?? []).map((id) => Number(id)));
+const initiallySelectedRequest = props.maintenanceRequests.find((request) =>
+    selectedRequestIdSet.has(request.id),
+);
 const selectedFacilityManagerId = ref<string | null>(
-    props.facilityManagers[0] ? String(props.facilityManagers[0].id) : null,
+    initiallySelectedRequest?.facility?.managed_by
+        ? String(initiallySelectedRequest.facility.managed_by)
+        : (props.facilityManagers[0] ? String(props.facilityManagers[0].id) : null),
 );
 const selectedVendorId = ref<string | null>(
     props.vendors[0] ? String(props.vendors[0].id) : null,
 );
 const rows = ref<EditableRow[]>([]);
+const pageSubtitle = computed(() =>
+    props.selection?.intent === 'create'
+        ? 'Finalize approvals and create work orders for the selected requests.'
+        : 'Approve or reject requests in bulk for each facility manager.',
+);
 
 const filteredRequests = computed(() => {
+    if (selectedRequestIdSet.size > 0) {
+        return props.maintenanceRequests.filter((request) => selectedRequestIdSet.has(request.id));
+    }
+
     if (!selectedFacilityManagerId.value) {
         return [] as MaintenanceRequestRow[];
     }
@@ -110,7 +129,9 @@ const initializeRows = () => {
             request.cost !== null && request.cost !== undefined
                 ? String(request.cost)
                 : '',
-        selected: true,
+        selected: selectedRequestIdSet.size > 0
+            ? selectedRequestIdSet.has(request.id)
+            : true,
         facility_manager_id: String(request.facility?.managed_by ?? ''),
         review_action: 'approve',
         vendor_id: selectedVendorId.value ?? '',
@@ -161,7 +182,7 @@ watch(selectedVendorId, () => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Review requests" subtitle="Approve or reject requests in bulk for each facility manager." />
+            <PageHeader title="Review requests" :subtitle="pageSubtitle" />
 
             <Form
                 :action="workOrdersBulkStore().url"

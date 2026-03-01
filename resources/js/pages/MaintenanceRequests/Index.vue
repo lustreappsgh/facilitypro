@@ -18,6 +18,7 @@ import { computed, h, ref } from 'vue';
 import { CheckCircle2, ClipboardCheck, ClipboardList, Eye, Pencil, Plus, Timer, Wrench } from 'lucide-vue-next';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { bulkCreate as workOrdersBulkCreate } from '@/routes/work-orders';
 
 interface Facility {
     id: number;
@@ -124,8 +125,86 @@ const applyFilters = () => {
     );
 };
 
+const toDateString = (value: Date) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+const getCurrentAndUpcomingWeekRange = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const mondayOffset = (dayOfWeek + 6) % 7;
+
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - mondayOffset);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 13);
+
+    return {
+        start: toDateString(start),
+        end: toDateString(end),
+    };
+};
+
+const applyNeedsActionNow = () => {
+    const range = getCurrentAndUpcomingWeekRange();
+
+    filterStartDate.value = range.start;
+    filterEndDate.value = range.end;
+
+    router.get(
+        maintenanceIndex().url,
+        {
+            start_date: range.start,
+            end_date: range.end,
+            facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
+        },
+        { preserveState: true, preserveScroll: true },
+    );
+};
+
 const clearFilters = () => {
     router.get(maintenanceIndex().url, {}, { preserveState: true, preserveScroll: true });
+};
+
+const selectedEligibleRequestIds = (table: any) => {
+    const selectedRows = table?.getSelectedRowModel?.().rows ?? [];
+
+    return selectedRows
+        .map((row: { original: MaintenanceRequest }) => row.original)
+        .filter((request: MaintenanceRequest) => ['submitted', 'pending'].includes(request.status) && !request.has_work_order)
+        .map((request: MaintenanceRequest) => request.id);
+};
+
+const openBulkReview = (table: any) => {
+    const requestIds = selectedEligibleRequestIds(table);
+    if (!requestIds.length) {
+        return;
+    }
+
+    router.get(
+        workOrdersBulkCreate().url,
+        { request_ids: requestIds, intent: 'review' },
+        { preserveState: false, preserveScroll: true },
+    );
+};
+
+const openBulkCreateWorkOrders = (table: any) => {
+    const requestIds = selectedEligibleRequestIds(table);
+    if (!requestIds.length) {
+        return;
+    }
+
+    router.get(
+        workOrdersBulkCreate().url,
+        { request_ids: requestIds, intent: 'create' },
+        { preserveState: false, preserveScroll: true },
+    );
 };
 
 const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDate.value}`);
@@ -402,6 +481,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                         </SelectContent>
                     </Select>
                     <div class="flex items-center gap-2">
+                        <Button size="sm" variant="secondary" class="h-9 px-4" @click="applyNeedsActionNow">Needs action now</Button>
                         <Button size="sm" class="h-9 px-4" @click="applyFilters">Apply filters</Button>
                         <Button size="sm" variant="ghost" class="h-9 px-3" @click="clearFilters">Reset</Button>
                     </div>
@@ -444,8 +524,30 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                                 :columns="columns"
                                 :show-search="false"
                                 :show-selection-summary="false"
-                                :enable-row-selection="false"
-                            />
+                                :enable-row-selection="can('work_orders.create')"
+                            >
+                                <template v-if="can('work_orders.create')" #actions="{ table }">
+                                    <div class="flex items-center gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            class="h-8 px-3 text-[11px] font-semibold uppercase tracking-wide"
+                                            :disabled="selectedEligibleRequestIds(table).length === 0"
+                                            @click="openBulkReview(table)"
+                                        >
+                                            Bulk review selected
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            class="h-8 px-3 text-[11px] font-semibold uppercase tracking-wide"
+                                            :disabled="selectedEligibleRequestIds(table).length === 0"
+                                            @click="openBulkCreateWorkOrders(table)"
+                                        >
+                                            Bulk create work orders
+                                        </Button>
+                                    </div>
+                                </template>
+                            </DataTable>
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
