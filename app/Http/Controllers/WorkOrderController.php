@@ -9,6 +9,7 @@ use App\Domains\Maintenance\Requests\WorkOrderRequest;
 use App\Domains\Payments\Requests\PaymentUpdateRequest;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
+use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
 use App\Models\Vendor;
@@ -175,6 +176,50 @@ class WorkOrderController extends Controller
         ]);
     }
 
+    public function bulkCreate(Request $request)
+    {
+        $this->authorize('create', WorkOrder::class);
+
+        $maintenanceRequests = MaintenanceRequest::maintenanceScope($request->user())
+            ->with(['facility.facilityType', 'requestType'])
+            ->whereIn('status', [
+                MaintenanceStatus::Submitted->value,
+                MaintenanceStatus::Pending->value,
+                MaintenanceStatus::Rejected->value,
+                MaintenanceStatus::Approved->value,
+            ])
+            ->whereDoesntHave('workOrders')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $facilityTypeIds = $maintenanceRequests
+            ->pluck('facility.facility_type_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        return Inertia::render('WorkOrders/BulkCreate', [
+            'facilityTypes' => FacilityType::query()
+                ->whereIn('id', $facilityTypeIds)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'maintenanceRequests' => $maintenanceRequests->map(fn (MaintenanceRequest $item) => [
+                'id' => $item->id,
+                'description' => $item->description,
+                'cost' => $item->cost,
+                'facility' => $item->facility ? [
+                    'id' => $item->facility->id,
+                    'name' => $item->facility->name,
+                    'facility_type_id' => $item->facility->facility_type_id,
+                ] : null,
+                'requestType' => $item->requestType ? [
+                    'id' => $item->requestType->id,
+                    'name' => $item->requestType->name,
+                ] : null,
+            ])->values(),
+        ]);
+    }
+
     public function store(WorkOrderRequest $request)
     {
         $this->authorize('create', WorkOrder::class);
@@ -189,6 +234,76 @@ class WorkOrderController extends Controller
         }
 
         return redirect()->route('work-orders.index')->with('success', 'Work Order assigned.');
+    }
+
+    public function bulkStore(Request $request)
+    {
+        $this->authorize('create', WorkOrder::class);
+
+        $validated = $request->validate([
+            'bulk_orders' => ['required', 'array', 'min:1'],
+            'bulk_orders.*.maintenance_request_id' => ['required', 'exists:maintenance_requests,id'],
+            'bulk_orders.*.scheduled_date' => ['nullable', 'date'],
+            'bulk_orders.*.estimated_cost' => ['nullable', 'numeric'],
+            'bulk_orders.*.actual_cost' => ['nullable', 'numeric'],
+        ]);
+
+        $bulkOrders = collect($validated['bulk_orders'])
+            ->unique('maintenance_request_id')
+            ->values();
+
+        $requestIds = $bulkOrders->pluck('maintenance_request_id')->all();
+        $requests = MaintenanceRequest::maintenanceScope($request->user())
+            ->whereIn('id', $requestIds)
+            ->withCount('workOrders')
+            ->get()
+            ->keyBy('id');
+
+        $createdCount = 0;
+        $errors = [];
+
+        foreach ($bulkOrders as $item) {
+            $maintenanceRequestId = (int) $item['maintenance_request_id'];
+            $maintenanceRequest = $requests->get($maintenanceRequestId);
+
+            if (! $maintenanceRequest) {
+                $errors[] = "Request #{$maintenanceRequestId} is outside your scope.";
+                continue;
+            }
+
+            if (($maintenanceRequest->work_orders_count ?? 0) > 0) {
+                $errors[] = "Request #{$maintenanceRequestId} already has a work order.";
+                continue;
+            }
+
+            try {
+                $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
+                    'maintenance_request_id' => $maintenanceRequestId,
+                    'scheduled_date' => $item['scheduled_date'] ?? null,
+                    'estimated_cost' => $item['estimated_cost'] ?? $maintenanceRequest->cost,
+                    'actual_cost' => $item['actual_cost'] ?? null,
+                    'status' => 'assigned',
+                ]));
+                $createdCount++;
+            } catch (DomainException $exception) {
+                $errors[] = "Request #{$maintenanceRequestId}: ".$exception->getMessage();
+            }
+        }
+
+        if ($createdCount === 0) {
+            return back()->withErrors([
+                'bulk_orders' => 'No work orders were created. '.collect($errors)->take(3)->implode(' '),
+            ]);
+        }
+
+        $message = "{$createdCount} work order(s) created.";
+        if ($errors !== []) {
+            $message .= ' '.count($errors).' item(s) skipped.';
+        }
+
+        return redirect()
+            ->route('work-orders.index')
+            ->with('success', $message);
     }
 
     public function show(WorkOrder $workOrder)

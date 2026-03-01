@@ -75,6 +75,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('work-orders/admin', [WorkOrderController::class, 'adminIndex'])
         ->name('work-orders.admin')
         ->middleware('throttle:admin-actions');
+    Route::get('work-orders/bulk-create', [WorkOrderController::class, 'bulkCreate'])
+        ->name('work-orders.bulk-create');
+    Route::post('work-orders/bulk-store', [WorkOrderController::class, 'bulkStore'])
+        ->name('work-orders.bulk-store');
     Route::patch('work-orders/{work_order}/payment', [WorkOrderController::class, 'updatePayment'])
         ->name('work-orders.payment.update');
     Route::resource('work-orders', WorkOrderController::class);

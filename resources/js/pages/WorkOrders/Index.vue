@@ -21,7 +21,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Search, Plus } from 'lucide-vue-next';
+import { Search, Plus, Layers } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -278,10 +278,23 @@ const columns: ColumnDef<WorkOrder>[] = [
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-col gap-8 p-6 lg:p-10">
             <PageHeader title="Work orders" subtitle="Coordinate vendor assignments and track completion."
-                :action-label="can('work_orders.create') ? 'Assign vendor' : ''"
-                :action-href="can('work_orders.create') ? create().url : ''" :action-icon="Plus"
                 :show-filters-toggle="true" :filters-visible="filtersVisible"
-                @toggle-filters="filtersVisible = !filtersVisible" />
+                @toggle-filters="filtersVisible = !filtersVisible">
+                <template #actions>
+                    <Button v-if="can('work_orders.create')" size="lg" variant="outline" as-child>
+                        <Link :href="route('work-orders.bulk-create')">
+                            <Layers class="mr-2 h-4 w-4" />
+                            Bulk create
+                        </Link>
+                    </Button>
+                    <Button v-if="can('work_orders.create')" size="lg" as-child>
+                        <Link :href="create().url">
+                            <Plus class="mr-2 h-4 w-4" />
+                            Create work order
+                        </Link>
+                    </Button>
+                </template>
+            </PageHeader>
 
             <DataTable :data="workOrders.data" :columns="columns" :show-search="false" :show-selection-summary="false"
                 class="portfolio-table">
