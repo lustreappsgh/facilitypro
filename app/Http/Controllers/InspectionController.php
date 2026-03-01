@@ -144,6 +144,7 @@ class InspectionController extends Controller
                 ->map(fn (Condition $condition) => $condition->name)
                 ->values(),
             'requestTypes' => RequestType::all(),
+            'selectedFacilityId' => $request->integer('facility_id') ?: null,
         ]);
     }
 

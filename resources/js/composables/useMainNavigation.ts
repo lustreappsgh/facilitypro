@@ -1,7 +1,7 @@
 import { dashboard } from '@/routes';
-import { index as facilitiesIndex } from '@/routes/facilities';
+import { index as facilitiesIndex, my as facilitiesMy } from '@/routes/facilities';
 import { index as facilityTypesIndex } from '@/routes/facility-types';
-import inspections from '@/routes/inspections';
+import inspections, { my as inspectionsMy } from '@/routes/inspections';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as auditLogsIndex } from '@/routes/audit-logs';
 import { index as todosIndex } from '@/routes/todos';
@@ -28,6 +28,7 @@ type NavItemDefinition = NavItem & {
 
 export function useMainNavigation() {
     const { can, canAny } = usePermissions();
+    const useManagerScopedViews = !canAny(['users.manage', 'maintenance.manage_all']);
 
     const navItemDefinitions: NavItemDefinition[] = [
         {
@@ -44,7 +45,7 @@ export function useMainNavigation() {
         },
         {
             title: 'Facilities',
-            href: facilitiesIndex(),
+            href: useManagerScopedViews ? facilitiesMy() : facilitiesIndex(),
             icon: Building2,
             permission: 'facilities.view',
         },
@@ -56,7 +57,7 @@ export function useMainNavigation() {
         },
         {
             title: 'Inspections',
-            href: inspections.index(),
+            href: useManagerScopedViews ? inspectionsMy() : inspections.index(),
             icon: ClipboardSignature,
             permission: 'inspections.view',
         },
@@ -68,7 +69,7 @@ export function useMainNavigation() {
         },
         {
             title: 'Maintenance Requests',
-            href: maintenance.index(),
+            href: useManagerScopedViews ? maintenance.my() : maintenance.index(),
             icon: Wrench,
             permissions: [
                 'maintenance.view',

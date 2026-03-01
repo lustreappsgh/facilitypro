@@ -134,6 +134,8 @@ const clearFilters = () => {
     router.get(todosIndex().url, {}, { preserveState: true, preserveScroll: true });
 };
 
+const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDate.value}`);
+
 const toggleTodoSelection = (todoId: number, checked: boolean) => {
     if (checked) {
         if (!selectedTodoIds.value.includes(todoId)) {
@@ -218,7 +220,7 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
             cell: ({ row }) => {
                 const canSelect = can('todos.complete') && ['pending', 'overdue'].includes(row.original.status);
                 if (!canSelect) {
-                    return h('span', { class: 'text-[10px] text-muted-foreground/50' }, '—');
+                    return h('span', { class: 'text-[10px] text-muted-foreground/50' }, '-');
                 }
 
                 return h(Checkbox, {
@@ -235,7 +237,7 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
             id: 'facility',
             accessorFn: (row) => row.facility?.name ?? '',
             header: 'Facility',
-            cell: ({ row }) => h('span', { class: 'font-medium text-[11px]' }, row.original.facility?.name ?? '—'),
+            cell: ({ row }) => h('span', { class: 'font-medium text-[11px]' }, row.original.facility?.name ?? '-'),
             enableHiding: false,
         },
         {
@@ -265,7 +267,7 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
             id: 'manager',
             accessorFn: (row) => row.facility_manager_name ?? '',
             header: 'Facility Manager',
-            cell: ({ row }) => h('span', { class: 'text-[11px] text-muted-foreground' }, row.original.facility_manager_name ?? '—'),
+            cell: ({ row }) => h('span', { class: 'text-[11px] text-muted-foreground' }, row.original.facility_manager_name ?? '-'),
         });
     }
 
@@ -348,6 +350,9 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
                         <Button size="sm" variant="ghost" class="h-9 px-3" @click="clearFilters">Reset</Button>
                     </div>
                 </div>
+                <p class="mt-3 text-xs text-muted-foreground">
+                    Default range shows the current and upcoming week: {{ dateRangeLabel }}.
+                </p>
             </div>
 
             <div

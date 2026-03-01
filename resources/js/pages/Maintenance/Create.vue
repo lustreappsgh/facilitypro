@@ -32,6 +32,7 @@ interface Props {
     facilities: Facility[];
     facilityTypes: FacilityType[];
     requestTypes: RequestType[];
+    selectedFacilityId?: number | null;
 }
 
 const props = defineProps<Props>();
@@ -71,7 +72,11 @@ const getUpcomingMonday = () => {
 };
 
 const selectedFacilityTypeId = ref<string | null>(
-    props.facilityTypes[0] ? String(props.facilityTypes[0].id) : null,
+    prefilledFacility.value?.facility_type_id
+        ? String(prefilledFacility.value.facility_type_id)
+        : props.facilityTypes[0]
+          ? String(props.facilityTypes[0].id)
+          : null,
 );
 const defaultRequestTypeId = ref<string | null>(
     props.requestTypes[0] ? String(props.requestTypes[0].id) : null,
@@ -114,7 +119,9 @@ const initializeRows = () => {
         description: defaultDescription.value,
         cost: defaultCost.value,
         week_start: defaultWeekStart.value,
-        selected: true,
+        selected: hasPrefilledFacility.value
+            ? facility.id === props.selectedFacilityId
+            : true,
     }));
 };
 
@@ -143,6 +150,13 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <PageHeader title="Create maintenance request" subtitle="Create requests in bulk by facility type." />
+
+            <div
+                v-if="hasPrefilledFacility && prefilledFacility"
+                class="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground"
+            >
+                Prefilled facility context: <span class="font-semibold text-foreground">{{ prefilledFacility.name }}</span>
+            </div>
 
             <Form
                 v-bind="MaintenanceRequestController.store.form()"
@@ -343,3 +357,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
         </div>
     </AppLayout>
 </template>
+const hasPrefilledFacility = computed(() => Boolean(props.selectedFacilityId));
+const prefilledFacility = computed(() =>
+    props.facilities.find((facility) => facility.id === props.selectedFacilityId),
+);

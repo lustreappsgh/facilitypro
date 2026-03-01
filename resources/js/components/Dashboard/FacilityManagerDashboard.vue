@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import StatsCard from '@/components/StatsCard.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { my as facilitiesMy } from '@/routes/facilities';
-import { create as inspectionsCreate, index as inspectionsIndex } from '@/routes/inspections';
-import { create as maintenanceCreate, index as maintenanceIndex } from '@/routes/maintenance';
+import { create as inspectionsCreate, my as inspectionsMy } from '@/routes/inspections';
+import { create as maintenanceCreate, my as maintenanceMy } from '@/routes/maintenance';
 import { index as todosIndex } from '@/routes/todos';
 import { Link } from '@inertiajs/vue3';
 import { Building2, ClipboardCheck, ListTodo, Wrench } from 'lucide-vue-next';
@@ -70,10 +70,10 @@ const props = defineProps<Props>();
                         <Link :href="todosIndex().url">Todos</Link>
                     </Button>
                     <Button size="sm" variant="outline" as-child>
-                        <Link :href="inspectionsIndex().url">Inspections</Link>
+                        <Link :href="inspectionsMy().url">Inspections</Link>
                     </Button>
                     <Button size="sm" variant="outline" as-child>
-                        <Link :href="maintenanceIndex().url">Requests</Link>
+                        <Link :href="maintenanceMy().url">Requests</Link>
                     </Button>
                     <Button size="sm" as-child>
                         <Link :href="inspectionsCreate().url">New Inspection</Link>

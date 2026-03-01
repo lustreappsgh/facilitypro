@@ -15,9 +15,10 @@ interface Facility {
 interface Props {
     facilities: Facility[];
     conditions: string[];
+    selectedFacilityId?: number | null;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -46,11 +47,12 @@ const cancelHref = inspectionsIndex().url;
                 v-slot="{ errors, processing }"
             >
             <InspectionForm
-                :facilities="facilities"
-                :conditions="conditions"
+                :facilities="props.facilities"
+                :conditions="props.conditions"
                 :errors="errors"
                 :processing="processing"
                 :cancel-href="cancelHref"
+                :selected-facility-id="props.selectedFacilityId ?? null"
             />
             </Form>
         </div>

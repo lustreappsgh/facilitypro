@@ -39,6 +39,7 @@ class MaintenanceRequestController extends Controller
 
         $user = $request->user();
         $canViewAllRequests = $user->can('maintenance.manage_all');
+        $isFacilityManager = method_exists($user, 'hasRole') && $user->hasRole('facility_manager');
         $showRequesterName = $canViewAllRequests || $user->can('maintenance_requests.view');
         $showFacilityManagerName = $canViewAllRequests;
 
@@ -147,6 +148,7 @@ class MaintenanceRequestController extends Controller
                 'facilities' => $facilitiesQuery->orderBy('name')->get(),
                 'show_requester_name' => $showRequesterName,
                 'show_facility_manager_name' => $showFacilityManagerName,
+                'is_facility_manager' => $isFacilityManager,
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
@@ -255,6 +257,7 @@ class MaintenanceRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'requestTypes' => RequestType::all(),
+            'selectedFacilityId' => $request->integer('facility_id') ?: null,
         ]);
     }
 
@@ -459,99 +462,13 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('viewAny', MaintenanceRequest::class);
 
-        $search = $request->string('search')->trim()->toString();
-        $status = $request->string('status')->trim()->toString();
-        $facility = $request->string('facility')->trim()->toString();
-        $week = $request->string('week')->trim()->toString();
-        $startDate = $request->string('start_date')->trim()->toString();
-        $endDate = $request->string('end_date')->trim()->toString();
+        $query = [
+            'start_date' => $request->string('start_date')->trim()->toString() ?: null,
+            'end_date' => $request->string('end_date')->trim()->toString() ?: null,
+            'facility_id' => $request->string('facility')->trim()->toString() ?: null,
+        ];
 
-        $query = MaintenanceRequest::query()
-            ->with([
-                'facility',
-                'requestedBy',
-                'requestType',
-                'workOrders' => fn($builder) => $builder->latest()->limit(1),
-            ])
-            ->where('requested_by', $request->user()->id)
-            ->when($week, function ($query, $week) {
-                $date = \Carbon\Carbon::parse($week);
-                $query->whereDate('created_at', '>=', $date->startOfWeek())
-                    ->whereDate('created_at', '<=', $date->endOfWeek());
-            });
-
-        if ($search !== '') {
-            $query->where(function ($builder) use ($search) {
-                $builder->where('description', 'like', "%{$search}%")
-                    ->orWhereHas('facility', function ($facilityQuery) use ($search) {
-                        $facilityQuery->where('name', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        if ($status !== '') {
-            $query->where('status', $status);
-        }
-
-        if ($facility !== '') {
-            $query->where('facility_id', $facility);
-        }
-
-        if ($startDate !== '') {
-            $query->whereDate('created_at', '>=', $startDate);
-        }
-
-        if ($endDate !== '') {
-            $query->whereDate('created_at', '<=', $endDate);
-        }
-
-        $statsQuery = clone $query;
-        $activeCount = (clone $statsQuery)
-            ->whereIn('status', MaintenanceStatus::active())
-            ->count();
-        $estimatedCost = (clone $statsQuery)->sum('cost');
-        // Calculate average resolution days in PHP for SQLite compatibility
-        $completedRequests = (clone $statsQuery)
-            ->whereIn('status', [
-                MaintenanceStatus::Closed->value,
-                MaintenanceStatus::Completed->value,
-            ])
-            ->get(['created_at', 'updated_at']);
-
-        $avgResolutionDays = null;
-        if ($completedRequests->isNotEmpty()) {
-            $totalDays = $completedRequests->sum(function ($request) {
-                return $request->created_at->diffInDays($request->updated_at);
-            });
-            $avgResolutionDays = $totalDays / $completedRequests->count();
-        }
-
-        $requests = $query->latest()->paginate(10)->withQueryString();
-
-        return Inertia::render('MaintenanceRequests/MyRequests', [
-            'requests' => $requests,
-            'statuses' => collect(MaintenanceStatus::cases())->map(fn(MaintenanceStatus $status) => [
-                'value' => $status->value,
-                'label' => $status->label(),
-            ]),
-            'facilities' => Facility::userFacilities(null, $request->user())
-                ->orderBy('name')
-                ->get(['id', 'name']),
-            'filters' => [
-                'search' => $search ?: null,
-                'status' => $status ?: null,
-                'facility' => $facility ?: null,
-                'week' => $week ?: null,
-                'start_date' => $startDate ?: null,
-                'end_date' => $endDate ?: null,
-            ],
-            'stats' => [
-                'active_count' => $activeCount,
-                'estimated_cost' => $estimatedCost,
-                'avg_resolution_days' => $avgResolutionDays !== null ? round((float) $avgResolutionDays, 1) : null,
-            ],
-            'requestTypes' => RequestType::all(),
-        ]);
+        return redirect()->route('maintenance.index', array_filter($query));
     }
 
     public function adminIndex(Request $request)

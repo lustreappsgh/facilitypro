@@ -62,6 +62,7 @@ interface Props {
         facilities: Facility[];
         show_requester_name: boolean;
         show_facility_manager_name: boolean;
+        is_facility_manager: boolean;
         filters: {
             start_date: string;
             end_date: string;
@@ -126,7 +127,17 @@ const clearFilters = () => {
     router.get(maintenanceIndex().url, {}, { preserveState: true, preserveScroll: true });
 };
 
+const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDate.value}`);
+
 const statusLabel = (status: string) => {
+    if (props.data.is_facility_manager) {
+        if (['submitted', 'pending'].includes(status)) return 'Needs Review';
+        if (['approved', 'assigned', 'work_order_created', 'in_progress'].includes(status)) return 'In Progress';
+        if (['completed_pending_payment', 'paid', 'closed', 'completed'].includes(status)) return 'Done';
+        if (status === 'rejected') return 'Rejected';
+        if (status === 'cancelled') return 'Cancelled';
+    }
+
     if (status === 'submitted') return 'Submitted';
     if (status === 'approved') return 'Approved';
     if (status === 'rejected') return 'Rejected';
@@ -142,6 +153,13 @@ const statusLabel = (status: string) => {
 };
 
 const statusClass = (status: string) => {
+    if (props.data.is_facility_manager) {
+        if (['submitted', 'pending'].includes(status)) return 'bg-amber-500/10 text-amber-700 border-amber-500/20';
+        if (['approved', 'assigned', 'work_order_created', 'in_progress'].includes(status)) return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+        if (['completed_pending_payment', 'paid', 'closed', 'completed'].includes(status)) return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+        if (status === 'rejected' || status === 'cancelled') return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
+    }
+
     if (status === 'rejected' || status === 'cancelled') return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
     if (status === 'paid') return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
     if (status === 'closed' || status === 'completed') return 'bg-slate-500/10 text-slate-700 border-slate-500/20';
@@ -157,26 +175,26 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             id: 'created_at',
             accessorFn: (row) => row.created_at ?? '',
             header: 'Date',
-            cell: ({ row }) => row.original.created_at ?? '—',
+            cell: ({ row }) => row.original.created_at ?? '-',
             enableHiding: false,
         },
         {
             id: 'facility',
             accessorFn: (row) => row.facility?.name ?? '',
             header: 'Facility',
-            cell: ({ row }) => h('span', { class: 'font-medium text-[11px]' }, row.original.facility?.name ?? '—'),
+            cell: ({ row }) => h('span', { class: 'font-medium text-[11px]' }, row.original.facility?.name ?? '-'),
         },
         {
             id: 'request_type',
             accessorFn: (row) => row.request_type_name ?? '',
             header: 'Request type',
-            cell: ({ row }) => row.original.request_type_name ?? '—',
+            cell: ({ row }) => row.original.request_type_name ?? '-',
         },
         {
             id: 'description',
             accessorFn: (row) => row.description ?? '',
             header: 'Description',
-            cell: ({ row }) => h('span', { class: 'text-[11px] text-muted-foreground' }, row.original.description ?? '—'),
+            cell: ({ row }) => h('span', { class: 'text-[11px] text-muted-foreground' }, row.original.description ?? '-'),
         },
         {
             id: 'status',
@@ -199,7 +217,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             cell: ({ row }) =>
                 row.original.cost !== null && row.original.cost !== undefined
                     ? currencyFormat.format(Number(row.original.cost))
-                    : '—',
+                    : '-',
         },
     ];
 
@@ -208,7 +226,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             id: 'manager',
             accessorFn: (row) => row.facility_manager_name ?? '',
             header: 'Facility manager',
-            cell: ({ row }) => row.original.facility_manager_name ?? '—',
+            cell: ({ row }) => row.original.facility_manager_name ?? '-',
         });
     }
 
@@ -217,7 +235,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             id: 'requested_by',
             accessorFn: (row) => row.requested_by_name ?? '',
             header: 'Requested by',
-            cell: ({ row }) => row.original.requested_by_name ?? '—',
+            cell: ({ row }) => row.original.requested_by_name ?? '-',
         });
     }
 
@@ -367,6 +385,9 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                         <Button size="sm" variant="ghost" class="h-9 px-3" @click="clearFilters">Reset</Button>
                     </div>
                 </div>
+                <p class="mt-3 text-xs text-muted-foreground">
+                    Default range shows the current and upcoming week: {{ dateRangeLabel }}.
+                </p>
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

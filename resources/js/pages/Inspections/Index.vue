@@ -116,6 +116,8 @@ const clearFilters = () => {
     router.get(inspectionsIndex().url, {}, { preserveState: true, preserveScroll: true });
 };
 
+const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDate.value}`);
+
 const conditionClass = (condition: string) => {
     if (condition === 'Good') return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
     if (condition === 'Warning') return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
@@ -129,14 +131,14 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
             id: 'date',
             accessorFn: (row) => row.inspection_date ?? '',
             header: 'Date',
-            cell: ({ row }) => row.original.inspection_date ?? '—',
+            cell: ({ row }) => row.original.inspection_date ?? '-',
             enableHiding: false,
         },
         {
             id: 'facility',
             accessorFn: (row) => row.facility?.name ?? '',
             header: 'Facility',
-            cell: ({ row }) => row.original.facility?.name ?? '—',
+            cell: ({ row }) => row.original.facility?.name ?? '-',
         },
         {
             id: 'condition',
@@ -159,7 +161,7 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
             id: 'inspector',
             accessorFn: (row) => row.inspector_name ?? '',
             header: 'Inspector',
-            cell: ({ row }) => row.original.inspector_name ?? '—',
+            cell: ({ row }) => row.original.inspector_name ?? '-',
         });
     }
 
@@ -223,6 +225,9 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
                         <Button size="sm" variant="ghost" class="h-9 px-3" @click="clearFilters">Reset</Button>
                     </div>
                 </div>
+                <p class="mt-3 text-xs text-muted-foreground">
+                    Default range shows the previous week: {{ dateRangeLabel }}.
+                </p>
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
