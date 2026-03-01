@@ -52,9 +52,14 @@ class ApprovePaymentAction
 
         $workOrder = $payment->workOrder;
         if ($workOrder && $workOrder->status === 'assigned') {
+            $maintenanceRequest = $payment->maintenanceRequest;
             $workOrderBefore = $workOrder->getOriginal();
             $workOrder->update([
                 'status' => 'in_progress',
+                'scheduled_date' => $workOrder->scheduled_date
+                    ?? $maintenanceRequest?->week_start
+                    ?? $workOrder->assigned_date
+                    ?? now()->toDateString(),
             ]);
 
             $this->recordAuditLogAction->execute(new AuditLogData(

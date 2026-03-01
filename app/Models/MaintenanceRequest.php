@@ -22,9 +22,10 @@ class MaintenanceRequest extends Model
 
     protected $casts = [
         'created_at' => 'date:Y-m-d',
+        'week_start' => 'date:Y-m-d',
     ];
 
-    protected $fillable = ['facility_id', 'request_type_id', 'description', 'cost', 'status', 'requested_by'];
+    protected $fillable = ['facility_id', 'request_type_id', 'description', 'cost', 'status', 'requested_by', 'week_start'];
 
     protected $appends = [
         'month_week',
@@ -37,8 +38,9 @@ class MaintenanceRequest extends Model
 
     public function getMonthWeekAttribute()
     {
-        $startOfWeek = $this->created_at->copy()->startOfWeek(Carbon::SUNDAY);
-        $endOfWeek = $this->created_at->copy()->endOfWeek(Carbon::SATURDAY);
+        $reference = $this->week_start ?? $this->created_at;
+        $startOfWeek = $reference->copy()->startOfWeek(Carbon::SUNDAY);
+        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SATURDAY);
 
         $weekNumber = $startOfWeek->weekOfMonth;
         $monthName = $startOfWeek->format('F');

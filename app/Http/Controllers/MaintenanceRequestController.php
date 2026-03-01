@@ -62,13 +62,14 @@ class MaintenanceRequestController extends Controller
         ]);
 
         $weeksByYearMonth = (clone $baseQuery)
+            ->whereNotNull('week_start')
             ->get()
-            ->sortByDesc(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->created_at?->toDateString() ?? '')
-            ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->created_at?->format('Y-m'))
+            ->sortByDesc(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->toDateString() ?? '')
+            ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->format('Y-m'))
             ->map(function ($monthItems, $monthKey) {
                 $reference = Carbon::createFromFormat('Y-m', $monthKey);
                 $weeks = $monthItems
-                    ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->created_at?->startOfWeek(Carbon::MONDAY)->toDateString())
+                    ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->toDateString())
                     ->keys()
                     ->sortDesc()
                     ->values()
@@ -89,15 +90,15 @@ class MaintenanceRequestController extends Controller
             ->all();
 
         $filteredRequests = (clone $baseQuery)
-            ->whereBetween('created_at', ["{$startDate} 00:00:00", "{$endDate} 23:59:59"])
+            ->whereBetween('week_start', [$startDate, $endDate])
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllRequests && $userId, fn ($query) => $query->where('requested_by', $userId))
-            ->orderByDesc('created_at')
+            ->orderByDesc('week_start')
             ->latest()
             ->get();
 
         $groups = $filteredRequests
-            ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->created_at?->startOfWeek(Carbon::MONDAY)->toDateString() ?? 'unscheduled')
+            ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->toDateString() ?? 'unscheduled')
             ->map(fn ($items, $weekStart) => [
                 'week_start' => $weekStart,
                 'week_label' => $weekStart === 'unscheduled'
@@ -109,6 +110,7 @@ class MaintenanceRequestController extends Controller
                     'description' => $maintenanceRequest->description,
                     'cost' => $maintenanceRequest->cost,
                     'created_at' => $maintenanceRequest->created_at?->toDateString(),
+                    'week_start' => $maintenanceRequest->week_start?->toDateString(),
                     'facility' => $maintenanceRequest->facility ? [
                         'id' => $maintenanceRequest->facility->id,
                         'name' => $maintenanceRequest->facility->name,

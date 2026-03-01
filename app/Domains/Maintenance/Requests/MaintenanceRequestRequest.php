@@ -22,9 +22,11 @@ class MaintenanceRequestRequest extends FormRequest
             'bulk_requests.*.request_type_id' => ['required', 'exists:request_types,id'],
             'bulk_requests.*.description' => ['nullable', 'string'],
             'bulk_requests.*.cost' => ['nullable', 'numeric'],
+            'bulk_requests.*.week_start' => ['nullable', 'date'],
             'request_type_id' => ['required_without:bulk_requests', 'exists:request_types,id'],
             'description' => ['nullable', 'string'],
             'cost' => ['nullable', 'numeric'],
+            'week_start' => ['nullable', 'date'],
             'status' => ['nullable', 'string'], // Status changes should ideally go through dedicated actions
         ];
     }

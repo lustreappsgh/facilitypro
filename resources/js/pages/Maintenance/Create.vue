@@ -42,6 +42,7 @@ interface BulkRow {
     request_type_id: string;
     description: string;
     cost: string;
+    week_start: string;
     selected: boolean;
 }
 
@@ -61,6 +62,14 @@ const inputClass =
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
+const getUpcomingMonday = () => {
+    const date = new Date();
+    const day = date.getDay();
+    const diffToNextMonday = ((8 - day) % 7) || 7;
+    date.setDate(date.getDate() + diffToNextMonday);
+    return date.toISOString().slice(0, 10);
+};
+
 const selectedFacilityTypeId = ref<string | null>(
     props.facilityTypes[0] ? String(props.facilityTypes[0].id) : null,
 );
@@ -69,6 +78,7 @@ const defaultRequestTypeId = ref<string | null>(
 );
 const defaultDescription = ref('');
 const defaultCost = ref('');
+const defaultWeekStart = ref(getUpcomingMonday());
 const rows = ref<BulkRow[]>([]);
 
 const filteredFacilities = computed(() => {
@@ -103,6 +113,7 @@ const initializeRows = () => {
         request_type_id: defaultRequestTypeId.value ?? '',
         description: defaultDescription.value,
         cost: defaultCost.value,
+        week_start: defaultWeekStart.value,
         selected: true,
     }));
 };
@@ -118,6 +129,7 @@ const applyDefaultsToSelected = () => {
             request_type_id: defaultRequestTypeId.value ?? row.request_type_id,
             description: defaultDescription.value,
             cost: defaultCost.value,
+            week_start: defaultWeekStart.value,
         };
     });
 };
@@ -195,6 +207,15 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                         />
                     </div>
 
+                    <div class="grid gap-2">
+                        <Label for="default_week_start">Default week start</Label>
+                        <Input
+                            id="default_week_start"
+                            v-model="defaultWeekStart"
+                            type="date"
+                        />
+                    </div>
+
                     <div class="md:col-span-2">
                         <Button
                             type="button"
@@ -222,6 +243,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 <th class="px-3 py-2 text-left font-semibold">Request type</th>
                                 <th class="px-3 py-2 text-left font-semibold">Description</th>
                                 <th class="px-3 py-2 text-left font-semibold">Estimated cost</th>
+                                <th class="px-3 py-2 text-left font-semibold">Week start</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/50">
@@ -270,10 +292,16 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         placeholder="0"
                                     />
                                 </td>
+                                <td class="px-3 py-2">
+                                    <Input
+                                        v-model="row.week_start"
+                                        type="date"
+                                    />
+                                </td>
                             </tr>
                             <tr v-if="rows.length === 0">
                                 <td
-                                    colspan="5"
+                                    colspan="6"
                                     class="px-3 py-8 text-center text-sm text-muted-foreground"
                                 >
                                     Select a facility type to load facilities.
@@ -291,6 +319,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     <input type="hidden" :name="`bulk_requests[${index}][request_type_id]`" :value="row.request_type_id" />
                     <input type="hidden" :name="`bulk_requests[${index}][description]`" :value="row.description" />
                     <input type="hidden" :name="`bulk_requests[${index}][cost]`" :value="row.cost" />
+                    <input type="hidden" :name="`bulk_requests[${index}][week_start]`" :value="row.week_start" />
                 </div>
 
                 <InputError

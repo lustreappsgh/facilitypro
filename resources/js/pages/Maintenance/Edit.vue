@@ -26,6 +26,7 @@ interface MaintenanceRequest {
     request_type_id?: number | null;
     description?: string | null;
     cost?: number | null;
+    week_start?: string | null;
 }
 
 interface Props {
@@ -139,6 +140,17 @@ const textAreaClass =
                         :model-value="request.cost ?? ''"
                     />
                     <InputError :message="errors.cost" />
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="week_start">Week start</Label>
+                    <Input
+                        id="week_start"
+                        name="week_start"
+                        type="date"
+                        :model-value="request.week_start ?? ''"
+                    />
+                    <InputError :message="errors.week_start" />
                 </div>
 
                 <div class="flex items-center gap-4">
