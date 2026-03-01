@@ -46,7 +46,8 @@ class ApprovePaymentAction
         // Approval gates work-order creation; final settlement can happen later.
         if ($payment->status === 'pending') {
             $payment->update([
-                'status' => 'approved',
+                'status' => 'paid',
+                'amount_payed' => $payment->cost,
             ]);
         }
 

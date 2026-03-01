@@ -129,6 +129,10 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
 });
 
 const statusBadgeClass = (status: string) => {
+    if (status === 'paid') {
+        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    }
+
     if (status === 'approved') {
         return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
     }
@@ -213,6 +217,9 @@ const submitReject = () => {
                     </DropdownMenuItem>
                     <DropdownMenuItem @click="statusFilter = 'approved'">
                         Approved
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="statusFilter = 'paid'">
+                        Paid
                     </DropdownMenuItem>
                     <DropdownMenuItem @click="statusFilter = 'rejected'">
                         Rejected

@@ -2,18 +2,20 @@
 import StatsCard from '@/components/StatsCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { approve, close, create, edit, index as maintenanceIndex, reject, show } from '@/routes/maintenance';
-import { create as workOrderCreate, show as workOrderShow } from '@/routes/work-orders';
+import { close, create, edit, index as maintenanceIndex, show } from '@/routes/maintenance';
+import { show as workOrderShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { computed, h, ref } from 'vue';
-import { CheckCircle2, ClipboardCheck, ClipboardList, Plus, Timer, Wrench } from 'lucide-vue-next';
+import { CheckCircle2, ClipboardCheck, ClipboardList, Eye, Pencil, Plus, Timer, Wrench } from 'lucide-vue-next';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -223,50 +225,92 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
         id: 'actions',
         header: '',
         cell: ({ row }) =>
-            h('div', { class: 'flex flex-wrap justify-end gap-2' }, [
-                h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
-                    h(Link, { href: show(row.original.id).url }, () => 'View'),
-                ),
-                (can('maintenance.update') || can('maintenance_requests.update')) && ['submitted', 'pending'].includes(row.original.status)
-                    ? h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
-                        h(Link, { href: edit(row.original.id).url }, () => 'Edit'),
-                    )
-                    : null,
-                can('maintenance.review') && ['submitted', 'pending'].includes(row.original.status)
-                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20', asChild: true }, () =>
-                        h(Link, { href: approve(row.original.id).url, method: 'post', as: 'button' }, () => 'Approve'),
-                    )
-                    : null,
-                can('maintenance.review') && ['submitted', 'pending'].includes(row.original.status)
-                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-rose-500/10 text-rose-600 hover:bg-rose-500/20', asChild: true }, () =>
-                        h(Link, { href: reject(row.original.id).url, method: 'post', as: 'button' }, () => 'Reject'),
-                    )
-                    : null,
-                can('work_orders.create')
-                    && !row.original.latest_work_order_id
-                    && ['submitted', 'pending', 'rejected', 'approved'].includes(row.original.status)
-                    ? h(Button, { size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
-                        h(
-                            Link,
-                            {
-                                href: workOrderCreate({
-                                    query: { maintenance_request_id: row.original.id },
-                                }).url,
-                            },
-                            () => 'Create work order',
+            h('div', { class: 'flex justify-end' }, [
+                h(ButtonGroup, { class: 'shadow-sm' }, () => [
+                    h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            h(
+                                Button,
+                                {
+                                    variant: 'ghost',
+                                    size: 'icon-sm',
+                                    class: 'rounded-none border-0 shadow-none',
+                                    asChild: true,
+                                },
+                                () => h(Link, { href: show(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                            ),
                         ),
-                    )
-                    : null,
-                can('work_orders.view') && row.original.latest_work_order_id
-                    ? h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
-                        h(Link, { href: workOrderShow(row.original.latest_work_order_id as number).url }, () => 'View work order'),
-                    )
-                    : null,
-                can('maintenance.close') && row.original.status === 'paid'
-                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-slate-500/10 text-slate-700 hover:bg-slate-500/20', asChild: true }, () =>
-                        h(Link, { href: close(row.original.id).url, method: 'post', as: 'button' }, () => 'Close'),
-                    )
-                    : null,
+                        h(TooltipContent, { side: 'top' }, () => 'View'),
+                    ]),
+                    (can('maintenance.update') || can('maintenance_requests.update')) && ['submitted', 'pending'].includes(row.original.status)
+                        ? h(Tooltip, {}, () => [
+                            h(TooltipTrigger, { asChild: true }, () =>
+                                h(
+                                    Button,
+                                    {
+                                        variant: 'ghost',
+                                        size: 'icon-sm',
+                                        class: 'rounded-none border-l border-border/60 shadow-none',
+                                        asChild: true,
+                                    },
+                                    () => h(Link, { href: edit(row.original.id).url }, () => h(Pencil, { class: 'h-3.5 w-3.5' })),
+                                ),
+                            ),
+                            h(TooltipContent, { side: 'top' }, () => 'Edit'),
+                        ])
+                        : null,
+                    (can('maintenance.review') || can('work_orders.create')) && ['submitted', 'pending'].includes(row.original.status)
+                        ? h(Tooltip, {}, () => [
+                            h(TooltipTrigger, { asChild: true }, () =>
+                                h(
+                                    Button,
+                                    {
+                                        variant: 'ghost',
+                                        size: 'icon-sm',
+                                        class: 'rounded-none border-l border-border/60 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 shadow-none',
+                                        asChild: true,
+                                    },
+                                    () => h(Link, { href: show(row.original.id).url }, () => h(ClipboardCheck, { class: 'h-3.5 w-3.5' })),
+                                ),
+                            ),
+                            h(TooltipContent, { side: 'top' }, () => 'Review'),
+                        ])
+                        : null,
+                    can('work_orders.view') && row.original.latest_work_order_id
+                        ? h(Tooltip, {}, () => [
+                            h(TooltipTrigger, { asChild: true }, () =>
+                                h(
+                                    Button,
+                                    {
+                                        variant: 'ghost',
+                                        size: 'icon-sm',
+                                        class: 'rounded-none border-l border-border/60 shadow-none',
+                                        asChild: true,
+                                    },
+                                    () => h(Link, { href: workOrderShow(row.original.latest_work_order_id as number).url }, () => h(ClipboardList, { class: 'h-3.5 w-3.5' })),
+                                ),
+                            ),
+                            h(TooltipContent, { side: 'top' }, () => 'Work order'),
+                        ])
+                        : null,
+                    can('maintenance.close') && row.original.status === 'paid'
+                        ? h(Tooltip, {}, () => [
+                            h(TooltipTrigger, { asChild: true }, () =>
+                                h(
+                                    Button,
+                                    {
+                                        variant: 'ghost',
+                                        size: 'icon-sm',
+                                        class: 'rounded-none border-l border-border/60 text-slate-600 hover:text-slate-700 hover:bg-slate-500/10 shadow-none',
+                                        asChild: true,
+                                    },
+                                    () => h(Link, { href: close(row.original.id).url, method: 'post', as: 'button' }, () => h(CheckCircle2, { class: 'h-3.5 w-3.5' })),
+                                ),
+                            ),
+                            h(TooltipContent, { side: 'top' }, () => 'Close'),
+                        ])
+                        : null,
+                ]),
             ]),
         enableSorting: false,
         enableHiding: false,
@@ -286,17 +330,19 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                     <h1 class="font-display text-3xl font-semibold tracking-tight text-foreground">Maintenance requests</h1>
                     <p class="text-sm text-muted-foreground">Track and resolve maintenance requests by week.</p>
                 </div>
-                <Button
-                    v-if="can('maintenance.create') || can('maintenance_requests.create')"
-                    size="sm"
-                    as-child
-                    class="h-9 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wide"
-                >
-                    <Link :href="create().url">
-                        <Plus class="mr-1.5 h-3.5 w-3.5" />
-                        New request
-                    </Link>
-                </Button>
+                <div class="flex items-center gap-2">
+                    <Button
+                        v-if="can('maintenance.create') || can('maintenance_requests.create')"
+                        size="sm"
+                        as-child
+                        class="h-9 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wide"
+                    >
+                        <Link :href="create().url">
+                            <Plus class="mr-1.5 h-3.5 w-3.5" />
+                            New request
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">

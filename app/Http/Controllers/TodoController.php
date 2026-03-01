@@ -37,7 +37,7 @@ class TodoController extends Controller
         $userId = $request->input('user_id');
 
         $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $defaultEnd = now()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
 
         $startDate = $startDateInput ?: $defaultStart;
         $endDate = $endDateInput ?: $defaultEnd;
@@ -86,6 +86,13 @@ class TodoController extends Controller
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllTodos && $userId, fn ($query) => $query->where('user_id', $userId))
             ->orderByDesc('week_start')
+            ->orderByRaw(
+                "CASE status
+                    WHEN 'pending' THEN 0
+                    WHEN 'overdue' THEN 1
+                    ELSE 2
+                END"
+            )
             ->latest()
             ->get();
 

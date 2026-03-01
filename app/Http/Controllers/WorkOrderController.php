@@ -6,6 +6,7 @@ use App\Domains\Maintenance\Actions\CreateWorkOrderAction;
 use App\Domains\Maintenance\Actions\UpdateWorkOrderAction;
 use App\Domains\Maintenance\DTOs\WorkOrderData;
 use App\Domains\Maintenance\Requests\WorkOrderRequest;
+use App\Domains\Maintenance\Services\MaintenanceService;
 use App\Domains\Payments\Requests\PaymentUpdateRequest;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
@@ -17,6 +18,7 @@ use App\Models\WorkOrder;
 use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkOrderController extends Controller
@@ -25,7 +27,8 @@ class WorkOrderController extends Controller
 
     public function __construct(
         protected CreateWorkOrderAction $createWorkOrderAction,
-        protected UpdateWorkOrderAction $updateWorkOrderAction
+        protected UpdateWorkOrderAction $updateWorkOrderAction,
+        protected MaintenanceService $maintenanceService
     ) {}
 
     public function index(Request $request)
@@ -173,6 +176,9 @@ class WorkOrderController extends Controller
                 ])
                 ->get(),
             'selectedRequestId' => $request->integer('maintenance_request_id') ?: null,
+            'vendors' => Vendor::where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -182,12 +188,7 @@ class WorkOrderController extends Controller
 
         $maintenanceRequests = MaintenanceRequest::maintenanceScope($request->user())
             ->with(['facility.facilityType', 'requestType'])
-            ->whereIn('status', [
-                MaintenanceStatus::Submitted->value,
-                MaintenanceStatus::Pending->value,
-                MaintenanceStatus::Rejected->value,
-                MaintenanceStatus::Approved->value,
-            ])
+            ->whereIn('status', MaintenanceStatus::approvalQueue())
             ->whereDoesntHave('workOrders')
             ->orderByDesc('created_at')
             ->get();
@@ -201,6 +202,9 @@ class WorkOrderController extends Controller
         return Inertia::render('WorkOrders/BulkCreate', [
             'facilityManagers' => User::query()
                 ->whereIn('id', $facilityManagerIds)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'vendors' => Vendor::where('status', 'active')
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'maintenanceRequests' => $maintenanceRequests->map(fn (MaintenanceRequest $item) => [
@@ -243,9 +247,9 @@ class WorkOrderController extends Controller
         $validated = $request->validate([
             'bulk_orders' => ['required', 'array', 'min:1'],
             'bulk_orders.*.maintenance_request_id' => ['required', 'exists:maintenance_requests,id'],
-            'bulk_orders.*.scheduled_date' => ['nullable', 'date'],
             'bulk_orders.*.estimated_cost' => ['nullable', 'numeric'],
-            'bulk_orders.*.actual_cost' => ['nullable', 'numeric'],
+            'bulk_orders.*.vendor_id' => ['nullable', 'exists:vendors,id'],
+            'bulk_orders.*.review_action' => ['required', 'in:approve,reject'],
         ]);
 
         $bulkOrders = collect($validated['bulk_orders'])
@@ -259,12 +263,14 @@ class WorkOrderController extends Controller
             ->get()
             ->keyBy('id');
 
-        $createdCount = 0;
+        $approvedCount = 0;
+        $rejectedCount = 0;
         $errors = [];
 
         foreach ($bulkOrders as $item) {
             $maintenanceRequestId = (int) $item['maintenance_request_id'];
             $maintenanceRequest = $requests->get($maintenanceRequestId);
+            $reviewAction = $item['review_action'] ?? 'approve';
 
             if (! $maintenanceRequest) {
                 $errors[] = "Request #{$maintenanceRequestId} is outside your scope.";
@@ -277,26 +283,58 @@ class WorkOrderController extends Controller
             }
 
             try {
-                $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
-                    'maintenance_request_id' => $maintenanceRequestId,
-                    'scheduled_date' => $item['scheduled_date'] ?? null,
-                    'estimated_cost' => $item['estimated_cost'] ?? $maintenanceRequest->cost,
-                    'actual_cost' => $item['actual_cost'] ?? null,
-                    'status' => 'assigned',
-                ]));
-                $createdCount++;
+                $this->authorize('review', $maintenanceRequest);
+
+                DB::transaction(function () use ($reviewAction, $maintenanceRequest, $maintenanceRequestId, $item) {
+                    if ($reviewAction === 'reject') {
+                        $this->maintenanceService->reject($maintenanceRequest);
+                        return;
+                    }
+
+                    if (empty($item['vendor_id'])) {
+                        throw new DomainException('Vendor is required for approval.');
+                    }
+
+                    if (! isset($item['estimated_cost']) || $item['estimated_cost'] === '') {
+                        throw new DomainException('Estimated cost is required for approval.');
+                    }
+
+                    $this->maintenanceService->review($maintenanceRequest);
+
+                    $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
+                        'maintenance_request_id' => $maintenanceRequestId,
+                        'vendor_id' => $item['vendor_id'],
+                        'estimated_cost' => $item['estimated_cost'] ?? $maintenanceRequest->cost,
+                        'status' => 'assigned',
+                    ]));
+                });
+
+                if ($reviewAction === 'reject') {
+                    $rejectedCount++;
+                } else {
+                    $approvedCount++;
+                }
             } catch (DomainException $exception) {
+                $errors[] = "Request #{$maintenanceRequestId}: ".$exception->getMessage();
+            } catch (\Throwable $exception) {
                 $errors[] = "Request #{$maintenanceRequestId}: ".$exception->getMessage();
             }
         }
 
-        if ($createdCount === 0) {
+        if ($approvedCount + $rejectedCount === 0) {
             return back()->withErrors([
-                'bulk_orders' => 'No work orders were created. '.collect($errors)->take(3)->implode(' '),
+                'bulk_orders' => 'No requests were processed. '.collect($errors)->take(3)->implode(' '),
             ]);
         }
 
-        $message = "{$createdCount} work order(s) created.";
+        $messageParts = [];
+        if ($approvedCount > 0) {
+            $messageParts[] = "{$approvedCount} request(s) approved and converted to work orders.";
+        }
+        if ($rejectedCount > 0) {
+            $messageParts[] = "{$rejectedCount} request(s) rejected.";
+        }
+        $message = implode(' ', $messageParts);
         if ($errors !== []) {
             $message .= ' '.count($errors).' item(s) skipped.';
         }

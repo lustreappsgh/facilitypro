@@ -4,6 +4,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,13 +14,14 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DataTable from '@/components/data-table/DataTable.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { admin as workOrdersAdmin, show as workOrdersShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Search } from 'lucide-vue-next';
+import { Eye, Search } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -163,9 +165,18 @@ const columns: ColumnDef<WorkOrder>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: workOrdersShow(row.original).url }, () => 'View'),
-            ),
+            h(ButtonGroup, {}, () => [
+                h(Tooltip, {}, () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                        h(
+                            Button,
+                            { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-0 shadow-none', asChild: true },
+                            () => h(Link, { href: workOrdersShow(row.original).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                        ),
+                    ),
+                    h(TooltipContent, { side: 'top' }, () => 'View'),
+                ]),
+            ]),
         enableSorting: false,
         enableHiding: false,
     },

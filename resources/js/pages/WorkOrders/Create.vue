@@ -22,6 +22,11 @@ interface RequestType {
     name: string;
 }
 
+interface Vendor {
+    id: number;
+    name: string;
+}
+
 interface MaintenanceRequest {
     id: number;
     cost?: number | null;
@@ -34,6 +39,7 @@ interface MaintenanceRequest {
 interface Props {
     maintenanceRequests: MaintenanceRequest[];
     selectedRequestId?: number | null;
+    vendors: Vendor[];
 }
 
 const props = defineProps<Props>();
@@ -58,6 +64,7 @@ const selectedRequestId = ref<string | number | null>(
 );
 const estimatedCost = ref('');
 const scheduledDate = ref('');
+const selectedVendorId = ref<string | number | null>(null);
 
 const selectedRequest = computed(() =>
     props.maintenanceRequests.find(
@@ -150,12 +157,6 @@ watch(
                 </div>
 
                 <div class="grid gap-2">
-                    <p class="text-sm text-muted-foreground">
-                        Vendor assignment and status updates are enabled after admin approval.
-                    </p>
-                </div>
-
-                <div class="grid gap-2">
                     <Label for="scheduled_date">Scheduled date</Label>
                     <DatePicker
                         id="scheduled_date"
@@ -163,6 +164,25 @@ watch(
                         v-model="scheduledDate"
                      />
                     <InputError :message="errors.scheduled_date" />
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="vendor_id">Vendor</Label>
+                    <select
+                        id="vendor_id"
+                        name="vendor_id"
+                        :class="selectClass"
+                        v-model="selectedVendorId"
+                        required
+                    >
+                        <option value="" disabled>
+                            Select a vendor
+                        </option>
+                        <option v-for="vendor in vendors" :key="vendor.id" :value="vendor.id">
+                            {{ vendor.name }}
+                        </option>
+                    </select>
+                    <InputError :message="errors.vendor_id" />
                 </div>
 
                 <div class="grid gap-2">
@@ -174,7 +194,6 @@ watch(
                         step="1"
                         placeholder="0"
                         v-model="estimatedCost"
-                        readonly
                     />
                     <InputError :message="errors.estimated_cost" />
                 </div>

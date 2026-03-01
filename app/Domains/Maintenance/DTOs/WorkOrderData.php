@@ -6,7 +6,7 @@ class WorkOrderData
 {
     public function __construct(
         public int $maintenance_request_id,
-        public int $vendor_id,
+        public ?int $vendor_id,
         public string $assigned_date,
         public ?string $scheduled_date,
         public ?int $estimated_cost,
@@ -19,7 +19,9 @@ class WorkOrderData
     {
         return new self(
             maintenance_request_id: (int) $data['maintenance_request_id'],
-            vendor_id: (int) $data['vendor_id'],
+            vendor_id: isset($data['vendor_id']) && $data['vendor_id'] !== ''
+                ? (int) $data['vendor_id']
+                : null,
             assigned_date: $data['assigned_date'] ?? now()->toDateString(),
             scheduled_date: $data['scheduled_date'] ?? null,
             estimated_cost: isset($data['estimated_cost']) ? (int) $data['estimated_cost'] : null,

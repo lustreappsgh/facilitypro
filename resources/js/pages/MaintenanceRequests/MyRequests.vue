@@ -4,6 +4,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
     Card,
     CardContent,
@@ -18,6 +19,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DataTable from '@/components/data-table/DataTable.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
@@ -31,8 +33,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
 import {
-    CircleDollarSign, Clock3, MoreHorizontal, Search, Wrench,
-    Plus, X, Calendar, ClipboardList
+    Calendar, CircleDollarSign, ClipboardList, Clock3, Eye, Pencil, Plus, Search, Wrench, X
 } from 'lucide-vue-next';
 import { computed, h, onMounted, ref } from 'vue';
 import { startOfWeek, endOfWeek, format, parseISO, subMonths } from 'date-fns';
@@ -305,36 +306,32 @@ const columns: ColumnDef<MaintenanceRequest>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(DropdownMenu, {}, {
-                default: () => [
-                    h(DropdownMenuTrigger, { asChild: true }, {
-                        default: () =>
+            h(ButtonGroup, {}, () => [
+                (can('maintenance.view') || can('maintenance_requests.view'))
+                    ? h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
                             h(
                                 Button,
-                                { variant: 'ghost', size: 'icon' },
-                                { default: () => h(MoreHorizontal, { class: 'h-4 w-4' }) },
+                                { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-0 shadow-none', asChild: true },
+                                () => h(Link, { href: maintenanceShow(row.original).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
                             ),
-                    }),
-                    h(DropdownMenuContent, { align: 'end', class: 'w-40' }, {
-                        default: () => [
-                            h(DropdownMenuLabel, {}, () => 'Actions'),
-                            h(DropdownMenuSeparator),
-                            (can('maintenance.view') || can('maintenance_requests.view'))
-                                ? h(DropdownMenuItem, { asChild: true }, {
-                                    default: () =>
-                                        h(Link, { href: maintenanceShow(row.original).url }, () => 'View'),
-                                })
-                                : null,
-                            can('maintenance.update') && row.original.status === 'pending'
-                                ? h(DropdownMenuItem, { asChild: true }, {
-                                    default: () =>
-                                        h(Link, { href: maintenanceEdit(row.original).url }, () => 'Edit'),
-                                })
-                                : null,
-                        ],
-                    }),
-                ],
-            }),
+                        ),
+                        h(TooltipContent, { side: 'top' }, () => 'View'),
+                    ])
+                    : null,
+                can('maintenance.update') && row.original.status === 'pending'
+                    ? h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            h(
+                                Button,
+                                { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-l border-border/40 shadow-none', asChild: true },
+                                () => h(Link, { href: maintenanceEdit(row.original).url }, () => h(Pencil, { class: 'h-3.5 w-3.5' })),
+                            ),
+                        ),
+                        h(TooltipContent, { side: 'top' }, () => 'Edit'),
+                    ])
+                    : null,
+            ]),
         enableSorting: false,
         enableHiding: false,
     },
@@ -518,5 +515,4 @@ const columns: ColumnDef<MaintenanceRequest>[] = [
             :redirect-to="maintenanceMy().url" @success="router.reload()" />
     </AppLayout>
 </template>
-
 

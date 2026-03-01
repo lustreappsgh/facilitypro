@@ -4,6 +4,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,6 +14,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DataTable from '@/components/data-table/DataTable.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { bulkCreate as workOrdersBulkCreate, create, edit, index as workOrdersIndex, show } from '@/routes/work-orders';
@@ -21,7 +23,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Search, Plus, Layers } from 'lucide-vue-next';
+import { Eye, Layers, Pencil, Plus, Search } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -252,16 +254,34 @@ const columns: ColumnDef<WorkOrder>[] = [
                 can('work_orders.update') && row.original.status !== 'completed';
             const isInProgress = row.original.status === 'in_progress';
 
-            return h('div', { class: 'flex flex-wrap gap-2' }, [
-                h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                    h(Link, { href: show(row.original.id).url }, () => 'View'),
-                ),
+            return h(ButtonGroup, {}, () => [
+                h(Tooltip, {}, () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                        h(
+                            Button,
+                            { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-0 shadow-none', asChild: true },
+                            () => h(Link, { href: show(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                        ),
+                    ),
+                    h(TooltipContent, { side: 'top' }, () => 'View'),
+                ]),
                 canEdit
-                    ? isInProgress
-                        ? h(Button, { size: 'sm', disabled: true }, () => 'Edit')
-                        : h(Button, { size: 'sm', asChild: true }, () =>
-                            h(Link, { href: edit(row.original.id).url }, () => 'Edit'),
-                        )
+                    ? h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            isInProgress
+                                ? h(
+                                    Button,
+                                    { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-l border-border/40 shadow-none', disabled: true },
+                                    () => h(Pencil, { class: 'h-3.5 w-3.5' }),
+                                )
+                                : h(
+                                    Button,
+                                    { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-l border-border/40 shadow-none', asChild: true },
+                                    () => h(Link, { href: edit(row.original.id).url }, () => h(Pencil, { class: 'h-3.5 w-3.5' })),
+                                ),
+                        ),
+                        h(TooltipContent, { side: 'top' }, () => (isInProgress ? 'Edit unavailable' : 'Edit')),
+                    ])
                     : null,
             ]);
         },

@@ -64,11 +64,17 @@ class MaintenanceRequestPolicy
         }
 
         if ($user->can('maintenance_requests.update')) {
-            return $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+            if (! in_array($maintenanceRequest->status, MaintenanceStatus::requesterEditable(), true)) {
+                return false;
+            }
+
+            return $this->inMaintenanceScope($user, $maintenanceRequest->facility_id)
+                && ! $maintenanceRequest->workOrders()->exists();
         }
 
         return $maintenanceRequest->requested_by === $user->id
-            && in_array($maintenanceRequest->status, MaintenanceStatus::requesterEditable(), true);
+            && in_array($maintenanceRequest->status, MaintenanceStatus::requesterEditable(), true)
+            && ! $maintenanceRequest->workOrders()->exists();
     }
 
     public function review(User $user, MaintenanceRequest $maintenanceRequest): bool
@@ -78,7 +84,7 @@ class MaintenanceRequestPolicy
             return $override;
         }
 
-        if (! $user->can('maintenance.review')) {
+        if (! ($user->can('maintenance.review') || $user->can('work_orders.create'))) {
             return false;
         }
 

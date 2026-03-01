@@ -49,49 +49,48 @@ const accentClass = computed(() => {
 
 <template>
     <Card
-        :class="cn('group relative overflow-hidden border-border bg-card shadow-sm transition-all hover:shadow-md', props.class)">
-        <CardContent class="p-6">
-            <div class="flex items-center gap-4">
-                <!-- Circular Icon Container (Blueprint Style) -->
+        :class="cn('group relative overflow-hidden rounded-xl border border-border/60 bg-card/50 shadow-sm backdrop-blur transition-all hover:shadow-md', props.class)">
+        <CardContent class="p-4">
+            <div class="flex items-center gap-3">
                 <div v-if="icon"
-                    :class="cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-transform duration-300 group-hover:scale-110', accentClass)">
-                    <component :is="icon" class="h-7 w-7 transition-all group-hover:rotate-12" />
+                    :class="cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-transform duration-300 group-hover:scale-105', accentClass)">
+                    <component :is="icon" class="h-5 w-5 transition-all group-hover:rotate-6" />
                 </div>
 
                 <div class="min-w-0 flex-1 space-y-0.5">
-                    <p class="truncate text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/80">
+                    <p class="truncate text-[10px] font-black uppercase tracking-[0.13em] text-muted-foreground/85">
                         {{ title }}
                     </p>
-                    <div class="flex items-center gap-3">
-                        <h3 class="text-3xl font-black font-display tracking-tight text-card-foreground">
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-display text-2xl font-black leading-none tracking-tight text-card-foreground">
                             {{ value }}
                         </h3>
 
                         <div v-if="trend"
-                            :class="cn('flex items-center rounded-full px-2 py-0.5 text-[10px] font-black border',
+                            :class="cn('flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-black',
                                 trendType === 'up'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                                     : 'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20')">
-                            <TrendingUp v-if="trendType === 'up'" class="mr-1 h-3 w-3" />
-                            <TrendingDown v-if="trendType === 'down'" class="mr-1 h-3 w-3" />
+                            <TrendingUp v-if="trendType === 'up'" class="mr-1 h-2.5 w-2.5" />
+                            <TrendingDown v-if="trendType === 'down'" class="mr-1 h-2.5 w-2.5" />
                             {{ Math.abs(trend.value) }}%
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div v-if="description" class="mt-4 border-t border-border/50 pt-4">
-                <p class="text-[11px] font-bold text-muted-foreground/60 leading-relaxed uppercase tracking-wider">
+            <div v-if="description" class="mt-2">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/65">
                     {{ description }}
                 </p>
             </div>
 
-            <div v-if="subMetrics && subMetrics.length > 0" class="mt-4 flex flex-wrap gap-4 pt-2">
+            <div v-if="subMetrics && subMetrics.length > 0" class="mt-2.5 flex flex-wrap gap-3">
                 <div v-for="metric in subMetrics" :key="metric.label" class="space-y-0.5">
                     <p class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
                         {{ metric.label }}
                     </p>
-                    <p :class="cn('text-sm font-black font-display', metric.color || 'text-card-foreground/80')">
+                    <p :class="cn('font-display text-xs font-black', metric.color || 'text-card-foreground/80')">
                         {{ metric.value }}
                     </p>
                 </div>

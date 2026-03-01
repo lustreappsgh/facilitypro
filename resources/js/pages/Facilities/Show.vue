@@ -3,12 +3,14 @@ import DataTable from '@/components/data-table/DataTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
     Tabs,
     TabsContent,
     TabsList,
     TabsTrigger,
 } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
     edit as facilitiesEdit,
@@ -21,6 +23,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
+import { Eye } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 interface FacilityRelation {
@@ -150,9 +153,18 @@ const inspectionColumns: ColumnDef<InspectionRow>[] = [
         header: 'Actions',
         cell: ({ row }) =>
             can('inspections.view')
-                ? h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                      h(Link, { href: inspectionsShow(row.original.id).url }, () => 'View'),
-                  )
+                ? h(ButtonGroup, {}, () => [
+                    h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            h(
+                                Button,
+                                { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-0 shadow-none', asChild: true },
+                                () => h(Link, { href: inspectionsShow(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                            ),
+                        ),
+                        h(TooltipContent, { side: 'top' }, () => 'View'),
+                    ]),
+                ])
                 : h('span', { class: 'text-xs text-muted-foreground' }, '-'),
         enableSorting: false,
         enableHiding: false,
@@ -183,9 +195,18 @@ const maintenanceRequestColumns: ColumnDef<MaintenanceRequestRow>[] = [
         header: 'Actions',
         cell: ({ row }) =>
             can('maintenance_requests.view') || can('maintenance.view')
-                ? h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                      h(Link, { href: maintenanceShow(row.original.id).url }, () => 'View'),
-                  )
+                ? h(ButtonGroup, {}, () => [
+                    h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            h(
+                                Button,
+                                { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-0 shadow-none', asChild: true },
+                                () => h(Link, { href: maintenanceShow(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                            ),
+                        ),
+                        h(TooltipContent, { side: 'top' }, () => 'View'),
+                    ]),
+                ])
                 : h('span', { class: 'text-xs text-muted-foreground' }, '-'),
         enableSorting: false,
         enableHiding: false,
@@ -215,9 +236,18 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: facilitiesShow(row.original.id).url }, () => 'View'),
-            ),
+            h(ButtonGroup, {}, () => [
+                h(Tooltip, {}, () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                        h(
+                            Button,
+                            { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-0 shadow-none', asChild: true },
+                            () => h(Link, { href: facilitiesShow(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                        ),
+                    ),
+                    h(TooltipContent, { side: 'top' }, () => 'View'),
+                ]),
+            ]),
         enableSorting: false,
         enableHiding: false,
     },

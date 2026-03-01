@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
 
 class MaintenanceRequest extends Model
 {
@@ -87,10 +88,17 @@ class MaintenanceRequest extends Model
         }
 
         if ($user->can('maintenance_requests.view')) {
-            return $query->whereHas('facility', fn ($q) => $q->whereIn(
-                'managed_by',
-                $this->maintenanceScopeManagerIds($user)
-            ));
+            $allowedRequestTypes = ['carpentry', 'electrical', 'plumbing'];
+
+            return $query
+                ->whereHas('facility', fn ($q) => $q->whereIn(
+                    'managed_by',
+                    $this->maintenanceScopeManagerIds($user)
+                ))
+                ->whereHas('requestType', fn ($requestTypeQuery) => $requestTypeQuery->whereIn(
+                    DB::raw('LOWER(name)'),
+                    $allowedRequestTypes
+                ));
         }
 
         if ($user->can('maintenance.view')) {

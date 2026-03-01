@@ -53,7 +53,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:admin-actions');
     Route::resource('inspections', InspectionController::class);
 
-    Route::get('maintenance/my', [MaintenanceRequestController::class, 'index'])->name('maintenance.my');
+    Route::get('maintenance/my', [MaintenanceRequestController::class, 'myRequests'])->name('maintenance.my');
     Route::get('maintenance/admin', [MaintenanceRequestController::class, 'index'])
         ->name('maintenance.admin')
         ->middleware('throttle:admin-actions');

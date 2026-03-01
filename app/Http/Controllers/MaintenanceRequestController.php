@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Domains\Maintenance\DTOs\MaintenanceRequestData;
+use App\Domains\Maintenance\DTOs\WorkOrderData;
 use App\Domains\Maintenance\Requests\MaintenanceRequestRequest;
+use App\Domains\Maintenance\Actions\CreateWorkOrderAction;
 use App\Domains\Maintenance\Services\MaintenanceService;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
@@ -11,12 +13,14 @@ use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
 use App\Models\RequestType;
+use App\Models\Vendor;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,7 +29,8 @@ class MaintenanceRequestController extends Controller
     use AuthorizesRequests;
 
     public function __construct(
-        protected MaintenanceService $maintenanceService
+        protected MaintenanceService $maintenanceService,
+        protected CreateWorkOrderAction $createWorkOrderAction
     ) {}
 
     public function index(Request $request): Response
@@ -43,7 +48,7 @@ class MaintenanceRequestController extends Controller
         $userId = $request->input('user_id');
 
         $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $defaultEnd = now()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
 
         $startDate = $startDateInput ?: $defaultStart;
         $endDate = $endDateInput ?: $defaultEnd;
@@ -94,6 +99,13 @@ class MaintenanceRequestController extends Controller
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllRequests && $userId, fn ($query) => $query->where('requested_by', $userId))
             ->orderByDesc('week_start')
+            ->orderByRaw(
+                "CASE status
+                    WHEN 'pending' THEN 0
+                    WHEN 'submitted' THEN 1
+                    ELSE 2
+                END"
+            )
             ->latest()
             ->get();
 
@@ -318,6 +330,9 @@ class MaintenanceRequestController extends Controller
                 ->where('maintenance_request_id', $maintenance->id)
                 ->latest()
                 ->get(),
+            'vendors' => Vendor::where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -347,15 +362,36 @@ class MaintenanceRequestController extends Controller
     public function review(MaintenanceRequest $maintenance)
     {
         $this->authorize('review', $maintenance);
+
+        $validated = request()->validate([
+            'vendor_id' => ['required', 'exists:vendors,id'],
+            'estimated_cost' => ['required', 'integer', 'min:0'],
+            'scheduled_date' => ['nullable', 'date'],
+        ]);
+
         try {
-            $this->maintenanceService->review($maintenance);
+            if ($maintenance->workOrders()->exists()) {
+                throw new DomainException('This request already has a work order.');
+            }
+
+            DB::transaction(function () use ($maintenance, $validated) {
+                $this->maintenanceService->review($maintenance);
+
+                $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
+                    'maintenance_request_id' => $maintenance->id,
+                    'vendor_id' => $validated['vendor_id'],
+                    'estimated_cost' => $validated['estimated_cost'],
+                    'scheduled_date' => $validated['scheduled_date'] ?? null,
+                    'status' => 'assigned',
+                ]));
+            });
         } catch (DomainException $exception) {
             return back()->withErrors([
                 'status' => $exception->getMessage(),
             ]);
         }
 
-        return back()->with('success', 'Request approved.');
+        return back()->with('success', 'Request approved and work order created.');
     }
 
     public function reject(MaintenanceRequest $maintenance)

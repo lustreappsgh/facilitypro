@@ -107,14 +107,7 @@ const users = computed(() => props.data.users ?? []);
                                 {{ user.is_active ? 'Active' : 'Inactive' }}
                             </Badge>
                         </div>
-                        <div class="mt-3 grid grid-cols-4 gap-2">
-                            <Link
-                                :href="facilitiesAdmin({ query: { manager_id: user.id } }).url"
-                                class="rounded-md border border-border/50 bg-muted/30 p-2 transition-colors hover:border-primary/40 hover:bg-primary/5"
-                            >
-                                <p class="text-[10px] uppercase tracking-wide text-muted-foreground">Facilities</p>
-                                <p class="font-display text-lg font-semibold">{{ user.facilities_managed }}</p>
-                            </Link>
+                        <div class="mt-3 grid grid-cols-3 gap-2">
                             <Link
                                 :href="inspectionsIndex({ query: { user_id: user.id } }).url"
                                 class="rounded-md border border-border/50 bg-muted/30 p-2 transition-colors hover:border-primary/40 hover:bg-primary/5"

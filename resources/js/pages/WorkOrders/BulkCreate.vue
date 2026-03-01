@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { bulkStore as workOrdersBulkStore, index as workOrdersIndex } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
@@ -12,6 +15,11 @@ import { Form, Head, Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 interface FacilityManager {
+    id: number;
+    name: string;
+}
+
+interface Vendor {
     id: number;
     name: string;
 }
@@ -36,15 +44,16 @@ interface EditableRow {
     facility_name: string;
     request_type_name: string;
     description: string;
-    scheduled_date: string;
     estimated_cost: string;
-    actual_cost: string;
     selected: boolean;
     facility_manager_id: string;
+    review_action: 'approve' | 'reject';
+    vendor_id: string;
 }
 
 interface Props {
     facilityManagers: FacilityManager[];
+    vendors: Vendor[];
     maintenanceRequests: MaintenanceRequestRow[];
 }
 
@@ -61,13 +70,14 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const inputClass =
-    'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
 const selectedFacilityManagerId = ref<string | null>(
     props.facilityManagers[0] ? String(props.facilityManagers[0].id) : null,
+);
+const selectedVendorId = ref<string | null>(
+    props.vendors[0] ? String(props.vendors[0].id) : null,
 );
 const rows = ref<EditableRow[]>([]);
 
@@ -96,18 +106,54 @@ const initializeRows = () => {
         facility_name: request.facility?.name ?? `Facility for request #${request.id}`,
         request_type_name: request.requestType?.name ?? 'N/A',
         description: request.description ?? '',
-        scheduled_date: '',
         estimated_cost:
             request.cost !== null && request.cost !== undefined
                 ? String(request.cost)
                 : '',
-        actual_cost: '',
         selected: true,
         facility_manager_id: String(request.facility?.managed_by ?? ''),
+        review_action: 'approve',
+        vendor_id: selectedVendorId.value ?? '',
     }));
 };
 
+const decisionBadgeClass = (row: EditableRow) => {
+    if (!row.selected) {
+        return 'bg-muted text-muted-foreground';
+    }
+
+    if (row.review_action === 'approve') {
+        return 'bg-emerald-500/10 text-emerald-700';
+    }
+
+    return 'bg-rose-500/10 text-rose-700';
+};
+
+const rowHighlightClass = (row: EditableRow) => {
+    if (!row.selected) {
+        return '';
+    }
+
+    return row.review_action === 'approve'
+        ? 'bg-emerald-500/5'
+        : 'bg-rose-500/5';
+};
+
+const setReviewAction = (row: EditableRow, action: 'approve' | 'reject') => {
+    row.review_action = action;
+    row.selected = true;
+};
+
 watch(selectedFacilityManagerId, initializeRows, { immediate: true });
+watch(selectedVendorId, () => {
+    if (!selectedVendorId.value) {
+        return;
+    }
+    rows.value = rows.value.map((row) => ({
+        ...row,
+        vendor_id: row.selected ? selectedVendorId.value ?? '' : row.vendor_id,
+    }));
+});
 </script>
 
 <template>
@@ -115,7 +161,7 @@ watch(selectedFacilityManagerId, initializeRows, { immediate: true });
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Bulk create work orders" subtitle="Select request group by facility manager and create at once." />
+            <PageHeader title="Review requests" subtitle="Approve or reject requests in bulk for each facility manager." />
 
             <Form
                 :action="workOrdersBulkStore().url"
@@ -124,22 +170,41 @@ watch(selectedFacilityManagerId, initializeRows, { immediate: true });
                 v-slot="{ errors, processing }"
             >
                 <div class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4">
-                    <div class="grid gap-2">
-                        <Label for="facility_manager_id">Facility manager</Label>
-                        <Select v-model="selectedFacilityManagerId">
-                            <SelectTrigger id="facility_manager_id" class="w-full">
-                                <SelectValue placeholder="Select facility manager" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="manager in facilityManagers"
-                                    :key="manager.id"
-                                    :value="String(manager.id)"
-                                >
-                                    {{ manager.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="facility_manager_id">Facility manager</Label>
+                            <Select v-model="selectedFacilityManagerId">
+                                <SelectTrigger id="facility_manager_id" class="w-full">
+                                    <SelectValue placeholder="Select facility manager" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="manager in facilityManagers"
+                                        :key="manager.id"
+                                        :value="String(manager.id)"
+                                    >
+                                        {{ manager.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="default_vendor_id">Default vendor</Label>
+                            <Select v-model="selectedVendorId">
+                                <SelectTrigger id="default_vendor_id" class="w-full">
+                                    <SelectValue placeholder="Select vendor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="vendor in vendors"
+                                        :key="vendor.id"
+                                        :value="String(vendor.id)"
+                                    >
+                                        {{ vendor.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
 
@@ -158,15 +223,17 @@ watch(selectedFacilityManagerId, initializeRows, { immediate: true });
                                 <th class="px-3 py-2 text-left font-semibold">Facility</th>
                                 <th class="px-3 py-2 text-left font-semibold">Request type</th>
                                 <th class="px-3 py-2 text-left font-semibold">Description</th>
-                                <th class="px-3 py-2 text-left font-semibold">Scheduled date</th>
                                 <th class="px-3 py-2 text-left font-semibold">Estimated cost</th>
+                                <th class="px-3 py-2 text-left font-semibold">Vendor</th>
+                                <th class="px-3 py-2 text-left font-semibold">Decision</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/50">
                             <tr
                                 v-for="row in rows"
                                 :key="row.maintenance_request_id"
-                                class="align-top"
+                                class="align-top transition-colors"
+                                :class="rowHighlightClass(row)"
                             >
                                 <td class="px-3 py-2">
                                     <input type="checkbox" v-model="row.selected" />
@@ -185,23 +252,74 @@ watch(selectedFacilityManagerId, initializeRows, { immediate: true });
                                 </td>
                                 <td class="px-3 py-2">
                                     <Input
-                                        v-model="row.scheduled_date"
-                                        type="date"
-                                        :class="inputClass"
-                                    />
-                                </td>
-                                <td class="px-3 py-2">
-                                    <Input
                                         v-model="row.estimated_cost"
                                         type="number"
                                         step="1"
                                         placeholder="0"
+                                        :disabled="row.review_action === 'reject'"
                                     />
+                                </td>
+                                <td class="px-3 py-2">
+                                    <Select v-model="row.vendor_id" :disabled="row.review_action === 'reject'">
+                                        <SelectTrigger class="h-9 w-[200px]">
+                                            <SelectValue placeholder="Select vendor" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem
+                                                v-for="vendor in vendors"
+                                                :key="vendor.id"
+                                                :value="String(vendor.id)"
+                                            >
+                                                {{ vendor.name }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <ButtonGroup>
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    :variant="row.review_action === 'approve' ? 'secondary' : 'ghost'"
+                                                    class="rounded-none border-0 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 hover:bg-emerald-500/10"
+                                                    @click="setReviewAction(row, 'approve')"
+                                                >
+                                                    Approved
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">Approve request</TooltipContent>
+                                        </Tooltip>
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    :variant="row.review_action === 'reject' ? 'secondary' : 'ghost'"
+                                                    class="rounded-none border-l border-border/40 px-3 text-xs font-semibold uppercase tracking-wide text-rose-600 hover:bg-rose-500/10"
+                                                    @click="setReviewAction(row, 'reject')"
+                                                >
+                                                    Rejected
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">Reject request</TooltipContent>
+                                        </Tooltip>
+                                    </ButtonGroup>
+                                    <div class="mt-2">
+                                        <Badge
+                                            variant="secondary"
+                                            class="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider"
+                                            :class="decisionBadgeClass(row)"
+                                        >
+                                            {{ row.selected ? row.review_action : 'not selected' }}
+                                        </Badge>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="rows.length === 0">
                                 <td
-                                    colspan="7"
+                                    colspan="8"
                                     class="px-3 py-8 text-center text-sm text-muted-foreground"
                                 >
                                     No pending maintenance requests found for this facility manager.
@@ -222,18 +340,18 @@ watch(selectedFacilityManagerId, initializeRows, { immediate: true });
                     />
                     <input
                         type="hidden"
-                        :name="`bulk_orders[${index}][scheduled_date]`"
-                        :value="row.scheduled_date"
-                    />
-                    <input
-                        type="hidden"
                         :name="`bulk_orders[${index}][estimated_cost]`"
                         :value="row.estimated_cost"
                     />
                     <input
                         type="hidden"
-                        :name="`bulk_orders[${index}][actual_cost]`"
-                        :value="row.actual_cost"
+                        :name="`bulk_orders[${index}][vendor_id]`"
+                        :value="row.vendor_id"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_orders[${index}][review_action]`"
+                        :value="row.review_action"
                     />
                 </div>
 
@@ -250,7 +368,7 @@ watch(selectedFacilityManagerId, initializeRows, { immediate: true });
                     <Button
                         :disabled="processing || selectedRows.length === 0"
                     >
-                        Create bulk work orders
+                        Submit decisions
                     </Button>
                     <Button variant="ghost" as-child>
                         <Link :href="workOrdersIndex().url">Cancel</Link>

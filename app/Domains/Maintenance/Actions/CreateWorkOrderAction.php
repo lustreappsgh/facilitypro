@@ -35,10 +35,16 @@ class CreateWorkOrderAction
             throw new DomainException('Work orders can only be created for submitted requests.');
         }
 
+        if (! $data->vendor_id) {
+            throw new DomainException('Vendor is required to create a work order.');
+        }
+
         $payload = $data->toArray();
         $payload['status'] = $payload['status'] ?? 'assigned';
-        $payload['vendor_id'] = null;
         $payload['estimated_cost'] = $payload['estimated_cost'] ?? $request->cost;
+        if ($payload['estimated_cost'] === null) {
+            throw new DomainException('Estimated cost is required to create a work order.');
+        }
         $workOrder = WorkOrder::create($payload);
 
         $this->paymentService->create(new PaymentData(

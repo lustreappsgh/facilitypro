@@ -13,16 +13,18 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { edit, index as maintenanceIndex } from '@/routes/maintenance';
 import { create as workOrderCreate, show as workOrderShow } from '@/routes/work-orders';
 import { index as vendorsIndex } from '@/routes/vendors';
 import { show as paymentShow } from '@/routes/payments';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { h } from 'vue';
+import { computed, h } from 'vue';
 
 interface FacilityType {
     id: number;
@@ -69,6 +71,11 @@ interface VendorSummary {
     name: string;
 }
 
+interface Vendor {
+    id: number;
+    name: string;
+}
+
 interface WorkOrder {
     id: number;
     status?: string | null;
@@ -102,9 +109,10 @@ interface Props {
     request: MaintenanceRequest;
     workOrders: WorkOrder[];
     payments: Payment[];
+    vendors: Vendor[];
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -118,6 +126,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const { can } = usePermissions();
+
+const approveForm = useForm({
+    vendor_id: '',
+    estimated_cost: '',
+    scheduled_date: '',
+});
+
+const defaultEstimatedCost = computed(() => {
+    if (props.request.cost === null || props.request.cost === undefined) {
+        return '';
+    }
+    return String(props.request.cost);
+});
+
+if (!approveForm.estimated_cost) {
+    approveForm.estimated_cost = defaultEstimatedCost.value;
+}
 
 const currencyFormat = new Intl.NumberFormat(undefined, {
     style: 'currency',
@@ -238,19 +263,57 @@ const paymentColumns: ColumnDef<Payment>[] = [
                 subtitle="Review request context and advance maintenance work."
             >
                 <template #actions>
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <Button variant="outline" as-child>
                             <Link :href="maintenanceIndex().url">Back to list</Link>
                         </Button>
-                        <Button
+                        <form
                             v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
-                            variant="secondary"
-                            as-child
+                            class="flex flex-wrap items-end gap-2"
+                            @submit.prevent="
+                                approveForm.post(route('maintenance.approve', request.id), {
+                                    preserveScroll: true,
+                                })
+                            "
                         >
-                            <Link :href="route('maintenance.approve', request.id)" method="post" as="button">
+                            <div class="min-w-[180px]">
+                                <Select v-model="approveForm.vendor_id">
+                                    <SelectTrigger class="h-9">
+                                        <SelectValue placeholder="Select vendor" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem
+                                            v-for="vendor in vendors"
+                                            :key="vendor.id"
+                                            :value="String(vendor.id)"
+                                        >
+                                            {{ vendor.name }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="approveForm.errors.vendor_id" class="mt-1 text-xs text-destructive">
+                                    {{ approveForm.errors.vendor_id }}
+                                </p>
+                            </div>
+                            <div class="min-w-[140px]">
+                                <Input
+                                    v-model="approveForm.estimated_cost"
+                                    type="number"
+                                    step="1"
+                                    class="h-9"
+                                    placeholder="Estimated cost"
+                                />
+                                <p v-if="approveForm.errors.estimated_cost" class="mt-1 text-xs text-destructive">
+                                    {{ approveForm.errors.estimated_cost }}
+                                </p>
+                            </div>
+                            <Button :disabled="approveForm.processing">
                                 Approve request
-                            </Link>
-                        </Button>
+                            </Button>
+                            <p v-if="approveForm.errors.status" class="basis-full text-xs text-destructive">
+                                {{ approveForm.errors.status }}
+                            </p>
+                        </form>
                         <Button
                             v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
                             variant="secondary"
