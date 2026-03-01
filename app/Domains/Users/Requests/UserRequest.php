@@ -73,7 +73,7 @@ class UserRequest extends FormRequest
                 return;
             }
 
-            if ($manager->hasAnyRole(['Admin', 'Manager', 'Super Admin']) || ! $manager->hasRole('Facility Manager')) {
+            if ($manager->hasAnyRole(['Admin', 'Manager']) || ! $manager->hasRole('Facility Manager')) {
                 $validator->errors()->add(
                     'manager_id',
                     'Selected manager is not eligible to supervise facility managers.'

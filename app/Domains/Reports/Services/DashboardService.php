@@ -194,7 +194,7 @@ class DashboardService
 
         return User::query()
             ->with(['roles'])
-            ->whereDoesntHave('roles', fn ($query) => $query->whereIn('name', ['Super Admin', 'Admin']))
+            ->whereDoesntHave('roles', fn ($query) => $query->whereIn('name', ['Admin']))
             ->withCount(['facilities', 'maintenanceRequestsRequested'])
             ->addSelect([
                 'inspections_last_week' => Inspection::query()

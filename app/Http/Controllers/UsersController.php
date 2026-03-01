@@ -118,7 +118,7 @@ class UsersController extends Controller
     {
         $this->authorize('update', $user);
 
-        $disallowedSupervisorRoles = ['Admin', 'Manager', 'Super Admin'];
+        $disallowedSupervisorRoles = ['Admin', 'Manager'];
         $manager = $user->manager;
 
         $managerOptions = User::query()

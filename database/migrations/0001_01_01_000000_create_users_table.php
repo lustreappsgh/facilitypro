@@ -40,8 +40,8 @@ return new class extends Migration
         });
         
         $superUser = User::create([
-            'name' => 'Super Admin',
-            'email' => 'superadmin@email.com',
+            'name' => 'Admin',
+            'email' => 'admin@email.com',
             'email_verified_at' => Now(),
             'password' => bcrypt('S3curePw_2026#'),
         ]);

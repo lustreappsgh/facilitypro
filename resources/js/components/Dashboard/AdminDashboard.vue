@@ -14,6 +14,8 @@ import { index as rolesIndex } from '@/routes/roles';
 import { admin as reportsAdmin } from '@/routes/reports';
 import { index as auditLogsIndex } from '@/routes/audit-logs';
 import { index as vendorsIndex } from '@/routes/vendors';
+import { admin as paymentsAdmin } from '@/routes/payments';
+import { admin as workOrdersAdmin } from '@/routes/work-orders';
 import { Link } from '@inertiajs/vue3';
 import { AlertTriangle, Building2, ClipboardCheck, Settings, ShieldCheck, Users, Wrench } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -69,6 +71,36 @@ interface Props {
 const props = defineProps<Props>();
 const { getInitials } = useInitials();
 const users = computed(() => props.data.users ?? []);
+const actionCenterItems = computed(() => [
+    {
+        key: 'pending-payments',
+        label: 'Pending payments',
+        count: props.data.pending.payments,
+        helper: 'Awaiting decision',
+        href: paymentsAdmin().url,
+    },
+    {
+        key: 'stale-requests',
+        label: 'Stale requests',
+        count: props.data.health.staleMaintenanceRequests,
+        helper: `Older than ${props.data.health.staleThresholdDays} days`,
+        href: maintenanceIndex().url,
+    },
+    {
+        key: 'overdue-work-orders',
+        label: 'Overdue work orders',
+        count: props.data.health.overdueWorkOrders,
+        helper: 'Scheduled date passed',
+        href: workOrdersAdmin().url,
+    },
+    {
+        key: 'inactive-users',
+        label: 'Inactive users',
+        count: props.data.health.inactiveUsers,
+        helper: 'Review account status',
+        href: usersIndex({ query: { status: 'inactive' } }).url,
+    },
+]);
 </script>
 
 <template>
@@ -131,6 +163,26 @@ const users = computed(() => props.data.users ?? []);
                             </Link>
                         </div>
                     </div>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card class="border-border/60 bg-card/70">
+            <CardHeader class="pb-3">
+                <CardTitle class="font-display text-lg">Action Center</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <Link
+                        v-for="item in actionCenterItems"
+                        :key="item.key"
+                        :href="item.href"
+                        class="rounded-lg border border-border/60 bg-card p-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    >
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ item.label }}</p>
+                        <p class="mt-2 font-display text-2xl font-semibold leading-none">{{ item.count }}</p>
+                        <p class="mt-2 text-xs text-muted-foreground">{{ item.helper }}</p>
+                    </Link>
                 </div>
             </CardContent>
         </Card>

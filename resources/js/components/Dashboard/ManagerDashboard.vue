@@ -7,6 +7,7 @@ import { index as todosIndex } from '@/routes/todos';
 import { index as inspectionsIndex } from '@/routes/inspections';
 import { index as reportsIndex } from '@/routes/reports';
 import { governance as auditGovernance } from '@/routes/audit-logs';
+import { oversight as maintenanceOversight } from '@/routes/maintenance';
 import { Link } from '@inertiajs/vue3';
 import { AlertTriangle, ClipboardCheck, CreditCard, ListTodo, ShieldCheck, Timer } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -54,6 +55,36 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
 
 const todoSummary = computed(() => props.data.todoSummary ?? { pending: 0, overdue: 0, total: 0 });
 const inspectionSummary = computed(() => props.data.inspectionSummary ?? { total: 0, last_7_days: 0, latest_date: null });
+const actionCenterItems = computed(() => [
+    {
+        key: 'pending-approvals',
+        label: 'Pending approvals',
+        value: props.data.pendingApprovals,
+        helper: 'Awaiting payment decisions',
+        href: paymentApprovalsIndex().url,
+    },
+    {
+        key: 'queue-age',
+        label: 'Oldest approval',
+        value: props.data.oldestPendingDays ? `${props.data.oldestPendingDays}d` : '--',
+        helper: props.data.oldestPendingDate ?? 'No delayed queue',
+        href: paymentApprovalsIndex().url,
+    },
+    {
+        key: 'high-cost',
+        label: 'High-cost alerts',
+        value: props.data.highCostPendingCount || 0,
+        helper: `Threshold ${currencyFormat.format(props.data.highCostThreshold || 0)}`,
+        href: paymentApprovalsIndex().url,
+    },
+    {
+        key: 'overdue-todos',
+        label: 'Overdue todos',
+        value: todoSummary.value.overdue,
+        helper: 'Needs manager follow-up',
+        href: todosIndex().url,
+    },
+]);
 </script>
 
 <template>
@@ -105,12 +136,35 @@ const inspectionSummary = computed(() => props.data.inspectionSummary ?? { total
 
         <Card class="border-border/60 bg-card/70">
             <CardHeader class="pb-3">
+                <CardTitle class="font-display text-lg">Action Center</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <Link
+                        v-for="item in actionCenterItems"
+                        :key="item.key"
+                        :href="item.href"
+                        class="rounded-lg border border-border/60 bg-card p-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    >
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ item.label }}</p>
+                        <p class="mt-2 font-display text-2xl font-semibold leading-none">{{ item.value }}</p>
+                        <p class="mt-2 text-xs text-muted-foreground">{{ item.helper }}</p>
+                    </Link>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card class="border-border/60 bg-card/70">
+            <CardHeader class="pb-3">
                 <CardTitle class="font-display text-lg">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
                 <div class="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" as-child>
                         <Link :href="paymentApprovalsIndex().url">Payment Approvals</Link>
+                    </Button>
+                    <Button size="sm" variant="outline" as-child>
+                        <Link :href="maintenanceOversight().url">Maintenance Oversight</Link>
                     </Button>
                     <Button size="sm" variant="outline" as-child>
                         <Link :href="todosIndex().url">Todos</Link>
