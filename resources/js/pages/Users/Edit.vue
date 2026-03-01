@@ -85,6 +85,23 @@ const accessForm = useForm({});
 const reportsForm = useForm({
     report_ids: props.directReportIds.map((id) => Number(id)),
 });
+const roleDescriptions: Record<string, string> = {
+    Admin: 'Full platform administration access.',
+    Manager: 'Approvals, oversight, and governance visibility.',
+    'Facility Manager': 'Facility-level inspections, requests, and todos.',
+    'Maintenance Manager': 'Work-order execution and vendor coordination.',
+};
+const roleDisplayOrder = ['Admin', 'Manager', 'Facility Manager', 'Maintenance Manager'];
+const orderedRoles = computed(() => {
+    const orderMap = new Map(roleDisplayOrder.map((name, index) => [name, index]));
+
+    return [...props.roles].sort((a, b) => {
+        const indexA = orderMap.get(a.name) ?? Number.MAX_SAFE_INTEGER;
+        const indexB = orderMap.get(b.name) ?? Number.MAX_SAFE_INTEGER;
+
+        return indexA - indexB;
+    });
+});
 
 const assignedManagerSelection = computed(() =>
     props.managerAssignment.manager_id
@@ -126,6 +143,8 @@ const hasAssignedManager = computed(
 );
 
 const hasAssignedReports = computed(() => props.directReportIds.length > 0);
+const isManagerRoleSelected = computed(() => form.roles.includes('Manager'));
+const isFacilityManagerRoleSelected = computed(() => form.roles.includes('Facility Manager'));
 const eligibleManagerCount = computed(
     () => props.managerOptions.filter((manager) => !manager.disabled).length,
 );
@@ -141,6 +160,12 @@ const canRevokeAccess = computed(
         hasAssignedManager.value &&
         !hasPendingManagerChange.value &&
         props.managerAssignment.other_direct_reports === 0,
+);
+const canUpdateMaintenanceAccess = computed(() =>
+    props.managerAssignment.has_maintenance_access ? canRevokeAccess.value : canGrantAccess.value,
+);
+const maintenanceAccessActionLabel = computed(() =>
+    props.managerAssignment.has_maintenance_access ? 'Disable maintenance access' : 'Enable maintenance access',
 );
 
 const toggleRole = (roleName: string, checked: boolean) => {
@@ -174,6 +199,23 @@ const revokeAccess = () => {
     accessForm.post(props.routes.revokeManagerAccess, {
         preserveScroll: true,
     });
+};
+
+const toggleMaintenanceAccess = () => {
+    if (props.managerAssignment.has_maintenance_access) {
+        revokeAccess();
+        return;
+    }
+
+    grantAccess();
+};
+
+const selectAllReports = () => {
+    reportsForm.report_ids = props.reportOptions.map((report) => report.id);
+};
+
+const clearReports = () => {
+    reportsForm.report_ids = [];
 };
 
 const toggleReport = (userId: number, checked: boolean) => {
@@ -227,21 +269,29 @@ const submitReports = () => {
                     <Label>Roles</Label>
                     <div class="grid gap-2 rounded-lg border border-border/60 p-4">
                         <label
-                            v-for="role in props.roles"
+                            v-for="role in orderedRoles"
                             :key="role.id"
-                            class="flex items-center gap-3 text-sm"
+                            class="flex items-start gap-3 text-sm"
                         >
                             <Checkbox
                                 :model-value="form.roles.includes(role.name)"
                                 @update:modelValue="(checked) => toggleRole(role.name, checked === true)"
                             />
-                            <span>{{ role.name }}</span>
+                            <span class="space-y-0.5">
+                                <span class="block font-medium">{{ role.name }}</span>
+                                <span class="block text-xs text-muted-foreground">
+                                    {{ roleDescriptions[role.name] ?? 'Access role.' }}
+                                </span>
+                            </span>
                         </label>
                     </div>
                     <InputError :message="form.errors.roles" />
                 </div>
 
-                <div class="grid gap-4 rounded-xl border border-border/60 bg-card/60 p-5">
+                <div
+                    v-if="isManagerRoleSelected || hasAssignedReports"
+                    class="grid gap-4 rounded-xl border border-border/60 bg-card/60 p-5"
+                >
                     <div class="space-y-1">
                         <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                             Direct Reports
@@ -258,10 +308,40 @@ const submitReports = () => {
                         >
                             Remove the supervising manager before adding new direct reports.
                         </p>
+                        <p
+                            v-if="!isManagerRoleSelected"
+                            class="text-xs text-amber-600"
+                        >
+                            Add the Manager role to manage direct reports.
+                        </p>
                     </div>
 
                     <div class="grid gap-2">
-                        <Label>Facility Managers</Label>
+                        <div class="flex items-center justify-between gap-3">
+                            <Label>Facility Managers</Label>
+                            <div class="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="h-7 px-2 text-[11px]"
+                                    :disabled="!isManagerRoleSelected || reportOptionCount === 0"
+                                    @click="selectAllReports"
+                                >
+                                    Select all
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="h-7 px-2 text-[11px]"
+                                    :disabled="!isManagerRoleSelected || selectedReportCount === 0"
+                                    @click="clearReports"
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        </div>
                         <div class="max-h-60 space-y-2 overflow-y-auto rounded-lg border border-border/60 p-4">
                             <div
                                 v-if="props.reportOptions.length === 0"
@@ -277,6 +357,7 @@ const submitReports = () => {
                                 <Checkbox
                                     :model-value="reportsForm.report_ids.includes(report.id)"
                                     :disabled="
+                                        !isManagerRoleSelected ||
                                         hasAssignedManager &&
                                         !reportsForm.report_ids.includes(report.id)
                                     "
@@ -292,7 +373,7 @@ const submitReports = () => {
                         <Button
                             type="button"
                             variant="secondary"
-                            :disabled="reportsForm.processing"
+                            :disabled="reportsForm.processing || !isManagerRoleSelected"
                             @click="submitReports"
                         >
                             Save direct reports
@@ -301,7 +382,7 @@ const submitReports = () => {
                 </div>
 
                 <div
-                    v-if="props.managerAssignment.is_facility_manager"
+                    v-if="isFacilityManagerRoleSelected || hasAssignedManager"
                     class="grid gap-4 rounded-xl border border-border/60 bg-card/60 p-5"
                 >
                     <div class="space-y-1">
@@ -373,18 +454,10 @@ const submitReports = () => {
                         <Button
                             type="button"
                             variant="secondary"
-                            :disabled="accessForm.processing || !canGrantAccess"
-                            @click="grantAccess"
+                            :disabled="accessForm.processing || !canUpdateMaintenanceAccess"
+                            @click="toggleMaintenanceAccess"
                         >
-                            Grant maintenance access
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            :disabled="accessForm.processing || !canRevokeAccess"
-                            @click="revokeAccess"
-                        >
-                            Remove maintenance access
+                            {{ maintenanceAccessActionLabel }}
                         </Button>
                     </div>
                 </div>
