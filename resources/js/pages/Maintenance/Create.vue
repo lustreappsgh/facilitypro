@@ -71,6 +71,11 @@ const getUpcomingMonday = () => {
     return date.toISOString().slice(0, 10);
 };
 
+const hasPrefilledFacility = computed(() => Boolean(props.selectedFacilityId));
+const prefilledFacility = computed(() =>
+    props.facilities.find((facility) => facility.id === props.selectedFacilityId),
+);
+
 const selectedFacilityTypeId = ref<string | null>(
     prefilledFacility.value?.facility_type_id
         ? String(prefilledFacility.value.facility_type_id)
@@ -357,7 +362,3 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
         </div>
     </AppLayout>
 </template>
-const hasPrefilledFacility = computed(() => Boolean(props.selectedFacilityId));
-const prefilledFacility = computed(() =>
-    props.facilities.find((facility) => facility.id === props.selectedFacilityId),
-);
