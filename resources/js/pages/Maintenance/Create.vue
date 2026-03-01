@@ -128,19 +128,6 @@ const initializeRows = () => {
     }));
 };
 
-const applyDefaultsToSelected = () => {
-    rows.value = rows.value.map((row) => {
-        if (!row.selected) {
-            return row;
-        }
-
-        return {
-            ...row,
-            request_type_id: defaultRequestTypeId.value ?? row.request_type_id,
-        };
-    });
-};
-
 watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 </script>
 
@@ -200,16 +187,6 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                         </select>
                     </div>
 
-                    <div class="md:col-span-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            @click="applyDefaultsToSelected"
-                            :disabled="rows.length === 0"
-                        >
-                            Apply defaults to selected facilities
-                        </Button>
-                    </div>
                 </div>
 
                 <div class="overflow-x-auto rounded-xl border border-border/50 bg-card/50">
