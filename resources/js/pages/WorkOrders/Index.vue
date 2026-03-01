@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import DataTable from '@/components/data-table/DataTable.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { create, edit, index as workOrdersIndex, show } from '@/routes/work-orders';
+import { bulkCreate as workOrdersBulkCreate, create, edit, index as workOrdersIndex, show } from '@/routes/work-orders';
 import { show as maintenanceShow } from '@/routes/maintenance';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
@@ -282,7 +282,7 @@ const columns: ColumnDef<WorkOrder>[] = [
                 @toggle-filters="filtersVisible = !filtersVisible">
                 <template #actions>
                     <Button v-if="can('work_orders.create')" size="lg" variant="outline" as-child>
-                        <Link :href="route('work-orders.bulk-create')">
+                        <Link :href="workOrdersBulkCreate().url">
                             <Layers class="mr-2 h-4 w-4" />
                             Bulk create
                         </Link>

@@ -1,5 +1,5 @@
 import { usePermissions } from '@/composables/usePermissions';
-import { index as paymentApprovalsIndex } from '@/routes/payment-approvals';
+import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
 import { index as paymentsIndex } from '@/routes/payments';
 import { index as requestTypesIndex } from '@/routes/request-types';
 import { index as vendorsIndex } from '@/routes/vendors';

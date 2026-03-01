@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { index as workOrdersIndex } from '@/routes/work-orders';
+import { bulkStore as workOrdersBulkStore, index as workOrdersIndex } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
-interface FacilityType {
+interface FacilityManager {
     id: number;
     name: string;
 }
@@ -23,7 +23,7 @@ interface MaintenanceRequestRow {
     facility?: {
         id: number;
         name: string;
-        facility_type_id?: number | null;
+        managed_by?: number | null;
     } | null;
     requestType?: {
         id: number;
@@ -40,11 +40,11 @@ interface EditableRow {
     estimated_cost: string;
     actual_cost: string;
     selected: boolean;
-    facility_type_id: string;
+    facility_manager_id: string;
 }
 
 interface Props {
-    facilityTypes: FacilityType[];
+    facilityManagers: FacilityManager[];
     maintenanceRequests: MaintenanceRequestRow[];
 }
 
@@ -66,21 +66,19 @@ const inputClass =
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
-const selectedFacilityTypeId = ref<string | null>(
-    props.facilityTypes[0] ? String(props.facilityTypes[0].id) : null,
+const selectedFacilityManagerId = ref<string | null>(
+    props.facilityManagers[0] ? String(props.facilityManagers[0].id) : null,
 );
-const defaultScheduledDate = ref('');
-const defaultEstimatedCost = ref('');
 const rows = ref<EditableRow[]>([]);
 
 const filteredRequests = computed(() => {
-    if (!selectedFacilityTypeId.value) {
+    if (!selectedFacilityManagerId.value) {
         return [] as MaintenanceRequestRow[];
     }
 
     return props.maintenanceRequests.filter(
         (request) =>
-            String(request.facility?.facility_type_id ?? '') === selectedFacilityTypeId.value,
+            String(request.facility?.managed_by ?? '') === selectedFacilityManagerId.value,
     );
 });
 
@@ -98,32 +96,18 @@ const initializeRows = () => {
         facility_name: request.facility?.name ?? `Facility for request #${request.id}`,
         request_type_name: request.requestType?.name ?? 'N/A',
         description: request.description ?? '',
-        scheduled_date: defaultScheduledDate.value,
+        scheduled_date: '',
         estimated_cost:
             request.cost !== null && request.cost !== undefined
                 ? String(request.cost)
-                : defaultEstimatedCost.value,
+                : '',
         actual_cost: '',
         selected: true,
-        facility_type_id: String(request.facility?.facility_type_id ?? ''),
+        facility_manager_id: String(request.facility?.managed_by ?? ''),
     }));
 };
 
-const applyDefaultsToSelected = () => {
-    rows.value = rows.value.map((row) => {
-        if (!row.selected) {
-            return row;
-        }
-
-        return {
-            ...row,
-            scheduled_date: defaultScheduledDate.value,
-            estimated_cost: defaultEstimatedCost.value || row.estimated_cost,
-        };
-    });
-};
-
-watch(selectedFacilityTypeId, initializeRows, { immediate: true });
+watch(selectedFacilityManagerId, initializeRows, { immediate: true });
 </script>
 
 <template>
@@ -131,62 +115,31 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Bulk create work orders" subtitle="Select request group by facility type and create at once." />
+            <PageHeader title="Bulk create work orders" subtitle="Select request group by facility manager and create at once." />
 
             <Form
-                :action="route('work-orders.bulk-store')"
+                :action="workOrdersBulkStore().url"
                 method="post"
                 class="space-y-6"
                 v-slot="{ errors, processing }"
             >
-                <div class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-3">
+                <div class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4">
                     <div class="grid gap-2">
-                        <Label for="facility_type_id">Facility type</Label>
-                        <Select v-model="selectedFacilityTypeId">
-                            <SelectTrigger id="facility_type_id" class="w-full">
-                                <SelectValue placeholder="Select facility type" />
+                        <Label for="facility_manager_id">Facility manager</Label>
+                        <Select v-model="selectedFacilityManagerId">
+                            <SelectTrigger id="facility_manager_id" class="w-full">
+                                <SelectValue placeholder="Select facility manager" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem
-                                    v-for="facilityType in facilityTypes"
-                                    :key="facilityType.id"
-                                    :value="String(facilityType.id)"
+                                    v-for="manager in facilityManagers"
+                                    :key="manager.id"
+                                    :value="String(manager.id)"
                                 >
-                                    {{ facilityType.name }}
+                                    {{ manager.name }}
                                 </SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="default_scheduled_date">Default scheduled date</Label>
-                        <Input
-                            id="default_scheduled_date"
-                            v-model="defaultScheduledDate"
-                            type="date"
-                        />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label for="default_estimated_cost">Default estimated cost</Label>
-                        <Input
-                            id="default_estimated_cost"
-                            v-model="defaultEstimatedCost"
-                            type="number"
-                            step="1"
-                            placeholder="0"
-                        />
-                    </div>
-
-                    <div class="md:col-span-3">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            :disabled="rows.length === 0"
-                            @click="applyDefaultsToSelected"
-                        >
-                            Apply defaults to selected rows
-                        </Button>
                     </div>
                 </div>
 
@@ -251,7 +204,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     colspan="7"
                                     class="px-3 py-8 text-center text-sm text-muted-foreground"
                                 >
-                                    No pending maintenance requests found for this facility type.
+                                    No pending maintenance requests found for this facility manager.
                                 </td>
                             </tr>
                         </tbody>

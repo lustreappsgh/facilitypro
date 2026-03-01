@@ -3,7 +3,7 @@ import ApprovalQueue from '@/components/ApprovalQueue.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { index as paymentApprovalsIndex } from '@/routes/payment-approvals';
+import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
 import type { BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 

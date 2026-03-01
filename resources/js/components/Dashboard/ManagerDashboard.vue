@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import StatsCard from '@/components/StatsCard.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { index as paymentApprovalsIndex } from '@/routes/payment-approvals';
+import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
 import { index as todosIndex } from '@/routes/todos';
 import { index as inspectionsIndex } from '@/routes/inspections';
 import { index as reportsIndex } from '@/routes/reports';

@@ -9,9 +9,9 @@ use App\Domains\Maintenance\Requests\WorkOrderRequest;
 use App\Domains\Payments\Requests\PaymentUpdateRequest;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
-use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WorkOrder;
 use DomainException;
@@ -192,15 +192,15 @@ class WorkOrderController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        $facilityTypeIds = $maintenanceRequests
-            ->pluck('facility.facility_type_id')
+        $facilityManagerIds = $maintenanceRequests
+            ->pluck('facility.managed_by')
             ->filter()
             ->unique()
             ->values();
 
         return Inertia::render('WorkOrders/BulkCreate', [
-            'facilityTypes' => FacilityType::query()
-                ->whereIn('id', $facilityTypeIds)
+            'facilityManagers' => User::query()
+                ->whereIn('id', $facilityManagerIds)
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'maintenanceRequests' => $maintenanceRequests->map(fn (MaintenanceRequest $item) => [
@@ -210,7 +210,7 @@ class WorkOrderController extends Controller
                 'facility' => $item->facility ? [
                     'id' => $item->facility->id,
                     'name' => $item->facility->name,
-                    'facility_type_id' => $item->facility->facility_type_id,
+                    'managed_by' => $item->facility->managed_by,
                 ] : null,
                 'requestType' => $item->requestType ? [
                     'id' => $item->requestType->id,

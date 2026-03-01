@@ -27,7 +27,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { index as paymentApprovalsIndex } from '@/routes/payment-approvals';
+import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
 import { approve as paymentApprove, reject as paymentReject, show as paymentShow } from '@/routes/payments';
 import { show as maintenanceShow } from '@/routes/maintenance';
 import { Link, useForm } from '@inertiajs/vue3';

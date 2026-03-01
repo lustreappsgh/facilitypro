@@ -5,7 +5,7 @@ import inspections from '@/routes/inspections';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as auditLogsIndex } from '@/routes/audit-logs';
 import { index as todosIndex } from '@/routes/todos';
-import { index as maintenanceIndex } from '@/routes/maintenance';
+import maintenance from '@/routes/maintenance/index';
 import { edit as profileEdit } from '@/routes/profile';
 import { usePermissions } from '@/composables/usePermissions';
 import type { NavItem } from '@/types';
@@ -68,7 +68,7 @@ export function useMainNavigation() {
         },
         {
             title: 'Maintenance Requests',
-            href: maintenanceIndex(),
+            href: maintenance.index(),
             icon: Wrench,
             permissions: [
                 'maintenance.view',
