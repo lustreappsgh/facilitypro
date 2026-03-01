@@ -35,6 +35,7 @@ interface MaintenanceRequest {
     requested_by_name?: string | null;
     request_type_name?: string | null;
     latest_work_order_id?: number | null;
+    has_work_order?: boolean;
 }
 
 interface MaintenanceRequestGroup {
@@ -200,15 +201,35 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             id: 'status',
             accessorFn: (row) => row.status ?? '',
             header: 'Status',
-            cell: ({ row }) =>
-                h(
-                    Badge,
-                    {
-                        variant: 'outline',
-                        class: `rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${statusClass(row.original.status)}`,
-                    },
-                    () => statusLabel(row.original.status),
-                ),
+            cell: ({ row }) => {
+                const chips = [
+                    h(
+                        Badge,
+                        {
+                            variant: 'outline',
+                            class: `rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${statusClass(row.original.status)}`,
+                        },
+                        () => statusLabel(row.original.status),
+                    ),
+                ];
+
+                if (can('work_orders.view')) {
+                    chips.push(
+                        h(
+                            Badge,
+                            {
+                                variant: 'outline',
+                                class: row.original.has_work_order
+                                    ? 'rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                    : 'rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-700 border-amber-500/20',
+                            },
+                            () => (row.original.has_work_order ? 'WO linked' : 'WO needed'),
+                        ),
+                    );
+                }
+
+                return h('div', { class: 'flex flex-wrap items-center gap-1.5' }, chips);
+            },
         },
         {
             id: 'cost',
@@ -387,6 +408,9 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">
                     Default range shows the current and upcoming week: {{ dateRangeLabel }}.
+                </p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Priority order surfaces pending/submitted requests without work orders first.
                 </p>
             </div>
 

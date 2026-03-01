@@ -29,7 +29,6 @@ class CreateWorkOrderAction
         if (! in_array($request->status, [
             MaintenanceStatus::Submitted->value,
             MaintenanceStatus::Pending->value,
-            MaintenanceStatus::Rejected->value,
             MaintenanceStatus::Approved->value,
         ], true)) {
             throw new DomainException('Work orders can only be created for submitted requests.');

@@ -171,7 +171,6 @@ class WorkOrderController extends Controller
                 ->whereIn('status', [
                     MaintenanceStatus::Submitted->value,
                     MaintenanceStatus::Pending->value,
-                    MaintenanceStatus::Rejected->value,
                     MaintenanceStatus::Approved->value,
                 ])
                 ->get(),
@@ -364,7 +363,6 @@ class WorkOrderController extends Controller
                 ->whereIn('status', [
                     MaintenanceStatus::Submitted->value,
                     MaintenanceStatus::Pending->value,
-                    MaintenanceStatus::Rejected->value,
                     MaintenanceStatus::Approved->value,
                 ])
                 ->get(),

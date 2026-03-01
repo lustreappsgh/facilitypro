@@ -65,7 +65,7 @@ class MaintenanceRequestController extends Controller
             'requestedBy',
             'requestType',
             'workOrders' => fn ($builder) => $builder->latest()->limit(1),
-        ]);
+        ])->withCount('workOrders');
 
         $weeksByYearMonth = (clone $baseQuery)
             ->whereNotNull('week_start')
@@ -99,7 +99,15 @@ class MaintenanceRequestController extends Controller
             ->whereBetween('week_start', [$startDate, $endDate])
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllRequests && $userId, fn ($query) => $query->where('requested_by', $userId))
-            ->orderByDesc('week_start')
+            ->orderByRaw(
+                "CASE
+                    WHEN status = 'pending' AND work_orders_count = 0 THEN 0
+                    WHEN status = 'submitted' AND work_orders_count = 0 THEN 1
+                    WHEN status = 'pending' THEN 2
+                    WHEN status = 'submitted' THEN 3
+                    ELSE 4
+                END"
+            )
             ->orderByRaw(
                 "CASE status
                     WHEN 'pending' THEN 0
@@ -107,7 +115,8 @@ class MaintenanceRequestController extends Controller
                     ELSE 2
                 END"
             )
-            ->latest()
+            ->orderByDesc('week_start')
+            ->orderBy('created_at')
             ->get();
 
         $groups = $filteredRequests
@@ -136,6 +145,7 @@ class MaintenanceRequestController extends Controller
                         : null,
                     'request_type_name' => $maintenanceRequest->requestType?->name,
                     'latest_work_order_id' => $maintenanceRequest->workOrders->first()?->id,
+                    'has_work_order' => ($maintenanceRequest->work_orders_count ?? 0) > 0,
                 ])->all(),
             ])
             ->values()

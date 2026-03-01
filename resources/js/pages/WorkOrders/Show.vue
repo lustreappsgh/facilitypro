@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import WorkOrderController from '@/actions/App/Http/Controllers/WorkOrderController';
 import CostTracker from '@/components/CostTracker.vue';
 import StatusTimeline from '@/components/StatusTimeline.vue';
@@ -187,7 +187,7 @@ const paymentStatusBadgeClass = (status: string) => {
                                     Assigned date
                                 </p>
                                 <p class="text-sm font-medium">
-                                    {{ workOrder.assigned_date ?? '—' }}
+                                    {{ workOrder.assigned_date ?? '-' }}
                                 </p>
                             </div>
                             <div>
@@ -195,7 +195,7 @@ const paymentStatusBadgeClass = (status: string) => {
                                     Scheduled date
                                 </p>
                                 <p class="text-sm font-medium">
-                                    {{ workOrder.scheduled_date ?? '—' }}
+                                    {{ workOrder.scheduled_date ?? '-' }}
                                 </p>
                             </div>
                             <div>
@@ -203,7 +203,7 @@ const paymentStatusBadgeClass = (status: string) => {
                                     Completed date
                                 </p>
                                 <p class="text-sm font-medium">
-                                    {{ workOrder.completed_date ?? '—' }}
+                                    {{ workOrder.completed_date ?? '-' }}
                                 </p>
                             </div>
                             <div>
@@ -231,19 +231,19 @@ const paymentStatusBadgeClass = (status: string) => {
                                 :value="statusMode ?? currentStatus"
                             />
                             <Button
-                                v-if="currentStatus === 'in_progress'"
+                                v-if="currentStatus === 'in_progress' && executionUnlocked"
                                 size="sm"
                                 variant="outline"
-                                :disabled="processing || !executionUnlocked"
+                                :disabled="processing"
                                 @click="statusMode = 'completed'"
                             >
                                 Mark completed
                             </Button>
                             <Button
-                                v-if="currentStatus === 'in_progress'"
+                                v-if="currentStatus === 'in_progress' && executionUnlocked"
                                 size="sm"
                                 variant="secondary"
-                                :disabled="processing || !executionUnlocked"
+                                :disabled="processing"
                                 @click="statusMode = 'cancelled'"
                             >
                                 Mark cancelled
@@ -255,16 +255,10 @@ const paymentStatusBadgeClass = (status: string) => {
                                 {{ errors.status }}
                             </p>
                             <p
-                                v-if="currentStatus === 'assigned' && !executionUnlocked"
-                                class="text-sm text-muted-foreground"
-                            >
-                                Awaiting admin approval to move this work order to in progress.
-                            </p>
-                            <p
                                 v-if="!executionUnlocked"
-                                class="text-sm text-muted-foreground"
+                                class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800"
                             >
-                                Approval is required before assigning vendors or updating work order status.
+                                Execution is locked until payment approval is completed.
                             </p>
                         </Form>
                     </CardContent>
@@ -283,7 +277,7 @@ const paymentStatusBadgeClass = (status: string) => {
                                 Vendor
                             </p>
                             <p class="text-base font-medium">
-                                {{ workOrder.vendor?.name ?? '—' }}
+                                {{ workOrder.vendor?.name ?? '-' }}
                             </p>
                             <p class="text-sm text-muted-foreground">
                                 {{ workOrder.vendor?.email ?? '' }}
@@ -310,7 +304,7 @@ const paymentStatusBadgeClass = (status: string) => {
                                     Request #{{ workOrder.maintenanceRequest?.id }}
                                 </Link>
                             </Button>
-                            <p v-else class="text-sm text-muted-foreground">—</p>
+                            <p v-else class="text-sm text-muted-foreground">-</p>
                         </div>
                         <CostTracker
                             :estimated="workOrder.estimated_cost"
@@ -413,3 +407,4 @@ const paymentStatusBadgeClass = (status: string) => {
         </div>
     </AppLayout>
 </template>
+
