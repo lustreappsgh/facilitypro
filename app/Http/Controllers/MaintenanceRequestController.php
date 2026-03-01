@@ -7,6 +7,7 @@ use App\Domains\Maintenance\Requests\MaintenanceRequestRequest;
 use App\Domains\Maintenance\Services\MaintenanceService;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
+use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
 use App\Models\RequestType;
@@ -222,10 +223,23 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('create', MaintenanceRequest::class);
 
+        $facilities = Facility::userFacilities(null, $request->user())
+            ->with('facilityType:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'facility_type_id']);
+
+        $facilityTypeIds = $facilities
+            ->pluck('facility_type_id')
+            ->filter()
+            ->unique()
+            ->values();
+
         return Inertia::render('Maintenance/Create', [
-            'facilities' => Facility::userFacilities(null, $request->user())
+            'facilities' => $facilities,
+            'facilityTypes' => FacilityType::query()
+                ->whereIn('id', $facilityTypeIds)
                 ->orderBy('name')
-                ->get(),
+                ->get(['id', 'name']),
             'requestTypes' => RequestType::all(),
         ]);
     }
@@ -235,6 +249,25 @@ class MaintenanceRequestController extends Controller
         $this->authorize('create', MaintenanceRequest::class);
 
         $validated = $request->validated();
+        $bulkRequests = collect($validated['bulk_requests'] ?? [])
+            ->filter(fn (array $item) => isset($item['facility_id']))
+            ->unique('facility_id')
+            ->values()
+            ->all();
+
+        if ($bulkRequests !== []) {
+            foreach ($bulkRequests as $item) {
+                $data = MaintenanceRequestData::fromRequest($item);
+                $this->maintenanceService->create($data);
+            }
+
+            $redirectTo = $request->input('redirect_to') ?? route('maintenance.index');
+
+            return redirect()
+                ->to($redirectTo)
+                ->with('success', 'Bulk requests created.');
+        }
+
         $facilityIds = $validated['facility_ids'] ?? null;
 
         if ($facilityIds) {
