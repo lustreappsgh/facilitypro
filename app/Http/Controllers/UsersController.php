@@ -44,6 +44,11 @@ class UsersController extends Controller
         $search = $request->string('search')->trim()->toString();
         $role = $request->string('role')->trim()->toString();
         $status = $request->string('status')->trim()->toString();
+        $perPage = (int) $request->input('per_page', 10);
+        if ($perPage <= 0) {
+            $perPage = 10;
+        }
+        $perPage = min(max($perPage, 5), 50);
 
         $users = User::query()
             ->with('roles')
@@ -56,17 +61,25 @@ class UsersController extends Controller
             ->when($role !== '', fn($query) => $query->whereHas('roles', fn($roles) => $roles->where('name', $role)))
             ->when($status !== '', fn($query) => $query->where('is_active', $status === 'active'))
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('Users/Index', [
             'data' => [
                 'users' => $users,
+                'pagination' => [
+                    'current_page' => $users->currentPage(),
+                    'last_page' => $users->lastPage(),
+                    'per_page' => $users->perPage(),
+                    'prev_page_url' => $users->previousPageUrl(),
+                    'next_page_url' => $users->nextPageUrl(),
+                ],
             ],
             'filters' => [
                 'search' => $search ?: null,
                 'role' => $role ?: null,
                 'status' => $status ?: null,
+                'per_page' => $perPage,
             ],
             'roles' => Role::orderBy('name')->get(['id', 'name']),
             'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
