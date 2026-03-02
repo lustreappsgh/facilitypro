@@ -12,8 +12,8 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { computed, h, ref } from 'vue';
-import { parseISO } from 'date-fns';
-import { AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList, Plus, TrendingUp } from 'lucide-vue-next';
+import { useDateFormat } from '@/composables/useDateFormat';
+import { AlertTriangle, Check, CheckCircle2, ClipboardCheck, ClipboardList, Pencil, Plus, TrendingUp } from 'lucide-vue-next';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -71,6 +71,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const { parseDate } = useDateFormat();
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Weekly Todos',
@@ -107,7 +109,11 @@ const metrics = computed(() => {
             return false;
         }
 
-        return today > parseISO(todo.week_start);
+        const weekStart = parseDate(todo.week_start);
+        if (!weekStart) {
+            return false;
+        }
+        return today > weekStart;
     }).length;
 
     return {
@@ -275,15 +281,19 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
         id: 'actions',
         header: '',
         cell: ({ row }) =>
-            h('div', { class: 'flex flex-wrap justify-end gap-2' }, [
+            h('div', { class: 'flex items-center justify-end gap-1' }, [
                 can('todos.update') && ['pending'].includes(row.original.status)
-                    ? h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
-                        h(Link, { href: edit(row.original.id).url }, () => 'Edit'),
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                        h(Link, { href: edit(row.original.id).url, 'aria-label': 'Edit todo' }, () =>
+                            h(Pencil, { class: 'h-4 w-4' }),
+                        ),
                     )
                     : null,
                 can('todos.complete') && ['pending', 'overdue'].includes(row.original.status)
-                    ? h(Button, { variant: 'secondary', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20', asChild: true }, () =>
-                        h(Link, { href: complete(row.original.id).url, method: 'post', as: 'button' }, () => 'Complete'),
+                    ? h(Button, { variant: 'secondary', size: 'icon', class: 'h-8 w-8 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20', asChild: true }, () =>
+                        h(Link, { href: complete(row.original.id).url, method: 'post', as: 'button', 'aria-label': 'Complete todo' }, () =>
+                            h(Check, { class: 'h-4 w-4' }),
+                        ),
                     )
                     : null,
             ]),

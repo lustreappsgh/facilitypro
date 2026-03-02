@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { complete, edit } from '@/routes/todos';
 import { Link } from '@inertiajs/vue3';
+import { Check, Pencil } from 'lucide-vue-next';
 
 interface Facility {
     name: string;
@@ -87,23 +88,27 @@ const getStatusColor = (status: string) => {
                                 </Badge>
                             </td>
                             <td class="px-4 py-3">
-                                <div class="flex flex-wrap gap-2">
+                                <div class="flex items-center gap-1">
                                     <Button
                                         v-if="canUpdate && todo.status === 'pending'"
-                                        variant="outline"
-                                        size="sm"
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-8 w-8"
                                         as-child
                                     >
-                                        <Link :href="edit(todo).url">Edit</Link>
+                                        <Link :href="edit(todo).url" aria-label="Edit todo">
+                                            <Pencil class="h-4 w-4" />
+                                        </Link>
                                     </Button>
                                     <Button
                                         v-if="canComplete && ['pending', 'overdue'].includes(todo.status)"
                                         variant="secondary"
-                                        size="sm"
+                                        size="icon"
+                                        class="h-8 w-8 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
                                         as-child
                                     >
-                                        <Link :href="complete(todo).url" method="post" as="button">
-                                            Complete
+                                        <Link :href="complete(todo).url" method="post" as="button" aria-label="Complete todo">
+                                            <Check class="h-4 w-4" />
                                         </Link>
                                     </Button>
                                 </div>

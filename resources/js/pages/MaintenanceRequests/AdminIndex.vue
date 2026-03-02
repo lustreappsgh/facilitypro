@@ -20,11 +20,12 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { admin as maintenanceAdmin, show as maintenanceShow } from '@/routes/maintenance';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { useDateFormat } from '@/composables/useDateFormat';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { Eye, Search } from 'lucide-vue-next';
 import { computed, h, onMounted, ref } from 'vue';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { endOfWeek, format, parseISO, startOfWeek, subMonths } from 'date-fns';
+import { endOfWeek, format, startOfWeek, subMonths } from 'date-fns';
 
 const filtersVisible = ref(false);
 
@@ -90,6 +91,8 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const { parseDate } = useDateFormat();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -163,7 +166,7 @@ const groupedByWeek = computed(() => {
     const groups = new Map<string, MaintenanceRequest[]>();
 
     props.requests.data.forEach((request) => {
-        const dateValue = request.created_at ? parseISO(request.created_at) : null;
+        const dateValue = parseDate(request.created_at);
         const weekStart = dateValue ? startOfWeek(dateValue, { weekStartsOn: 1 }) : null;
         const weekEnd = dateValue ? endOfWeek(dateValue, { weekStartsOn: 1 }) : null;
         const label = dateValue

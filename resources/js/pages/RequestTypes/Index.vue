@@ -23,7 +23,7 @@ import {
 } from '@/routes/request-types';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Search } from 'lucide-vue-next';
+import { Save, Search, Trash2 } from 'lucide-vue-next';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { h, ref } from 'vue';
 
@@ -152,26 +152,30 @@ const columns: ColumnDef<RequestType>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h('div', { class: 'flex flex-wrap gap-2' }, [
+            h('div', { class: 'flex items-center justify-end gap-1' }, [
                 h(
                     Button,
                     {
-                        size: 'sm',
-                        variant: 'outline',
+                        size: 'icon',
+                        variant: 'ghost',
+                        class: 'h-8 w-8',
                         disabled: updateForm.processing,
                         onClick: () => submitUpdate(row.original),
+                        'aria-label': 'Save request type',
                     },
-                    () => 'Update',
+                    () => h(Save, { class: 'h-4 w-4' }),
                 ),
                 h(
                     Button,
                     {
-                        size: 'sm',
+                        size: 'icon',
                         variant: 'ghost',
+                        class: 'h-8 w-8 text-destructive hover:text-destructive',
                         disabled: deleteForm.processing,
                         onClick: () => submitDelete(row.original),
+                        'aria-label': 'Delete request type',
                     },
-                    () => 'Delete',
+                    () => h(Trash2, { class: 'h-4 w-4' }),
                 ),
             ]),
         enableSorting: false,

@@ -31,7 +31,7 @@ import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index
 import { approve as paymentApprove, reject as paymentReject, show as paymentShow } from '@/routes/payments';
 import { show as maintenanceShow } from '@/routes/maintenance';
 import { Link, useForm } from '@inertiajs/vue3';
-import { Search } from 'lucide-vue-next';
+import { Check, Eye, Search, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 interface Facility {
@@ -342,26 +342,30 @@ const submitReject = () => {
                             {{ payment.created_at ?? '--' }}
                         </TableCell>
                         <TableCell>
-                            <div class="flex flex-wrap gap-2">
-                                <Button variant="outline" size="sm" as-child>
-                                    <Link :href="paymentShow(payment.id).url">
-                                        View
+                            <div class="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
+                                    <Link :href="paymentShow(payment.id).url" aria-label="View payment">
+                                        <Eye class="h-4 w-4" />
                                     </Link>
                                 </Button>
                                 <Button
                                     v-if="payment.status === 'pending'"
-                                    size="sm"
+                                    size="icon"
+                                    class="h-8 w-8"
+                                    aria-label="Approve payment"
                                     @click="openApprove(payment)"
                                 >
-                                    Approve
+                                    <Check class="h-4 w-4" />
                                 </Button>
                                 <Button
                                     v-if="payment.status === 'pending'"
-                                    size="sm"
+                                    size="icon"
                                     variant="secondary"
+                                    class="h-8 w-8 text-rose-600 hover:text-rose-700"
+                                    aria-label="Reject payment"
                                     @click="openReject(payment)"
                                 >
-                                    Reject
+                                    <X class="h-4 w-4" />
                                 </Button>
                             </div>
                         </TableCell>

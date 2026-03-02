@@ -19,6 +19,8 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
+import { Eye } from 'lucide-vue-next';
+import { ArrowLeft, ClipboardList, Pencil, Plus } from 'lucide-vue-next';
 import { h } from 'vue';
 
 interface FacilityType {
@@ -168,8 +170,10 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: workOrderShow(row.original.id).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -210,8 +214,10 @@ const paymentColumns: ColumnDef<Payment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: paymentShow(row.original).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -230,11 +236,15 @@ const paymentColumns: ColumnDef<Payment>[] = [
             >
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button variant="outline" as-child>
-                            <Link :href="maintenanceIndex().url">Back to list</Link>
+                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="maintenanceIndex().url" aria-label="Back to list">
+                                <ArrowLeft class="h-4 w-4" />
+                            </Link>
                         </Button>
                         <Button
                             v-if="can('work_orders.create') && workOrders.length === 0"
+                            size="icon"
+                            class="h-9 w-9"
                             as-child
                         >
                             <Link
@@ -245,25 +255,32 @@ const paymentColumns: ColumnDef<Payment>[] = [
                                         },
                                     }).url
                                 "
+                                aria-label="Create work order"
                             >
-                                Create work order
+                                <Plus class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
                             v-else-if="can('work_orders.view') && workOrders.length > 0"
                             variant="outline"
+                            size="icon"
+                            class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="workOrderShow(workOrders[0].id).url">
-                                View work order
+                            <Link :href="workOrderShow(workOrders[0].id).url" aria-label="View work order">
+                                <ClipboardList class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
                             v-if="can('maintenance.update') && request.status === 'pending'"
                             variant="secondary"
+                            size="icon"
+                            class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="edit(request).url">Edit request</Link>
+                            <Link :href="edit(request).url" aria-label="Edit request">
+                                <Pencil class="h-4 w-4" />
+                            </Link>
                         </Button>
                     </div>
                 </template>

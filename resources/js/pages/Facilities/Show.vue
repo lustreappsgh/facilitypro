@@ -23,7 +23,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Eye } from 'lucide-vue-next';
+import { ArrowLeft, Eye, Pencil } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 interface FacilityRelation {
@@ -268,11 +268,15 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
                         <Badge class="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase text-emerald-700">
                             {{ facility.condition ?? 'unknown' }}
                         </Badge>
-                        <Button variant="ghost" as-child>
-                            <Link :href="facilitiesIndex().url">Back to list</Link>
+                        <Button variant="ghost" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="facilitiesIndex().url" aria-label="Back to list">
+                                <ArrowLeft class="h-4 w-4" />
+                            </Link>
                         </Button>
-                        <Button v-if="can('facilities.update') && !isFacilityManagerView" as-child>
-                            <Link :href="facilitiesEdit(facility.id).url">Edit Facility</Link>
+                        <Button v-if="can('facilities.update') && !isFacilityManagerView" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="facilitiesEdit(facility.id).url" aria-label="Edit facility">
+                                <Pencil class="h-4 w-4" />
+                            </Link>
                         </Button>
                     </div>
                 </template>

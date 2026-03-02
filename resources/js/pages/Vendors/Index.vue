@@ -20,7 +20,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Search, Plus } from 'lucide-vue-next';
+import { ClipboardList, Eye, Plus, Search } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -128,20 +128,23 @@ const columns: ColumnDef<Vendor>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h('div', { class: 'flex flex-wrap gap-2' }, [
-                h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                    h(Link, { href: show(row.original.id).url }, () => 'View'),
+            h('div', { class: 'flex items-center justify-end gap-1' }, [
+                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                    h(Link, { href: show(row.original.id).url, 'aria-label': 'View vendor' }, () =>
+                        h(Eye, { class: 'h-4 w-4' }),
+                    ),
                 ),
                 can('work_orders.create')
-                    ? h(Button, { size: 'sm', asChild: true }, () =>
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
                         h(
                             Link,
                             {
                                 href: workOrderCreate({
                                     query: { vendor_id: row.original.id },
                                 }).url,
+                                'aria-label': 'Create work order',
                             },
-                            () => 'Create work order',
+                            () => h(ClipboardList, { class: 'h-4 w-4' }),
                         ),
                     )
                     : null,
@@ -159,9 +162,16 @@ const columns: ColumnDef<Vendor>[] = [
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-col gap-8 p-6 lg:p-10">
             <PageHeader title="Vendors" subtitle="Manage vendor relationships and service capabilities."
-                :action-label="can('vendors.create') ? 'New vendor' : ''"
-                :action-href="can('vendors.create') ? create().url : ''" :action-icon="Plus" :show-filters-toggle="true"
-                :filters-visible="filtersVisible" @toggle-filters="filtersVisible = !filtersVisible" />
+                :show-filters-toggle="true"
+                :filters-visible="filtersVisible" @toggle-filters="filtersVisible = !filtersVisible">
+                <template #actions>
+                    <Button v-if="can('vendors.create')" size="icon" class="h-9 w-9" as-child>
+                        <Link :href="create().url" aria-label="New vendor">
+                            <Plus class="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </template>
+            </PageHeader>
 
             <DataTable :data="vendors.data" :columns="columns" :show-search="false" :show-selection-summary="false">
                 <template v-if="filtersVisible" #filters>

@@ -9,20 +9,19 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import InspectionModal from '@/components/InspectionModal.vue';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { useDateFormat } from '@/composables/useDateFormat';
 import { my as inspectionsMy, show as inspectionsShow } from '@/routes/inspections';
 import {
     ClipboardCheck, TrendingUp, AlertTriangle,
-    CheckCircle2, Calendar, X
+    CheckCircle2, Calendar, Eye
 } from 'lucide-vue-next';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { h, onMounted } from 'vue';
 
 const filtersVisible = ref(false);
-import { startOfWeek, endOfWeek, format, parseISO, subWeeks } from 'date-fns';
+import { startOfWeek, endOfWeek, format, subWeeks } from 'date-fns';
 
 interface Facility {
     id: number;
@@ -70,7 +69,7 @@ const breadcrumbs = [
     { title: 'My Inspections', href: inspectionsMy().url },
 ];
 
-const { formatTableDate, formatRelative } = useDateFormat();
+const { formatTableDate, formatRelative, parseDate } = useDateFormat();
 
 // Modal state
 const inspectionModalOpen = ref(false);
@@ -115,7 +114,10 @@ const groupedByWeek = computed(() => {
     const groups = new Map<string, Inspection[]>();
 
     props.inspections.data.forEach(inspection => {
-        const date = parseISO(inspection.inspection_date);
+        const date = parseDate(inspection.inspection_date);
+        if (!date) {
+            return;
+        }
         const weekStart = startOfWeek(date, { weekStartsOn: 1 });
         const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
         const weekKey = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
@@ -169,9 +171,11 @@ const columns: ColumnDef<Inspection>[] = [
     {
         id: 'actions',
         header: '',
-        cell: ({ row }) => h('div', { class: 'text-right' }, [
-            h(Button, { variant: 'ghost', size: 'sm', class: 'h-8 px-3 text-[10px] font-bold uppercase', asChild: true }, {
-                default: () => h(Link, { href: inspectionsShow(row.original).url }, () => 'View')
+        cell: ({ row }) => h('div', { class: 'flex justify-end' }, [
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                default: () => h(Link, { href: inspectionsShow(row.original).url, 'aria-label': 'View inspection' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                )
             })
         ]),
     },
@@ -192,9 +196,8 @@ const columns: ColumnDef<Inspection>[] = [
                 @toggle-filters="filtersVisible = !filtersVisible"
             >
                 <template #actions>
-                    <Button size="lg" @click="inspectionModalOpen = true">
-                        <ClipboardCheck class="mr-2 h-4 w-4" />
-                        New inspection
+                    <Button size="icon" class="h-10 w-10" aria-label="New inspection" @click="inspectionModalOpen = true">
+                        <ClipboardCheck class="h-4 w-4" />
                     </Button>
                 </template>
             </PageHeader>
@@ -355,5 +358,3 @@ const columns: ColumnDef<Inspection>[] = [
             :redirect-to="inspectionsMy().url" @success="router.reload()" />
     </AppLayout>
 </template>
-
-

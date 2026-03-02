@@ -4,13 +4,16 @@ namespace App\Models;
 
 use App\Traits\ResolvesMaintenanceScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class WorkOrder extends Model
+class WorkOrder extends BaseModel
 {
     use HasFactory;
     use ResolvesMaintenanceScope;
+
+    protected $appends = [
+        'scheduled_date_raw',
+    ];
 
     protected $fillable = [
         'maintenance_request_id', 'vendor_id', 'assigned_date',
@@ -23,6 +26,11 @@ class WorkOrder extends Model
         'scheduled_date' => 'date',
         'completed_date' => 'date',
     ];
+
+    public function getScheduledDateRawAttribute(): ?string
+    {
+        return $this->scheduled_date?->format('Y-m-d');
+    }
 
     public function vendor()
     {

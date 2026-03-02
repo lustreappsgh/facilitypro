@@ -21,6 +21,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { ArrowLeft, CreditCard, Pencil } from 'lucide-vue-next';
 
 interface Vendor {
     id: number;
@@ -148,21 +149,29 @@ const paymentStatusBadgeClass = (status: string) => {
             <PageHeader title="Work order" subtitle="Review work order status and details.">
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button variant="outline" as-child>
-                            <Link :href="workOrdersIndex().url">Back to list</Link>
+                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="workOrdersIndex().url" aria-label="Back to list">
+                                <ArrowLeft class="h-4 w-4" />
+                            </Link>
                         </Button>
                         <Button
                             v-if="can('work_orders.update') && workOrder.status !== 'completed'"
                             :disabled="isInProgress"
                             :as-child="!isInProgress"
+                            size="icon"
+                            class="h-9 w-9"
                         >
                             <template v-if="isInProgress">
-                                Edit
+                                <Pencil class="h-4 w-4" />
                             </template>
-                            <Link v-else :href="edit(workOrder.id).url">Edit</Link>
+                            <Link v-else :href="edit(workOrder.id).url" aria-label="Edit work order">
+                                <Pencil class="h-4 w-4" />
+                            </Link>
                         </Button>
-                        <Button variant="secondary" as-child>
-                            <Link :href="paymentsIndex().url">View payments</Link>
+                        <Button variant="secondary" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="paymentsIndex().url" aria-label="View payments">
+                                <CreditCard class="h-4 w-4" />
+                            </Link>
                         </Button>
                     </div>
                 </template>

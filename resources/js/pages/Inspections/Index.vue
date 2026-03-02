@@ -10,12 +10,13 @@ import { create, index as inspectionsIndex, show } from '@/routes/inspections';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
+import { useDateFormat } from '@/composables/useDateFormat';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { computed, h, ref } from 'vue';
-import { AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList, Plus, TrendingUp } from 'lucide-vue-next';
+import { AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList, Eye, Plus, TrendingUp } from 'lucide-vue-next';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { isSameMonth, parseISO } from 'date-fns';
+import { isSameMonth } from 'date-fns';
 
 interface Facility {
     id: number;
@@ -68,6 +69,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const { parseDate } = useDateFormat();
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Inspections',
@@ -86,9 +89,10 @@ const allInspections = computed(() => props.data.groups.flatMap((group) => group
 const metrics = computed(() => {
     const inspections = allInspections.value;
     const total = inspections.length;
-    const thisMonth = inspections.filter((inspection) =>
-        inspection.inspection_date ? isSameMonth(parseISO(inspection.inspection_date), new Date()) : false,
-    ).length;
+    const thisMonth = inspections.filter((inspection) => {
+        const dateValue = parseDate(inspection.inspection_date);
+        return dateValue ? isSameMonth(dateValue, new Date()) : false;
+    }).length;
     const goodCondition = inspections.filter((inspection) => inspection.condition === 'Good').length;
     const needsAttention = inspections.filter((inspection) => ['Bad', 'Warning', 'Critical'].includes(inspection.condition)).length;
 
@@ -169,8 +173,10 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
         id: 'actions',
         header: '',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
-                h(Link, { href: show(row.original.id).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: show(row.original.id).url, 'aria-label': 'View inspection' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -192,13 +198,12 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
                 </div>
                 <Button
                     v-if="can('inspections.create')"
-                    size="sm"
+                    size="icon"
                     as-child
-                    class="h-9 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wide"
+                    class="h-9 w-9 rounded-lg"
                 >
-                    <Link :href="create().url">
-                        <Plus class="mr-1.5 h-3.5 w-3.5" />
-                        New inspection
+                    <Link :href="create().url" aria-label="New inspection">
+                        <Plus class="h-4 w-4" />
                     </Link>
                 </Button>
             </div>

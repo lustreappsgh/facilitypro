@@ -121,6 +121,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('users/{user}', [UsersController::class, 'update'])
         ->name('users.update')
         ->middleware('throttle:admin-actions');
+    Route::delete('users/{user}', [UsersController::class, 'destroy'])
+        ->name('users.destroy')
+        ->middleware('throttle:admin-actions');
     Route::post('users/{user}/manager-reports', [UsersController::class, 'updateManagerReports'])
         ->name('users.manager-reports.update')
         ->middleware('throttle:admin-actions');

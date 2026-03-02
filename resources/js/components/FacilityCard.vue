@@ -6,6 +6,7 @@ import { create as maintenanceCreate } from '@/routes/maintenance';
 import { show as facilitiesShow } from '@/routes/facilities';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { ClipboardCheck, Eye, Wrench } from 'lucide-vue-next';
 
 interface FacilityType {
     name: string;
@@ -86,15 +87,21 @@ const lastInspectionDate = computed(() => {
             </div>
         </CardContent>
 
-        <CardFooter class="mt-auto flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" as-child>
-                <Link :href="facilitiesShow(facility.id).url">View</Link>
+        <CardFooter class="mt-auto flex flex-wrap gap-1">
+            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
+                <Link :href="facilitiesShow(facility.id).url" aria-label="View facility">
+                    <Eye class="h-4 w-4" />
+                </Link>
             </Button>
-            <Button size="sm" variant="outline" as-child>
-                <Link :href="inspectionsCreate().url">Inspection</Link>
+            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
+                <Link :href="inspectionsCreate().url" aria-label="New inspection">
+                    <ClipboardCheck class="h-4 w-4" />
+                </Link>
             </Button>
-            <Button size="sm" variant="outline" as-child>
-                <Link :href="maintenanceCreate().url">Request</Link>
+            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
+                <Link :href="maintenanceCreate().url" aria-label="New request">
+                    <Wrench class="h-4 w-4" />
+                </Link>
             </Button>
         </CardFooter>
     </Card>

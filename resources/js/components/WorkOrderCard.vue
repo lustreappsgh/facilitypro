@@ -2,6 +2,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
+import { Eye } from 'lucide-vue-next';
 
 interface VendorSummary {
     id: number;
@@ -70,8 +71,10 @@ const statusBadgeClass = (status: string) => {
                 </p>
             </div>
         </div>
-        <Button variant="outline" size="sm" as-child>
-            <Link :href="showRoute(workOrder.id).url">View</Link>
+        <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
+            <Link :href="showRoute(workOrder.id).url" aria-label="View work order">
+                <Eye class="h-4 w-4" />
+            </Link>
         </Button>
     </div>
 </template>

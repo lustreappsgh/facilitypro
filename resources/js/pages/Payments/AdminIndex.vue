@@ -20,7 +20,7 @@ import { show as workOrderShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Search } from 'lucide-vue-next';
+import { Eye, Search } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -203,8 +203,10 @@ const columns: ColumnDef<Payment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: paymentsShow(row.original).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: paymentsShow(row.original).url, 'aria-label': 'View payment' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,

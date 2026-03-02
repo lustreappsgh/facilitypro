@@ -6,10 +6,9 @@ use Carbon\Carbon;
 use App\Models\User;
 use App\Support\TextNormalizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Todo extends Model
+class Todo extends BaseModel
 {
     use HasFactory;
 
@@ -27,8 +26,8 @@ class Todo extends Model
     ];
 
     protected $casts = [
-        'completed_at' => 'datetime',
-        'week_start' => 'date:Y-m-d',
+        'completed_at' => 'datetime:M j, Y',
+        'week_start' => 'date:M j, Y',
     ];
 
     public function setDescriptionAttribute(?string $value): void

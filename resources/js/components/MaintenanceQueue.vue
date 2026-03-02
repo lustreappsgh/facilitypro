@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
+import { Eye } from 'lucide-vue-next';
 
 interface QueueMaintenanceRequest {
     id: number;
@@ -48,8 +49,10 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
                             : '—'
                     }}
                 </p>
-                <Button variant="outline" size="sm" as-child>
-                    <Link :href="showRoute(request).url">View</Link>
+                <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
+                    <Link :href="showRoute(request).url" aria-label="View maintenance request">
+                        <Eye class="h-4 w-4" />
+                    </Link>
                 </Button>
             </div>
         </div>

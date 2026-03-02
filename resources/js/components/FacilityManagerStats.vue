@@ -6,6 +6,7 @@ import { create as inspectionsCreate } from '@/routes/inspections';
 import { create as maintenanceCreate } from '@/routes/maintenance';
 import { weekly as todosWeekly } from '@/routes/todos';
 import { Link } from '@inertiajs/vue3';
+import { Building2, ClipboardCheck, ClipboardList, Wrench } from 'lucide-vue-next';
 
 interface Props {
     inspectionsSubmitted: number;
@@ -53,18 +54,26 @@ const numberFormat = new Intl.NumberFormat();
             </Card>
         </div>
 
-        <div class="flex flex-wrap gap-3">
-            <Button as-child>
-                <Link :href="inspectionsCreate().url">New inspection</Link>
+        <div class="flex flex-wrap items-center gap-2">
+            <Button size="icon" class="h-9 w-9" as-child>
+                <Link :href="inspectionsCreate().url" aria-label="New inspection">
+                    <ClipboardCheck class="h-4 w-4" />
+                </Link>
             </Button>
-            <Button variant="secondary" as-child>
-                <Link :href="maintenanceCreate().url">New request</Link>
+            <Button size="icon" variant="secondary" class="h-9 w-9" as-child>
+                <Link :href="maintenanceCreate().url" aria-label="New request">
+                    <Wrench class="h-4 w-4" />
+                </Link>
             </Button>
-            <Button variant="outline" as-child>
-                <Link :href="todosWeekly().url">Plan weekly todos</Link>
+            <Button size="icon" variant="outline" class="h-9 w-9" as-child>
+                <Link :href="todosWeekly().url" aria-label="Plan weekly todos">
+                    <ClipboardList class="h-4 w-4" />
+                </Link>
             </Button>
-            <Button variant="ghost" as-child>
-                <Link :href="facilitiesMy().url">View my facilities</Link>
+            <Button size="icon" variant="ghost" class="h-9 w-9" as-child>
+                <Link :href="facilitiesMy().url" aria-label="View my facilities">
+                    <Building2 class="h-4 w-4" />
+                </Link>
             </Button>
         </div>
     </div>

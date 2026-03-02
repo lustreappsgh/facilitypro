@@ -26,6 +26,7 @@ import { show as workOrderShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
+import { ArrowLeft, Check, Plus, Send, X } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 interface Facility {
@@ -157,27 +158,38 @@ const submitReject = () => {
             <PageHeader :title="`Payment #${payment.id}`" subtitle="Review payment status and approvals.">
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button variant="outline" as-child>
-                            <Link :href="paymentsIndex().url">Back to list</Link>
+                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="paymentsIndex().url" aria-label="Back to list">
+                                <ArrowLeft class="h-4 w-4" />
+                            </Link>
                         </Button>
                         <Button
                             v-if="payment.status === 'pending' && can('payments.submit') && !can('payments.approve')"
                             variant="secondary"
+                            size="icon"
+                            class="h-9 w-9"
+                            aria-label="Submit for approval"
                         >
-                            Submit for approval
+                            <Send class="h-4 w-4" />
                         </Button>
                         <Button
                             v-if="payment.status === 'pending' && can('payments.approve')"
+                            size="icon"
+                            class="h-9 w-9"
                             @click="approveOpen = true"
+                            aria-label="Approve payment"
                         >
-                            Approve
+                            <Check class="h-4 w-4" />
                         </Button>
                         <Button
                             v-if="payment.status === 'pending' && can('payments.reject')"
                             variant="secondary"
+                            size="icon"
+                            class="h-9 w-9"
                             @click="rejectOpen = true"
+                            aria-label="Reject payment"
                         >
-                            Reject
+                            <X class="h-4 w-4" />
                         </Button>
                     </div>
                 </template>
@@ -312,8 +324,8 @@ const submitReject = () => {
                                 {{ payment.comments }}
                             </p>
                         </div>
-                        <Button v-if="can('payments.create')" variant="outline">
-                            Add payment record
+                        <Button v-if="can('payments.create')" variant="outline" size="icon" class="h-9 w-9" aria-label="Add payment record">
+                            <Plus class="h-4 w-4" />
                         </Button>
                     </CardContent>
                 </Card>

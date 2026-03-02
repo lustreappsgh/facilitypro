@@ -28,11 +28,12 @@ import { create as workOrderCreate, show as workOrderShow } from '@/routes/work-
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
+import { useDateFormat } from '@/composables/useDateFormat';
 import { Check, ClipboardList, Eye, Pencil, Plus, Search } from 'lucide-vue-next';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { computed, h, onMounted, ref } from 'vue';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { endOfWeek, format, parseISO, startOfWeek, subMonths } from 'date-fns';
+import { endOfWeek, format, startOfWeek, subMonths } from 'date-fns';
 
 const filtersVisible = ref(false);
 
@@ -102,6 +103,8 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const { parseDate } = useDateFormat();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -175,7 +178,7 @@ const groupedByWeek = computed(() => {
     const groups = new Map<string, MaintenanceRequest[]>();
 
     props.requests.data.forEach((request) => {
-        const dateValue = request.created_at ? parseISO(request.created_at) : null;
+        const dateValue = parseDate(request.created_at);
         const weekStart = dateValue ? startOfWeek(dateValue, { weekStartsOn: 1 }) : null;
         const weekEnd = dateValue ? endOfWeek(dateValue, { weekStartsOn: 1 }) : null;
         const label = dateValue
@@ -365,10 +368,21 @@ const columns: ColumnDef<MaintenanceRequest>[] = [
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-col gap-8 p-6 lg:p-10">
             <PageHeader title="Maintenance requests" subtitle="Review, prioritize, and resolve maintenance requests."
-                :action-label="can('maintenance.create') ? 'New request' : ''"
-                :action-href="can('maintenance.create') ? create().url : ''" :action-icon="Plus"
                 :show-filters-toggle="true" :filters-visible="filtersVisible"
-                @toggle-filters="filtersVisible = !filtersVisible" />
+                @toggle-filters="filtersVisible = !filtersVisible">
+                <template #actions>
+                    <Button
+                        v-if="can('maintenance.create')"
+                        size="icon"
+                        class="h-9 w-9"
+                        as-child
+                    >
+                        <Link :href="create().url" aria-label="New request">
+                            <Plus class="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </template>
+            </PageHeader>
 
             <div class="space-y-4">
                 <form v-if="filtersVisible" :action="maintenanceIndex().url" method="get"

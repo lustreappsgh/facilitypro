@@ -6,9 +6,8 @@ use App\Models\User;
 use App\Support\TextNormalizer;
 use App\Traits\ResolvesMaintenanceScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 
-class Facility extends Model
+class Facility extends BaseModel
 {
     use HasFactory;
     use ResolvesMaintenanceScope;

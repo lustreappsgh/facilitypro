@@ -15,11 +15,14 @@ use App\Domains\Users\DTOs\UserData;
 use App\Domains\Users\Requests\UserBulkStatusRequest;
 use App\Domains\Users\Requests\ManagerReportsRequest;
 use App\Domains\Users\Requests\UserRequest;
+use App\Models\Facility;
 use App\Models\User;
 use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -43,7 +46,10 @@ class UsersController extends Controller
 
         $search = $request->string('search')->trim()->toString();
         $role = $request->string('role')->trim()->toString();
-        $status = $request->string('status')->trim()->toString();
+        $statusInput = $request->input('status');
+        $status = is_string($statusInput)
+            ? trim($statusInput)
+            : 'active';
         $perPage = (int) $request->input('per_page', 10);
         if ($perPage <= 0) {
             $perPage = 10;
@@ -59,7 +65,7 @@ class UsersController extends Controller
                 });
             })
             ->when($role !== '', fn($query) => $query->whereHas('roles', fn($roles) => $roles->where('name', $role)))
-            ->when($status !== '', fn($query) => $query->where('is_active', $status === 'active'))
+            ->when($status !== '' && $status !== 'all', fn($query) => $query->where('is_active', $status === 'active'))
             ->latest()
             ->paginate($perPage)
             ->withQueryString();
@@ -78,7 +84,7 @@ class UsersController extends Controller
             'filters' => [
                 'search' => $search ?: null,
                 'role' => $role ?: null,
-                'status' => $status ?: null,
+                'status' => $status,
                 'per_page' => $perPage,
             ],
             'roles' => Role::orderBy('name')->get(['id', 'name']),
@@ -225,6 +231,75 @@ class UsersController extends Controller
         );
 
         return redirect()->route('users.index')->with('success', 'User updated.');
+    }
+
+    public function destroy(Request $request, User $user)
+    {
+        $this->authorize('delete', $user);
+
+        if ($request->user()->is($user)) {
+            return back()->withErrors([
+                'user_id' => 'You cannot delete your own account.',
+            ]);
+        }
+
+        $actorId = auth()->id();
+        if (! is_int($actorId)) {
+            abort(500, 'Audit actor is required.');
+        }
+
+        try {
+            $before = $user->getOriginal();
+            $user->delete();
+
+            $this->recordAuditLogAction->execute(new AuditLogData(
+                actor_id: $actorId,
+                action: 'user.deleted',
+                auditable_type: $user->getMorphClass(),
+                auditable_id: $user->id,
+                before: $before,
+                after: null,
+            ));
+
+            return back()->with('success', 'User deleted.');
+        } catch (QueryException $exception) {
+            $releasedFacilities = 0;
+            $releasedReports = 0;
+            $before = $user->getOriginal();
+
+            DB::transaction(function () use ($user, &$releasedFacilities, &$releasedReports, $actorId, $before) {
+                $releasedFacilities = Facility::query()
+                    ->where('managed_by', $user->id)
+                    ->update(['managed_by' => null]);
+
+                $releasedReports = User::query()
+                    ->where('manager_id', $user->id)
+                    ->update(['manager_id' => null]);
+
+                $user->forceFill([
+                    'is_active' => false,
+                ])->save();
+
+                $this->recordAuditLogAction->execute(new AuditLogData(
+                    actor_id: $actorId,
+                    action: 'user.offboarded',
+                    auditable_type: $user->getMorphClass(),
+                    auditable_id: $user->id,
+                    before: $before,
+                    after: [
+                        ...$user->getAttributes(),
+                        'released_facilities' => $releasedFacilities,
+                        'released_direct_reports' => $releasedReports,
+                        'fallback_reason' => 'foreign_key_constraint',
+                    ],
+                ));
+            });
+
+            return back()->with(
+                'success',
+                "User could not be deleted due to related records. Account was marked inactive and {$releasedFacilities} facilities were released for reassignment."
+            );
+        }
     }
 
     public function bulkStatus(UserBulkStatusRequest $request)

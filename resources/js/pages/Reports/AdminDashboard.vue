@@ -4,7 +4,6 @@ import ExportTools from '@/components/Admin/ExportTools.vue';
 import SystemMetrics from '@/components/Admin/SystemMetrics.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { admin as reportsAdmin } from '@/routes/reports';
 import adminExports from '@/routes/reports/admin';

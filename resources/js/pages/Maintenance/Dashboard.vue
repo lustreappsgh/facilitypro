@@ -18,6 +18,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
+import { ClipboardList, CreditCard, Eye, Plus } from 'lucide-vue-next';
 import { h } from 'vue';
 
 interface QueueMaintenanceRequest {
@@ -101,8 +102,10 @@ const overdueWorkOrderColumns: ColumnDef<QueueWorkOrder>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: workOrderShow(row.original.id).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -129,8 +132,10 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: paymentShow(row.original).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -148,18 +153,20 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                 subtitle="Monitor maintenance activity and priorities."
             >
                 <template #actions>
-                    <div class="flex flex-wrap gap-2">
-                        <Button v-if="can('work_orders.create')" as-child>
-                            <Link :href="workOrderCreate().url">
-                                Create work order
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Button v-if="can('work_orders.create')" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="workOrderCreate().url" aria-label="Create work order">
+                                <Plus class="h-4 w-4" />
                             </Link>
                         </Button>
-                        <Button variant="secondary" as-child>
-                            <Link :href="paymentsIndex().url">View payments</Link>
+                        <Button variant="secondary" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="paymentsIndex().url" aria-label="View payments">
+                                <CreditCard class="h-4 w-4" />
+                            </Link>
                         </Button>
-                        <Button variant="outline" as-child>
-                            <Link :href="maintenanceIndex().url">
-                                View maintenance requests
+                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="maintenanceIndex().url" aria-label="View maintenance requests">
+                                <ClipboardList class="h-4 w-4" />
                             </Link>
                         </Button>
                     </div>
@@ -207,9 +214,9 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                                 <h3 class="text-sm font-semibold">
                                     Pending maintenance requests
                                 </h3>
-                                <Button variant="link" class="px-0" as-child>
-                                    <Link :href="maintenanceIndex().url">
-                                        View all
+                                <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
+                                    <Link :href="maintenanceIndex().url" aria-label="View all maintenance requests">
+                                        <Eye class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </div>
@@ -224,9 +231,9 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                                 <h3 class="text-sm font-semibold">
                                     Overdue work orders
                                 </h3>
-                                <Button variant="link" class="px-0" as-child>
-                                    <Link :href="workOrdersIndex().url">
-                                        View all
+                                <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
+                                    <Link :href="workOrdersIndex().url" aria-label="View all work orders">
+                                        <Eye class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </div>

@@ -11,6 +11,7 @@ import { index as facilitiesIndex } from '@/routes/facilities';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
+import { ArrowLeft } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface FacilityType {
@@ -98,8 +99,10 @@ const managerName = computed(
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <PageHeader title="Facility details" subtitle="Review and update facility information.">
                 <template #actions>
-                    <Button variant="secondary" as-child>
-                        <Link :href="facilitiesIndex().url">Back to list</Link>
+                    <Button variant="secondary" size="icon" class="h-9 w-9" as-child>
+                        <Link :href="facilitiesIndex().url" aria-label="Back to list">
+                            <ArrowLeft class="h-4 w-4" />
+                        </Link>
                     </Button>
                 </template>
             </PageHeader>

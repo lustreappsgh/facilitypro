@@ -18,11 +18,12 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { admin as inspectionsAdmin, show as inspectionsShow } from '@/routes/inspections';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Search } from 'lucide-vue-next';
+import { useDateFormat } from '@/composables/useDateFormat';
+import { Eye, Search } from 'lucide-vue-next';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { computed, h, onMounted, ref } from 'vue';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { endOfWeek, format, parseISO, startOfWeek, subWeeks } from 'date-fns';
+import { endOfWeek, format, startOfWeek, subWeeks } from 'date-fns';
 
 const filtersVisible = ref(false);
 
@@ -80,6 +81,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const { parseDate } = useDateFormat();
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Inspections',
@@ -131,7 +134,7 @@ const groupedByWeek = computed(() => {
     const groups = new Map<string, Inspection[]>();
 
     props.inspections.data.forEach((inspection) => {
-        const dateValue = inspection.inspection_date ? parseISO(inspection.inspection_date) : null;
+        const dateValue = parseDate(inspection.inspection_date);
         const weekStart = dateValue ? startOfWeek(dateValue, { weekStartsOn: 1 }) : null;
         const weekEnd = dateValue ? endOfWeek(dateValue, { weekStartsOn: 1 }) : null;
         const label = dateValue
@@ -207,8 +210,15 @@ const columns: ColumnDef<Inspection>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: inspectionsShow(row.original).url }, () => 'View'),
+            h(Button, {
+                variant: 'ghost',
+                size: 'icon',
+                class: 'h-8 w-8',
+                asChild: true,
+            }, () =>
+                h(Link, { href: inspectionsShow(row.original).url, 'aria-label': 'View inspection' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,

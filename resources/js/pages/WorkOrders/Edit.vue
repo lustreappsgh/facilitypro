@@ -38,6 +38,7 @@ interface WorkOrder {
     maintenance_request_id?: number | null;
     vendor_id?: number | null;
     scheduled_date?: string | null;
+    scheduled_date_raw?: string | null;
     estimated_cost?: number | null;
     actual_cost?: number | null;
     status?: string | null;
@@ -148,7 +149,7 @@ const executionUnlocked = computed(() =>
                     <DatePicker
                         id="scheduled_date"
                         name="scheduled_date"
-                        :model-value="workOrder.scheduled_date ?? ''"
+                        :model-value="workOrder.scheduled_date_raw ?? ''"
                      />
                     <InputError :message="errors.scheduled_date" />
                 </div>

@@ -6,24 +6,18 @@ use Carbon\Carbon;
 use App\Models\User;
 use App\Support\TextNormalizer;
 use App\Traits\ResolvesMaintenanceScope;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
 
-class MaintenanceRequest extends Model
+class MaintenanceRequest extends BaseModel
 {
     use HasFactory;
     use ResolvesMaintenanceScope;
-    protected $dates = [
-        'created_at' => 'date:m/d/Y'
-        // ...
-    ];
-
     protected $casts = [
-        'created_at' => 'date:Y-m-d',
-        'week_start' => 'date:Y-m-d',
+        'created_at' => 'date:M j, Y',
+        'week_start' => 'date:M j, Y',
     ];
 
     protected $fillable = ['facility_id', 'request_type_id', 'description', 'cost', 'status', 'requested_by', 'week_start'];

@@ -22,7 +22,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Search, Plus } from 'lucide-vue-next';
+import { Eye, Search, Send } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -219,14 +219,18 @@ const columns: ColumnDef<Payment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h('div', { class: 'flex flex-wrap gap-2' }, [
-                h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                    h(Link, { href: paymentShow(row.original).url }, () => 'View'),
+            h('div', { class: 'flex items-center justify-end gap-1' }, [
+                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                    h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
+                        h(Eye, { class: 'h-4 w-4' }),
+                    ),
                 ),
                 row.original.status === 'pending' &&
                     can('payments.submit') &&
                     !can('payments.approve')
-                    ? h(Button, { size: 'sm', variant: 'secondary' }, () => 'Submit for approval')
+                    ? h(Button, { size: 'icon', variant: 'secondary', class: 'h-8 w-8', 'aria-label': 'Submit for approval' }, () =>
+                        h(Send, { class: 'h-4 w-4' }),
+                    )
                     : null,
             ]),
         enableSorting: false,

@@ -22,7 +22,7 @@ import {
 } from '@/routes/roles';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Search, Plus } from 'lucide-vue-next';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { h, ref } from 'vue';
 
@@ -136,14 +136,22 @@ const columns: ColumnDef<Role>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h('div', { class: 'flex flex-wrap gap-2' }, [
-                h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                    h(Link, { href: rolesEdit(row.original).url }, () => 'Edit'),
+            h('div', { class: 'flex items-center justify-end gap-1' }, [
+                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                    h(Link, { href: rolesEdit(row.original).url, 'aria-label': 'Edit role' }, () =>
+                        h(Pencil, { class: 'h-4 w-4' }),
+                    ),
                 ),
                 h(
                     Button,
-                    { variant: 'ghost', size: 'sm', onClick: () => confirmDelete(row.original) },
-                    () => 'Delete',
+                    {
+                        variant: 'ghost',
+                        size: 'icon',
+                        class: 'h-8 w-8 text-destructive hover:text-destructive',
+                        onClick: () => confirmDelete(row.original),
+                        'aria-label': 'Delete role',
+                    },
+                    () => h(Trash2, { class: 'h-4 w-4' }),
                 ),
             ]),
         enableSorting: false,
@@ -158,9 +166,17 @@ const columns: ColumnDef<Role>[] = [
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-col gap-8 p-6 lg:p-10">
-            <PageHeader title="Roles" subtitle="Define role permissions and access controls." :action-label="'New role'"
-                :action-href="rolesCreate().url" :action-icon="Plus" :show-filters-toggle="true"
-                :filters-visible="filtersVisible" @toggle-filters="filtersVisible = !filtersVisible" />
+            <PageHeader title="Roles" subtitle="Define role permissions and access controls."
+                :show-filters-toggle="true"
+                :filters-visible="filtersVisible" @toggle-filters="filtersVisible = !filtersVisible">
+                <template #actions>
+                    <Button size="icon" class="h-9 w-9" as-child>
+                        <Link :href="rolesCreate().url" aria-label="New role">
+                            <Plus class="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </template>
+            </PageHeader>
 
             <DataTable :data="data.roles.data" :columns="columns" :show-search="false" :show-selection-summary="false"
                 class="portfolio-table">

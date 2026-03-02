@@ -24,6 +24,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
+import { ArrowLeft, ClipboardCheck, ClipboardList, Eye, Pencil, X } from 'lucide-vue-next';
 import { computed, h } from 'vue';
 
 interface FacilityType {
@@ -243,8 +244,10 @@ const paymentColumns: ColumnDef<Payment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: paymentShow(row.original).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -264,8 +267,10 @@ const paymentColumns: ColumnDef<Payment>[] = [
             >
                 <template #actions>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" as-child>
-                            <Link :href="maintenanceIndex().url">Back to list</Link>
+                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="maintenanceIndex().url" aria-label="Back to list">
+                                <ArrowLeft class="h-4 w-4" />
+                            </Link>
                         </Button>
                         <form
                             v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
@@ -307,8 +312,8 @@ const paymentColumns: ColumnDef<Payment>[] = [
                                     {{ approveForm.errors.estimated_cost }}
                                 </p>
                             </div>
-                            <Button :disabled="approveForm.processing">
-                                Approve request
+                            <Button :disabled="approveForm.processing" size="icon" class="h-9 w-9" aria-label="Approve request">
+                                <ClipboardCheck class="h-4 w-4" />
                             </Button>
                             <p v-if="approveForm.errors.status" class="basis-full text-xs text-destructive">
                                 {{ approveForm.errors.status }}
@@ -317,48 +322,59 @@ const paymentColumns: ColumnDef<Payment>[] = [
                         <Button
                             v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
                             variant="secondary"
-                            class="bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+                            size="icon"
+                            class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
                             as-child
                         >
-                            <Link :href="route('maintenance.reject', request.id)" method="post" as="button">
-                                Reject request
+                            <Link :href="route('maintenance.reject', request.id)" method="post" as="button" aria-label="Reject request">
+                                <X class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
                             v-if="can('work_orders.create') && workOrders.length === 0 && ['submitted', 'pending', 'rejected', 'approved'].includes(request.status)"
+                            size="icon"
+                            class="h-9 w-9"
                             as-child
                         >
                             <Link :href="workOrderCreate({
                                 query: {
                                     maintenance_request_id: request.id,
                                 },
-                            }).url">
-                                Create work order
+                            }).url" aria-label="Create work order">
+                                <ClipboardList class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
                             v-else-if="can('work_orders.view') && workOrders.length > 0"
                             variant="outline"
+                            size="icon"
+                            class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="workOrderShow(workOrders[0].id).url">
-                                View work order
+                            <Link :href="workOrderShow(workOrders[0].id).url" aria-label="View work order">
+                                <ClipboardList class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
                             v-if="can('maintenance.update') && ['submitted', 'pending'].includes(request.status)"
                             variant="secondary"
+                            size="icon"
+                            class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="edit(request).url">Edit request</Link>
+                            <Link :href="edit(request).url" aria-label="Edit request">
+                                <Pencil class="h-4 w-4" />
+                            </Link>
                         </Button>
                         <Button
                             v-if="can('maintenance.close') && request.status === 'paid'"
                             variant="secondary"
+                            size="icon"
+                            class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="route('maintenance.close', request.id)" method="post" as="button">
-                                Close request
+                            <Link :href="route('maintenance.close', request.id)" method="post" as="button" aria-label="Close request">
+                                <ClipboardCheck class="h-4 w-4" />
                             </Link>
                         </Button>
                     </div>

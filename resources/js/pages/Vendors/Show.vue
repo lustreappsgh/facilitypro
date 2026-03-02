@@ -16,6 +16,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
+import { ArrowLeft, ClipboardList, Eye } from 'lucide-vue-next';
 import { h } from 'vue';
 
 interface MaintenanceRequest {
@@ -94,8 +95,10 @@ const recentWorkOrderColumns: ColumnDef<WorkOrderSummary>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', asChild: true }, () =>
-                h(Link, { href: workOrderShow(row.original.id).url }, () => 'View'),
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -111,18 +114,21 @@ const recentWorkOrderColumns: ColumnDef<WorkOrderSummary>[] = [
             <PageHeader :title="vendor.name" subtitle="Vendor profile and assigned work.">
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button variant="outline" as-child>
-                            <Link :href="vendorsIndex().url">Back to list</Link>
+                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
+                            <Link :href="vendorsIndex().url" aria-label="Back to list">
+                                <ArrowLeft class="h-4 w-4" />
+                            </Link>
                         </Button>
-                        <Button v-if="can('work_orders.create')" as-child>
+                        <Button v-if="can('work_orders.create')" size="icon" class="h-9 w-9" as-child>
                             <Link
                                 :href="
                                     workOrderCreate({
                                         query: { vendor_id: vendor.id },
                                     }).url
                                 "
+                                aria-label="Create work order with vendor"
                             >
-                                Create work order with vendor
+                                <ClipboardList class="h-4 w-4" />
                             </Link>
                         </Button>
                     </div>

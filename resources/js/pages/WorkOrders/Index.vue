@@ -301,16 +301,14 @@ const columns: ColumnDef<WorkOrder>[] = [
                 :show-filters-toggle="true" :filters-visible="filtersVisible"
                 @toggle-filters="filtersVisible = !filtersVisible">
                 <template #actions>
-                    <Button v-if="can('work_orders.create')" size="lg" variant="outline" as-child>
-                        <Link :href="workOrdersBulkCreate().url">
-                            <Layers class="mr-2 h-4 w-4" />
-                            Bulk create
+                    <Button v-if="can('work_orders.create')" size="icon" variant="outline" class="h-10 w-10" as-child>
+                        <Link :href="workOrdersBulkCreate().url" aria-label="Bulk create work orders">
+                            <Layers class="h-4 w-4" />
                         </Link>
                     </Button>
-                    <Button v-if="can('work_orders.create')" size="lg" as-child>
-                        <Link :href="create().url">
-                            <Plus class="mr-2 h-4 w-4" />
-                            Create work order
+                    <Button v-if="can('work_orders.create')" size="icon" class="h-10 w-10" as-child>
+                        <Link :href="create().url" aria-label="Create work order">
+                            <Plus class="h-4 w-4" />
                         </Link>
                     </Button>
                 </template>

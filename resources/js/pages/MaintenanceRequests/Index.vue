@@ -451,13 +451,12 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                 <div class="flex items-center gap-2">
                     <Button
                         v-if="can('maintenance.create') || can('maintenance_requests.create')"
-                        size="sm"
+                        size="icon"
                         as-child
-                        class="h-9 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wide"
+                        class="h-9 w-9 rounded-lg"
                     >
-                        <Link :href="create().url">
-                            <Plus class="mr-1.5 h-3.5 w-3.5" />
-                            New request
+                        <Link :href="create().url" aria-label="New request">
+                            <Plus class="h-4 w-4" />
                         </Link>
                     </Button>
                 </div>

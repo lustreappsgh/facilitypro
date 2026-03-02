@@ -48,4 +48,14 @@ class UserPolicy
 
         return $user->can('users.view');
     }
+
+    public function delete(User $user, User $model): bool
+    {
+        $override = $this->allowAdmin($user, 'delete', $model);
+        if ($override !== null) {
+            return $override;
+        }
+
+        return $user->can('users.manage');
+    }
 }

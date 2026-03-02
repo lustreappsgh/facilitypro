@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/accordion';
 import DataTable from '@/components/data-table/DataTable.vue';
 import {
-    Building2, Wrench,
+    Building2, ClipboardCheck, Eye, Wrench,
     List, LayoutGrid
 } from 'lucide-vue-next';
 import { show as facilitiesShow } from '@/routes/facilities';
@@ -91,15 +91,21 @@ const columns: ColumnDef<Facility>[] = [
         id: 'actions',
         header: '',
         cell: ({ row }) => h('div', { class: 'text-right' }, [
-            h('div', { class: 'flex justify-end gap-1' }, [
-                h(Button, { variant: 'ghost', size: 'sm', class: 'h-8 px-3 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5', asChild: true }, {
-                    default: () => h(Link, { href: facilitiesShow(row.original.id).url }, () => 'Details')
+            h('div', { class: 'flex items-center justify-end gap-1' }, [
+                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                    default: () => h(Link, { href: facilitiesShow(row.original.id).url, 'aria-label': 'View facility' }, () =>
+                        h(Eye, { class: 'h-4 w-4' }),
+                    )
                 }),
-                h(Button, { variant: 'outline', size: 'sm', class: 'h-8 px-2 text-[10px] font-black uppercase tracking-widest', asChild: true }, {
-                    default: () => h(Link, { href: inspectionsCreate({ query: { facility_id: row.original.id } }).url }, () => 'Inspect')
+                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                    default: () => h(Link, { href: inspectionsCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Create inspection' }, () =>
+                        h(ClipboardCheck, { class: 'h-4 w-4' }),
+                    )
                 }),
-                h(Button, { variant: 'outline', size: 'sm', class: 'h-8 px-2 text-[10px] font-black uppercase tracking-widest', asChild: true }, {
-                    default: () => h(Link, { href: maintenanceCreate({ query: { facility_id: row.original.id } }).url }, () => 'Request')
+                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                    default: () => h(Link, { href: maintenanceCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Create maintenance request' }, () =>
+                        h(Wrench, { class: 'h-4 w-4' }),
+                    )
                 }),
             ]),
         ])
@@ -231,13 +237,17 @@ const flattenedFacilities = computed(() => props.facilityGroups.flatMap(g => g.f
                                                 </Link>
                                             </Button>
                                             <div class="grid grid-cols-2 gap-2">
-                                                <Button size="sm" variant="outline" class="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest" as-child>
-                                                    <Link :href="inspectionsCreate({ query: { facility_id: facility.id } }).url">New inspection</Link>
-                                                </Button>
-                                                <Button size="sm" variant="outline" class="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest" as-child>
-                                                    <Link :href="maintenanceCreate({ query: { facility_id: facility.id } }).url">New request</Link>
-                                                </Button>
-                                            </div>
+                                            <Button size="icon" variant="outline" class="h-9 w-9 rounded-xl" as-child>
+                                                <Link :href="inspectionsCreate({ query: { facility_id: facility.id } }).url" aria-label="New inspection">
+                                                    <ClipboardCheck class="h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                            <Button size="icon" variant="outline" class="h-9 w-9 rounded-xl" as-child>
+                                                <Link :href="maintenanceCreate({ query: { facility_id: facility.id } }).url" aria-label="New request">
+                                                    <Wrench class="h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        </div>
                                         </div>
                                     </div>
                                 </div>

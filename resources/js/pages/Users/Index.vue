@@ -8,11 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { create as usersCreate, edit as usersEdit, index as usersIndex } from '@/routes/users';
+import { create as usersCreate, destroy as usersDestroy, edit as usersEdit, index as usersIndex } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useInitials } from '@/composables/useInitials';
-import { Search, Plus } from 'lucide-vue-next';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { computed, h, ref } from 'vue';
 
@@ -72,6 +72,8 @@ const props = defineProps<Props>();
 
 const { getInitials } = useInitials();
 
+const canManageUsers = computed(() => props.permissions.includes('users.manage'));
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Users',
@@ -81,7 +83,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const searchFilter = ref(props.filters.search ?? '');
 const roleFilter = ref(props.filters.role ?? 'all');
-const statusFilter = ref(props.filters.status ?? 'all');
+const statusFilter = ref(props.filters.status ?? 'active');
 const perPage = ref(props.filters.per_page ?? props.data.pagination.per_page ?? 10);
 
 const selectedUserIds = ref<number[]>([]);
@@ -142,7 +144,7 @@ const roleQueryValue = computed(() =>
 );
 
 const statusQueryValue = computed(() =>
-    statusFilter.value === 'all' ? '' : statusFilter.value,
+    statusFilter.value,
 );
 
 const updatePageSize = (pageSize: number) => {
@@ -268,9 +270,25 @@ const columns: ColumnDef<User>[] = [
         id: 'actions',
         header: '',
         cell: ({ row }) =>
-            h(Button, { variant: 'outline', size: 'sm', class: 'h-7 px-3 text-[10px] font-bold uppercase', asChild: true }, () =>
-                h(Link, { href: usersEdit(row.original).url }, () => 'Edit'),
-            ),
+            h('div', { class: 'flex items-center justify-end gap-1' }, [
+                canManageUsers.value
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                        h(Link, { href: usersEdit(row.original).url, 'aria-label': 'Edit user' }, () =>
+                            h(Pencil, { class: 'h-4 w-4' }),
+                        ),
+                    )
+                    : null,
+                canManageUsers.value
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8 text-destructive hover:text-destructive', asChild: true }, () =>
+                        h(Link, {
+                            href: usersDestroy(row.original.id).url,
+                            method: 'delete',
+                            as: 'button',
+                            'aria-label': 'Delete user',
+                        }, () => h(Trash2, { class: 'h-4 w-4' })),
+                    )
+                    : null,
+            ]),
         enableSorting: false,
         enableHiding: false,
     },
@@ -288,13 +306,12 @@ const columns: ColumnDef<User>[] = [
                     <p class="text-sm text-muted-foreground">Manage user access, roles, and status.</p>
                 </div>
                 <Button
-                    size="sm"
+                    size="icon"
                     as-child
-                    class="h-9 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wide"
+                    class="h-9 w-9 rounded-lg"
                 >
-                    <Link :href="usersCreate().url">
-                        <Plus class="mr-1.5 h-3.5 w-3.5" />
-                        New user
+                    <Link :href="usersCreate().url" aria-label="New user">
+                        <Plus class="h-4 w-4" />
                     </Link>
                 </Button>
             </div>

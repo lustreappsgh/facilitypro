@@ -16,17 +16,10 @@ import InspectionModal from '@/components/InspectionModal.vue';
 import MaintenanceRequestModal from '@/components/MaintenanceRequestModal.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import {
-    Building2, Search, Plus,
-    MoreHorizontal, Pencil,
+    Building2, ClipboardCheck, Eye, Pencil, Plus,
     LayoutGrid, List,
-    ClipboardCheck, Wrench,
+    Search, Wrench,
 } from 'lucide-vue-next';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
 import { index as facilitiesIndex, show as facilitiesShow, edit as facilitiesEdit, create as facilitiesCreate } from '@/routes/facilities';
 import type { ColumnDef } from '@tanstack/vue-table';
 
@@ -349,39 +342,28 @@ const columns: ColumnDef<Facility>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => h('div', { class: 'flex justify-end' }, [
-            (canViewFacility.value || canEditFacility.value || canInspect.value || canRequest.value) ? h(DropdownMenu, {}, {
-                default: () => [
-                    h(DropdownMenuTrigger, { asChild: true }, {
-                        default: () => h(Button, { variant: 'ghost', size: 'sm', class: 'h-8 w-8 p-0' }, () =>
-                            h(MoreHorizontal, { class: 'h-4 w-4' })
-                        )
-                    }),
-                    h(DropdownMenuContent, { align: 'end' }, {
-                        default: () => [
-                            canViewFacility.value
-                                ? h(DropdownMenuItem, { onClick: () => router.get(facilitiesShow(row.original.id).url) }, () => [
-                                    h(Building2, { class: 'mr-2 h-4 w-4' }), h('span', 'View Facility')
-                                ])
-                                : null,
-                            canInspect.value && canSelectFacility(row.original.id)
-                                ? h(DropdownMenuItem, { onClick: () => openInspectionModal([row.original.id]) }, () => [
-                                    h(ClipboardCheck, { class: 'mr-2 h-4 w-4' }), h('span', 'Inspect')
-                                ])
-                                : null,
-                            canRequest.value && canSelectFacility(row.original.id)
-                                ? h(DropdownMenuItem, { onClick: () => openRequestModal([row.original.id]) }, () => [
-                                    h(Wrench, { class: 'mr-2 h-4 w-4' }), h('span', 'Request')
-                                ])
-                                : null,
-                            canEditFacility.value
-                                ? h(DropdownMenuItem, { onClick: () => router.get(facilitiesEdit(row.original.id).url) }, () => [
-                                    h(Pencil, { class: 'mr-2 h-4 w-4' }), h('span', 'Edit Entity')
-                                ])
-                                : null,
-                        ].filter(Boolean)
-                    })
-                ]
-            }) : null,
+            h('div', { class: 'flex items-center gap-1' }, [
+                canViewFacility.value
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', onClick: () => router.get(facilitiesShow(row.original.id).url), 'aria-label': 'View facility' }, () =>
+                        h(Eye, { class: 'h-4 w-4' }),
+                    )
+                    : null,
+                canInspect.value && canSelectFacility(row.original.id)
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', onClick: () => openInspectionModal([row.original.id]), 'aria-label': 'Inspect facility' }, () =>
+                        h(ClipboardCheck, { class: 'h-4 w-4' }),
+                    )
+                    : null,
+                canRequest.value && canSelectFacility(row.original.id)
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', onClick: () => openRequestModal([row.original.id]), 'aria-label': 'Create request' }, () =>
+                        h(Wrench, { class: 'h-4 w-4' }),
+                    )
+                    : null,
+                canEditFacility.value
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', onClick: () => router.get(facilitiesEdit(row.original.id).url), 'aria-label': 'Edit facility' }, () =>
+                        h(Pencil, { class: 'h-4 w-4' }),
+                    )
+                    : null,
+            ]),
         ])
     }
 ];
@@ -393,9 +375,20 @@ const columns: ColumnDef<Facility>[] = [
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-col gap-8 p-6 lg:p-10">
-            <PageHeader title="Facilities" subtitle="Oversee your portfolio of properties."
-                :action-label="can('facilities.create') ? 'New facility' : ''"
-                :action-href="can('facilities.create') ? facilitiesCreate().url : ''" :action-icon="Plus" />
+            <PageHeader title="Facilities" subtitle="Oversee your portfolio of properties.">
+                <template #actions>
+                    <Button
+                        v-if="can('facilities.create')"
+                        size="icon"
+                        class="h-9 w-9"
+                        as-child
+                    >
+                        <Link :href="facilitiesCreate().url" aria-label="New facility">
+                            <Plus class="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </template>
+            </PageHeader>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
                 <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_180px_auto] lg:items-end">
@@ -593,23 +586,23 @@ const columns: ColumnDef<Facility>[] = [
                             </div>
 
                             <div class="mt-auto flex items-center justify-between gap-2">
-                                <div class="grid w-full grid-cols-3 gap-2">
-                                    <Button size="sm" variant="outline" :disabled="!canViewFacility"
-                                        class="h-9 text-[10px] font-black uppercase tracking-widest"
+                                <div class="flex w-full items-center justify-end gap-1">
+                                    <Button size="icon" variant="ghost" class="h-9 w-9" :disabled="!canViewFacility"
+                                        aria-label="View facility"
                                         @click="canViewFacility && router.get(facilitiesShow(facility.id).url)">
-                                        View
+                                        <Eye class="h-4 w-4" />
                                     </Button>
-                                    <Button size="sm" variant="outline"
+                                    <Button size="icon" variant="ghost" class="h-9 w-9"
                                         :disabled="!canInspect || !manageableFacilityIds.has(facility.id)"
-                                        class="h-9 text-[10px] font-black uppercase tracking-widest"
+                                        aria-label="Inspect facility"
                                         @click="canInspect && manageableFacilityIds.has(facility.id) && openInspectionModal([facility.id])">
-                                        Inspect
+                                        <ClipboardCheck class="h-4 w-4" />
                                     </Button>
-                                    <Button size="sm" variant="outline"
+                                    <Button size="icon" variant="ghost" class="h-9 w-9"
                                         :disabled="!canRequest || !manageableFacilityIds.has(facility.id)"
-                                        class="h-9 text-[10px] font-black uppercase tracking-widest"
+                                        aria-label="Create request"
                                         @click="canRequest && manageableFacilityIds.has(facility.id) && openRequestModal([facility.id])">
-                                        Request
+                                        <Wrench class="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>

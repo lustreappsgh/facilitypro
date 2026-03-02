@@ -5,11 +5,10 @@ namespace App\Models;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Support\TextNormalizer;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Inspection extends Model
+class Inspection extends BaseModel
 {
     use HasFactory;
 
@@ -23,8 +22,8 @@ class Inspection extends Model
     ];
 
     protected $casts = [
-        'inspection_date' => 'datetime:Y-m-d',
-        'created_at' => 'date:Y-m-d',
+        'inspection_date' => 'date:M j, Y',
+        'created_at' => 'date:M j, Y',
     ];
 
 
