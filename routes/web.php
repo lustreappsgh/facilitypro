@@ -91,6 +91,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('payment-approvals', [PaymentController::class, 'approvals'])->name('payment-approvals.index');
     Route::post('payments/{payment}/approve', [PaymentController::class, 'approve'])->name('payments.approve');
     Route::post('payments/{payment}/reject', [PaymentController::class, 'reject'])->name('payments.reject');
+    Route::post('payments/bulk-approve', [PaymentController::class, 'bulkApprove'])->name('payments.bulk-approve');
+    Route::post('payments/bulk-reject', [PaymentController::class, 'bulkReject'])->name('payments.bulk-reject');
 
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/dashboard', [ReportController::class, 'dashboard'])->name('reports.dashboard');

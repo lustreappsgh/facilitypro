@@ -19,21 +19,40 @@ class ReviewMaintenanceAction
 
     public function execute(MaintenanceRequest $request): MaintenanceRequest
     {
-        if (! in_array($request->status, MaintenanceStatus::approvalQueue(), true)) {
-            throw new DomainException('Only submitted requests can be approved.');
+        $actor = auth()->user();
+        if (! $actor) {
+            throw new DomainException('Authenticated user is required.');
+        }
+
+        $isFinalApprover = $actor->can('maintenance.manage_all');
+
+        if ($isFinalApprover) {
+            if (! in_array($request->status, [
+                MaintenanceStatus::Approved->value,
+                MaintenanceStatus::Assigned->value,
+                MaintenanceStatus::WorkOrderCreated->value,
+            ], true)) {
+                throw new DomainException('Only manager-approved requests can receive final approval.');
+            }
+        } elseif (! in_array($request->status, MaintenanceStatus::approvalQueue(), true)) {
+            throw new DomainException('Only submitted requests can be approved by maintenance managers.');
         }
 
         $before = $request->getOriginal();
 
         $request->update([
-            'status' => MaintenanceStatus::Approved->value,
+            'status' => $isFinalApprover
+                ? MaintenanceStatus::InProgress->value
+                : MaintenanceStatus::Approved->value,
         ]);
 
         $request = $request->refresh();
 
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),
-            action: 'maintenance_request.approved',
+            action: $isFinalApprover
+                ? 'maintenance_request.final_approved'
+                : 'maintenance_request.approved',
             auditable_type: $request->getMorphClass(),
             auditable_id: $request->id,
             before: $before,

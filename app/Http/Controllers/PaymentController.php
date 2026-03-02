@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Domains\Payments\Requests\ApprovePaymentRequest;
+use App\Domains\Payments\Requests\BulkApprovePaymentsRequest;
+use App\Domains\Payments\Requests\BulkRejectPaymentsRequest;
 use App\Domains\Payments\Requests\RejectPaymentRequest;
 use App\Domains\Payments\Services\PaymentService;
 use App\Models\Facility;
@@ -12,6 +14,7 @@ use App\Models\WorkOrder;
 use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -44,7 +47,11 @@ class PaymentController extends Controller
         $endDate = $request->string('end_date')->trim()->toString();
 
         if (! $user->can('maintenance.manage_all')) {
-            $query->whereHas('maintenanceRequest', fn ($requestQuery) => $requestQuery->maintenanceScope($user));
+            if ($user->hasRole('Maintenance Manager')) {
+                $query->whereHas('maintenanceRequest.workOrders', fn ($workOrderQuery) => $workOrderQuery->where('assigned_by', $user->id));
+            } else {
+                $query->whereHas('maintenanceRequest', fn ($requestQuery) => $requestQuery->maintenanceScope($user));
+            }
         }
 
         if ($search !== '') {
@@ -86,8 +93,15 @@ class PaymentController extends Controller
         $vendorQuery = Vendor::query()->orderBy('name');
 
         if (! $user->can('maintenance.manage_all')) {
-            $vendorIds = WorkOrder::query()
-                ->whereHas('maintenanceRequest', fn ($requestQuery) => $requestQuery->maintenanceScope($user))
+            $vendorScopeQuery = WorkOrder::query();
+
+            if ($user->hasRole('Maintenance Manager')) {
+                $vendorScopeQuery->where('assigned_by', $user->id);
+            } else {
+                $vendorScopeQuery->whereHas('maintenanceRequest', fn ($requestQuery) => $requestQuery->maintenanceScope($user));
+            }
+
+            $vendorIds = $vendorScopeQuery
                 ->pluck('vendor_id')
                 ->unique()
                 ->filter()
@@ -261,6 +275,80 @@ class PaymentController extends Controller
         }
 
         return back()->with('success', 'Payment rejected.');
+    }
+
+    public function bulkApprove(BulkApprovePaymentsRequest $request)
+    {
+        $paymentIds = $request->validated('payment_ids', []);
+        $comments = $request->validated('comments');
+        $actorId = $request->user()->id;
+
+        $payments = Payment::query()
+            ->whereIn('id', $paymentIds)
+            ->get();
+
+        if ($payments->isEmpty()) {
+            return back()->withErrors([
+                'payment_ids' => 'No payments found for approval.',
+            ]);
+        }
+
+        try {
+            DB::transaction(function () use ($payments, $actorId, $comments): void {
+                foreach ($payments as $payment) {
+                    $this->authorize('approve', $payment);
+
+                    if ($payment->status !== 'pending') {
+                        throw new DomainException("Only pending payments can be approved in bulk (payment #{$payment->id}).");
+                    }
+
+                    $this->paymentService->approve($payment, $actorId, $comments);
+                }
+            });
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'payment_ids' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Selected payments approved.');
+    }
+
+    public function bulkReject(BulkRejectPaymentsRequest $request)
+    {
+        $paymentIds = $request->validated('payment_ids', []);
+        $comments = $request->validated('comments');
+        $actorId = $request->user()->id;
+
+        $payments = Payment::query()
+            ->whereIn('id', $paymentIds)
+            ->get();
+
+        if ($payments->isEmpty()) {
+            return back()->withErrors([
+                'payment_ids' => 'No payments found for rejection.',
+            ]);
+        }
+
+        try {
+            DB::transaction(function () use ($payments, $actorId, $comments): void {
+                foreach ($payments as $payment) {
+                    $this->authorize('reject', $payment);
+
+                    if ($payment->status !== 'pending') {
+                        throw new DomainException("Only pending payments can be rejected in bulk (payment #{$payment->id}).");
+                    }
+
+                    $this->paymentService->reject($payment, $actorId, $comments);
+                }
+            });
+        } catch (DomainException $exception) {
+            return back()->withErrors([
+                'payment_ids' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Selected payments rejected.');
     }
 
     public function adminIndex(Request $request): Response

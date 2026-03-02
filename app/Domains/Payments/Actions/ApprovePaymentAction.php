@@ -7,6 +7,7 @@ use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Enums\MaintenanceStatus;
 use App\Models\Payment;
 use App\Models\PaymentApproval;
+use App\Models\User;
 use DomainException;
 
 class ApprovePaymentAction
@@ -25,9 +26,11 @@ class ApprovePaymentAction
             throw new DomainException('Payment cost must be set before approval.');
         }
 
+        $actorColumn = PaymentApproval::actorColumn();
+
         $alreadyApproved = PaymentApproval::query()
             ->where('payment_id', $payment->id)
-            ->where('approver_id', $userId)
+            ->where($actorColumn, $userId)
             ->exists();
 
         if ($alreadyApproved) {
@@ -36,12 +39,19 @@ class ApprovePaymentAction
 
         $before = $payment->getOriginal();
 
-        PaymentApproval::create([
+        $approvalData = [
             'payment_id' => $payment->id,
-            'approver_id' => $userId,
+            $actorColumn => $userId,
             'status' => 'approved',
             'comments' => $comments,
-        ]);
+        ];
+
+        if (PaymentApproval::hasApprovalLevelColumn()) {
+            $approver = User::query()->find($userId);
+            $approvalData['approval_level'] = $approver?->can('maintenance.manage_all') ? 'admin' : 'manager';
+        }
+
+        PaymentApproval::create($approvalData);
 
         // Approval gates work-order creation; final settlement can happen later.
         if ($payment->status === 'pending') {
@@ -51,57 +61,8 @@ class ApprovePaymentAction
             ]);
         }
 
-        $workOrder = $payment->workOrder;
-        if ($workOrder && $workOrder->status === 'assigned') {
-            $maintenanceRequest = $payment->maintenanceRequest;
-            $workOrderBefore = $workOrder->getOriginal();
-            $workOrder->update([
-                'status' => 'in_progress',
-                'scheduled_date' => $workOrder->scheduled_date
-                    ?? $maintenanceRequest?->week_start
-                    ?? $workOrder->assigned_date
-                    ?? now()->toDateString(),
-            ]);
-
-            $this->recordAuditLogAction->execute(new AuditLogData(
-                actor_id: $userId,
-                action: 'work_order.started',
-                auditable_type: $workOrder->getMorphClass(),
-                auditable_id: $workOrder->id,
-                before: $workOrderBefore,
-                after: $workOrder->getAttributes(),
-            ));
-        }
-
         $maintenanceRequest = $payment->maintenanceRequest;
         if (
-            $maintenanceRequest
-            && $workOrder
-            && in_array($maintenanceRequest->status, [
-                MaintenanceStatus::Submitted->value,
-                MaintenanceStatus::Pending->value,
-                MaintenanceStatus::Rejected->value,
-                MaintenanceStatus::Approved->value,
-                MaintenanceStatus::WorkOrderCreated->value,
-            ], true)
-        ) {
-            $maintenanceRequest->update([
-                'status' => MaintenanceStatus::InProgress->value,
-                'cost' => $payment->cost,
-            ]);
-        } elseif (
-            $maintenanceRequest
-            && in_array($maintenanceRequest->status, [
-                MaintenanceStatus::Submitted->value,
-                MaintenanceStatus::Pending->value,
-                MaintenanceStatus::Rejected->value,
-            ], true)
-        ) {
-            $maintenanceRequest->update([
-                'status' => MaintenanceStatus::Approved->value,
-                'cost' => $payment->cost,
-            ]);
-        } elseif (
             $maintenanceRequest
             && in_array($maintenanceRequest->status, [
                 MaintenanceStatus::CompletedPendingPayment->value,

@@ -3,6 +3,7 @@
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
+use App\Models\Payment;
 use App\Models\RequestType;
 use App\Models\User;
 use App\Models\Vendor;
@@ -54,6 +55,13 @@ test('maintenance manager can update work order status', function () {
         'actual_cost' => null,
         'status' => 'assigned',
         'assigned_by' => $user->id,
+    ]);
+    Payment::create([
+        'maintenance_request_id' => $maintenance->id,
+        'work_order_id' => $workOrder->id,
+        'cost' => 1000,
+        'amount_payed' => 1000,
+        'status' => 'approved',
     ]);
 
     $this->actingAs($user);
@@ -111,6 +119,13 @@ test('work order cannot be completed without actual cost', function () {
         'status' => 'assigned',
         'assigned_by' => $user->id,
     ]);
+    Payment::create([
+        'maintenance_request_id' => $maintenance->id,
+        'work_order_id' => $workOrder->id,
+        'cost' => 500,
+        'amount_payed' => 500,
+        'status' => 'approved',
+    ]);
 
     $this->actingAs($user);
 
@@ -166,6 +181,13 @@ test('completing a work order completes the maintenance request', function () {
         'actual_cost' => null,
         'status' => 'in_progress',
         'assigned_by' => $user->id,
+    ]);
+    Payment::create([
+        'maintenance_request_id' => $maintenance->id,
+        'work_order_id' => $workOrder->id,
+        'cost' => 1500,
+        'amount_payed' => 1500,
+        'status' => 'approved',
     ]);
 
     $this->actingAs($user);
@@ -224,6 +246,13 @@ test('cancelling a work order closes the maintenance request', function () {
         'actual_cost' => null,
         'status' => 'assigned',
         'assigned_by' => $user->id,
+    ]);
+    Payment::create([
+        'maintenance_request_id' => $maintenance->id,
+        'work_order_id' => $workOrder->id,
+        'cost' => 900,
+        'amount_payed' => 900,
+        'status' => 'approved',
     ]);
 
     $this->actingAs($user);

@@ -19,8 +19,23 @@ class RejectMaintenanceAction
 
     public function execute(MaintenanceRequest $request): MaintenanceRequest
     {
-        if (! in_array($request->status, MaintenanceStatus::approvalQueue(), true)) {
-            throw new DomainException('Only submitted requests can be rejected.');
+        $actor = auth()->user();
+        if (! $actor) {
+            throw new DomainException('Authenticated user is required.');
+        }
+
+        $isFinalApprover = $actor->can('maintenance.manage_all');
+
+        if ($isFinalApprover) {
+            if (! in_array($request->status, [
+                MaintenanceStatus::Approved->value,
+                MaintenanceStatus::Assigned->value,
+                MaintenanceStatus::WorkOrderCreated->value,
+            ], true)) {
+                throw new DomainException('Only manager-approved requests can be rejected by admin.');
+            }
+        } elseif (! in_array($request->status, MaintenanceStatus::approvalQueue(), true)) {
+            throw new DomainException('Only submitted requests can be rejected by maintenance managers.');
         }
 
         $before = $request->getOriginal();
@@ -33,7 +48,9 @@ class RejectMaintenanceAction
 
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),
-            action: 'maintenance_request.rejected',
+            action: $isFinalApprover
+                ? 'maintenance_request.final_rejected'
+                : 'maintenance_request.rejected',
             auditable_type: $request->getMorphClass(),
             auditable_id: $request->id,
             before: $before,

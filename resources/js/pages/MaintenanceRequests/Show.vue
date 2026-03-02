@@ -127,6 +127,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const { can } = usePermissions();
+const canManageAll = computed(() => can('maintenance.manage_all'));
+const canAdminFastTrack = computed(
+    () => canManageAll.value && ['submitted', 'pending'].includes(props.request.status),
+);
+const canFirstApproval = computed(
+    () => can('maintenance.review') && !canManageAll.value && ['submitted', 'pending'].includes(props.request.status),
+);
+const canFinalApproval = computed(
+    () => canManageAll.value && ['approved', 'assigned', 'work_order_created'].includes(props.request.status),
+);
 
 const approveForm = useForm({
     vendor_id: '',
@@ -152,7 +162,7 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
 
 const statusSteps = [
     { value: 'submitted', label: 'Submitted' },
-    { value: 'approved', label: 'Approved' },
+    { value: 'approved', label: 'Manager Approved' },
     { value: 'work_order_created', label: 'Work Order Created' },
     { value: 'in_progress', label: 'In progress' },
     { value: 'completed_pending_payment', label: 'Completed / Pending payment' },
@@ -273,7 +283,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </Link>
                         </Button>
                         <form
-                            v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
+                            v-if="canFirstApproval || canAdminFastTrack"
                             class="flex flex-wrap items-end gap-2"
                             @submit.prevent="
                                 approveForm.post(route('maintenance.approve', request.id), {
@@ -320,7 +330,23 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </p>
                         </form>
                         <Button
-                            v-if="can('maintenance.review') && ['submitted', 'pending'].includes(request.status)"
+                            v-if="canFinalApproval"
+                            :disabled="approveForm.processing"
+                            size="icon"
+                            class="h-9 w-9"
+                            as-child
+                        >
+                            <Link
+                                :href="route('maintenance.approve', request.id)"
+                                method="post"
+                                as="button"
+                                aria-label="Final approve request"
+                            >
+                                <ClipboardCheck class="h-4 w-4" />
+                            </Link>
+                        </Button>
+                        <Button
+                            v-if="canFirstApproval || canAdminFastTrack || canFinalApproval"
                             variant="secondary"
                             size="icon"
                             class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"

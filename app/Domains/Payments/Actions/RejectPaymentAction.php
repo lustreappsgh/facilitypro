@@ -7,6 +7,7 @@ use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Enums\MaintenanceStatus;
 use App\Models\Payment;
 use App\Models\PaymentApproval;
+use App\Models\User;
 use DomainException;
 
 class RejectPaymentAction
@@ -21,9 +22,11 @@ class RejectPaymentAction
             throw new DomainException('Only pending payments can be rejected.');
         }
 
+        $actorColumn = PaymentApproval::actorColumn();
+
         $alreadyRejected = PaymentApproval::query()
             ->where('payment_id', $payment->id)
-            ->where('approver_id', $userId)
+            ->where($actorColumn, $userId)
             ->where('status', 'rejected')
             ->exists();
 
@@ -33,12 +36,19 @@ class RejectPaymentAction
 
         $before = $payment->getOriginal();
 
-        PaymentApproval::create([
+        $approvalData = [
             'payment_id' => $payment->id,
-            'approver_id' => $userId,
+            $actorColumn => $userId,
             'status' => 'rejected',
             'comments' => $comments,
-        ]);
+        ];
+
+        if (PaymentApproval::hasApprovalLevelColumn()) {
+            $approver = User::query()->find($userId);
+            $approvalData['approval_level'] = $approver?->can('maintenance.manage_all') ? 'admin' : 'manager';
+        }
+
+        PaymentApproval::create($approvalData);
 
         $payment->update(['status' => 'rejected']);
 

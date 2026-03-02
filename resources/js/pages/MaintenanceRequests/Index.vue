@@ -212,7 +212,9 @@ const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDa
 const statusLabel = (status: string) => {
     if (props.data.is_facility_manager) {
         if (['submitted', 'pending'].includes(status)) return 'Needs Review';
-        if (['approved', 'assigned', 'work_order_created', 'in_progress'].includes(status)) return 'In Progress';
+        if (status === 'approved') return 'Manager Approved';
+        if (['assigned', 'work_order_created'].includes(status)) return 'Pending Final Approval';
+        if (status === 'in_progress') return 'In Progress';
         if (['completed_pending_payment', 'paid', 'closed', 'completed'].includes(status)) return 'Done';
         if (status === 'rejected') return 'Rejected';
         if (status === 'cancelled') return 'Cancelled';
@@ -235,7 +237,9 @@ const statusLabel = (status: string) => {
 const statusClass = (status: string) => {
     if (props.data.is_facility_manager) {
         if (['submitted', 'pending'].includes(status)) return 'bg-amber-500/10 text-amber-700 border-amber-500/20';
-        if (['approved', 'assigned', 'work_order_created', 'in_progress'].includes(status)) return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+        if (status === 'approved') return 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20';
+        if (['assigned', 'work_order_created'].includes(status)) return 'bg-orange-500/10 text-orange-700 border-orange-500/20';
+        if (status === 'in_progress') return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
         if (['completed_pending_payment', 'paid', 'closed', 'completed'].includes(status)) return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
         if (status === 'rejected' || status === 'cancelled') return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
     }
@@ -496,7 +500,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <StatsCard title="Total requests" :value="metrics.total" :icon="ClipboardCheck" accent-color="amber" description="All in range" />
                 <StatsCard title="Submitted" :value="metrics.submitted" :icon="Timer" accent-color="amber" description="Awaiting approval" />
-                <StatsCard title="Approved Queue" :value="metrics.approved" :icon="ClipboardList" accent-color="blue" description="Ready for work order" />
+                <StatsCard title="Approved Queue" :value="metrics.approved" :icon="ClipboardList" accent-color="blue" description="Awaiting final approval" />
                 <StatsCard title="In progress" :value="metrics.inProgress" :icon="Wrench" accent-color="blue" description="Being resolved" />
                 <StatsCard title="Pending payment" :value="metrics.completedPendingPayment" :icon="CheckCircle2" accent-color="amber" description="Completed work, unpaid" />
                 <StatsCard title="Paid" :value="metrics.paid" :icon="CheckCircle2" accent-color="emerald" description="Ready to close" />

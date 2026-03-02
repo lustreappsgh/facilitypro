@@ -2,6 +2,7 @@
 import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -28,11 +29,17 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
-import { approve as paymentApprove, reject as paymentReject, show as paymentShow } from '@/routes/payments';
+import {
+    approve as paymentApprove,
+    bulkApprove as paymentBulkApprove,
+    bulkReject as paymentBulkReject,
+    reject as paymentReject,
+    show as paymentShow,
+} from '@/routes/payments';
 import { show as maintenanceShow } from '@/routes/maintenance';
 import { Link, useForm } from '@inertiajs/vue3';
 import { Check, Eye, Search, X } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 interface Facility {
     id: number;
@@ -48,6 +55,7 @@ interface MaintenanceRequest {
     id: number;
     facility?: Facility | null;
     requestType?: RequestType | null;
+    request_type?: RequestType | null;
 }
 
 interface Payment {
@@ -56,6 +64,7 @@ interface Payment {
     status?: string | null;
     created_at?: string | null;
     maintenanceRequest?: MaintenanceRequest | null;
+    maintenance_request?: MaintenanceRequest | null;
 }
 
 interface PaginationLink {
@@ -118,10 +127,23 @@ const rejectForm = useForm({
     comments: '',
 });
 
+const bulkApproveForm = useForm({
+    payment_ids: [] as number[],
+    comments: '',
+});
+
+const bulkRejectForm = useForm({
+    payment_ids: [] as number[],
+    comments: '',
+});
+
 const approvalPayment = ref<Payment | null>(null);
 const rejectionPayment = ref<Payment | null>(null);
 const approveOpen = ref(false);
 const rejectOpen = ref(false);
+const bulkApproveOpen = ref(false);
+const bulkRejectOpen = ref(false);
+const selectedPaymentIds = ref<number[]>([]);
 
 const currencyFormat = new Intl.NumberFormat(undefined, {
     style: 'currency',
@@ -156,6 +178,63 @@ const openReject = (payment: Payment) => {
     rejectOpen.value = true;
 };
 
+const paymentRequest = (payment: Payment) =>
+    payment.maintenanceRequest ?? payment.maintenance_request ?? null;
+
+const pendingPayments = computed(() =>
+    props.payments.data.filter((payment) => payment.status === 'pending'),
+);
+
+const pendingPaymentIds = computed(() => pendingPayments.value.map((payment) => payment.id));
+
+const selectedPendingCount = computed(() => selectedPaymentIds.value.length);
+
+const allPendingSelected = computed(() => {
+    if (!pendingPaymentIds.value.length) {
+        return false;
+    }
+
+    return pendingPaymentIds.value.every((id) => selectedPaymentIds.value.includes(id));
+});
+
+const somePendingSelected = computed(() =>
+    selectedPaymentIds.value.length > 0 && !allPendingSelected.value,
+);
+
+const isSelected = (paymentId: number) => selectedPaymentIds.value.includes(paymentId);
+
+const togglePaymentSelection = (paymentId: number, checked: boolean) => {
+    if (checked) {
+        if (!selectedPaymentIds.value.includes(paymentId)) {
+            selectedPaymentIds.value = [...selectedPaymentIds.value, paymentId];
+        }
+        return;
+    }
+
+    selectedPaymentIds.value = selectedPaymentIds.value.filter((id) => id !== paymentId);
+};
+
+const toggleSelectAllPending = (checked: boolean) => {
+    if (checked) {
+        selectedPaymentIds.value = [...pendingPaymentIds.value];
+        return;
+    }
+
+    selectedPaymentIds.value = [];
+};
+
+const openBulkApprove = () => {
+    bulkApproveForm.reset('comments');
+    bulkApproveForm.clearErrors();
+    bulkApproveOpen.value = true;
+};
+
+const openBulkReject = () => {
+    bulkRejectForm.reset('comments');
+    bulkRejectForm.clearErrors();
+    bulkRejectOpen.value = true;
+};
+
 const submitApprove = () => {
     if (!approvalPayment.value) {
         return;
@@ -181,6 +260,45 @@ const submitReject = () => {
         },
     });
 };
+
+const submitBulkApprove = () => {
+    if (!selectedPendingCount.value) {
+        return;
+    }
+
+    bulkApproveForm.payment_ids = [...selectedPaymentIds.value];
+    bulkApproveForm.post(paymentBulkApprove().url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            bulkApproveOpen.value = false;
+            selectedPaymentIds.value = [];
+        },
+    });
+};
+
+const submitBulkReject = () => {
+    if (!selectedPendingCount.value) {
+        return;
+    }
+
+    bulkRejectForm.payment_ids = [...selectedPaymentIds.value];
+    bulkRejectForm.post(paymentBulkReject().url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            bulkRejectOpen.value = false;
+            selectedPaymentIds.value = [];
+        },
+    });
+};
+
+watch(
+    () => props.payments.data,
+    () => {
+        selectedPaymentIds.value = selectedPaymentIds.value.filter((id) =>
+            pendingPaymentIds.value.includes(id),
+        );
+    },
+);
 </script>
 
 <template>
@@ -287,10 +405,47 @@ const submitReject = () => {
             </div>
         </form>
 
+        <div
+            v-if="pendingPaymentIds.length > 0"
+            class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2"
+        >
+            <div class="flex items-center gap-3 text-xs text-muted-foreground">
+                <div class="flex items-center gap-2">
+                    <Checkbox
+                        :model-value="allPendingSelected || (somePendingSelected && 'indeterminate')"
+                        :aria-label="'Select all pending payments'"
+                        @update:model-value="(value) => toggleSelectAllPending(value === true)"
+                    />
+                    <span>Select all pending</span>
+                </div>
+                <span>{{ selectedPendingCount }} selected</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <Button
+                    size="sm"
+                    class="h-8 px-3 text-xs"
+                    :disabled="selectedPendingCount === 0"
+                    @click="openBulkApprove"
+                >
+                    Approve selected
+                </Button>
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    class="h-8 px-3 text-xs"
+                    :disabled="selectedPendingCount === 0"
+                    @click="openBulkReject"
+                >
+                    Reject selected
+                </Button>
+            </div>
+        </div>
+
         <div class="rounded-xl border border-sidebar-border/70 bg-background">
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead class="w-10" />
                         <TableHead>Request</TableHead>
                         <TableHead>Facility</TableHead>
                         <TableHead>Cost</TableHead>
@@ -302,8 +457,16 @@ const submitReject = () => {
                 <TableBody>
                     <TableRow v-for="payment in payments.data" :key="payment.id">
                         <TableCell>
+                            <Checkbox
+                                :model-value="isSelected(payment.id)"
+                                :disabled="payment.status !== 'pending'"
+                                :aria-label="`Select payment ${payment.id}`"
+                                @update:model-value="(value) => togglePaymentSelection(payment.id, value === true)"
+                            />
+                        </TableCell>
+                        <TableCell>
                             <Button
-                                v-if="payment.maintenanceRequest?.id"
+                                v-if="paymentRequest(payment)?.id"
                                 variant="link"
                                 class="px-0"
                                 as-child
@@ -311,17 +474,17 @@ const submitReject = () => {
                                 <Link
                                     :href="
                                         maintenanceShow(
-                                            payment.maintenanceRequest,
+                                            paymentRequest(payment)!,
                                         ).url
                                     "
                                 >
-                                    Request #{{ payment.maintenanceRequest?.id }}
+                                    Request #{{ paymentRequest(payment)?.id }}
                                 </Link>
                             </Button>
                             <span v-else>--</span>
                         </TableCell>
                         <TableCell>
-                            {{ payment.maintenanceRequest?.facility?.name ?? '--' }}
+                            {{ paymentRequest(payment)?.facility?.name ?? '--' }}
                         </TableCell>
                         <TableCell>
                             {{
@@ -372,7 +535,7 @@ const submitReject = () => {
                     </TableRow>
                     <TableRow v-if="!payments.data.length">
                         <TableCell
-                            colspan="6"
+                            colspan="7"
                             class="py-8 text-center text-sm text-muted-foreground"
                         >
                             No payments match these filters.
@@ -406,6 +569,74 @@ const submitReject = () => {
                     </Button>
                     <Button :disabled="approveForm.processing" @click="submitApprove">
                         Confirm approval
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="bulkApproveOpen">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Approve selected payments</DialogTitle>
+                    <DialogDescription>
+                        Confirm approval for {{ selectedPendingCount }} pending payment(s).
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">Comments (optional)</label>
+                    <Input
+                        v-model="bulkApproveForm.comments"
+                        placeholder="Add context for the bulk approval"
+                    />
+                    <p v-if="bulkApproveForm.errors.payment_ids" class="text-sm text-destructive">
+                        {{ bulkApproveForm.errors.payment_ids }}
+                    </p>
+                    <p v-if="bulkApproveForm.errors.comments" class="text-sm text-destructive">
+                        {{ bulkApproveForm.errors.comments }}
+                    </p>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" @click="bulkApproveOpen = false">
+                        Cancel
+                    </Button>
+                    <Button :disabled="bulkApproveForm.processing || selectedPendingCount === 0" @click="submitBulkApprove">
+                        Confirm bulk approval
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="bulkRejectOpen">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reject selected payments</DialogTitle>
+                    <DialogDescription>
+                        Provide a reason for rejecting {{ selectedPendingCount }} payment(s).
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">Rejection reason</label>
+                    <Input
+                        v-model="bulkRejectForm.comments"
+                        placeholder="Explain why these payments are rejected"
+                    />
+                    <p v-if="bulkRejectForm.errors.payment_ids" class="text-sm text-destructive">
+                        {{ bulkRejectForm.errors.payment_ids }}
+                    </p>
+                    <p v-if="bulkRejectForm.errors.comments" class="text-sm text-destructive">
+                        {{ bulkRejectForm.errors.comments }}
+                    </p>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" @click="bulkRejectOpen = false">
+                        Cancel
+                    </Button>
+                    <Button
+                        :disabled="bulkRejectForm.processing || selectedPendingCount === 0"
+                        variant="secondary"
+                        @click="submitBulkReject"
+                    >
+                        Confirm bulk rejection
                     </Button>
                 </DialogFooter>
             </DialogContent>

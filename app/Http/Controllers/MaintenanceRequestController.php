@@ -7,6 +7,7 @@ use App\Domains\Maintenance\DTOs\WorkOrderData;
 use App\Domains\Maintenance\Requests\MaintenanceRequestRequest;
 use App\Domains\Maintenance\Actions\CreateWorkOrderAction;
 use App\Domains\Maintenance\Services\MaintenanceService;
+use App\Domains\Payments\Services\PaymentService;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\FacilityType;
@@ -30,7 +31,8 @@ class MaintenanceRequestController extends Controller
 
     public function __construct(
         protected MaintenanceService $maintenanceService,
-        protected CreateWorkOrderAction $createWorkOrderAction
+        protected CreateWorkOrderAction $createWorkOrderAction,
+        protected PaymentService $paymentService
     ) {}
 
     public function index(Request $request): Response
@@ -376,27 +378,68 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('review', $maintenance);
 
-        $validated = request()->validate([
-            'vendor_id' => ['required', 'exists:vendors,id'],
-            'estimated_cost' => ['required', 'integer', 'min:0'],
-            'scheduled_date' => ['nullable', 'date'],
-        ]);
+        $isFinalApproval = request()->user()?->can('maintenance.manage_all') === true;
+        $isAdminFastTrack = $isFinalApproval && in_array($maintenance->status, [
+            MaintenanceStatus::Submitted->value,
+            MaintenanceStatus::Pending->value,
+        ], true);
+        $validated = [];
+
+        if (! $isFinalApproval || $isAdminFastTrack) {
+            $validated = request()->validate([
+                'vendor_id' => ['required', 'exists:vendors,id'],
+                'estimated_cost' => ['required', 'integer', 'min:0'],
+                'scheduled_date' => ['nullable', 'date'],
+            ]);
+        }
 
         try {
-            if ($maintenance->workOrders()->exists()) {
+            if ((! $isFinalApproval || $isAdminFastTrack) && $maintenance->workOrders()->exists()) {
                 throw new DomainException('This request already has a work order.');
             }
 
-            DB::transaction(function () use ($maintenance, $validated) {
-                $this->maintenanceService->review($maintenance);
+            DB::transaction(function () use ($maintenance, $validated, $isFinalApproval, $isAdminFastTrack) {
+                if (! $isFinalApproval) {
+                    $this->maintenanceService->review($maintenance);
 
-                $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
-                    'maintenance_request_id' => $maintenance->id,
-                    'vendor_id' => $validated['vendor_id'],
-                    'estimated_cost' => $validated['estimated_cost'],
-                    'scheduled_date' => $validated['scheduled_date'] ?? null,
-                    'status' => 'assigned',
-                ]));
+                    $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
+                        'maintenance_request_id' => $maintenance->id,
+                        'vendor_id' => $validated['vendor_id'],
+                        'estimated_cost' => $validated['estimated_cost'],
+                        'scheduled_date' => $validated['scheduled_date'] ?? null,
+                        'status' => 'assigned',
+                    ]));
+                }
+
+                if ($isAdminFastTrack) {
+                    $workOrder = $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
+                        'maintenance_request_id' => $maintenance->id,
+                        'vendor_id' => $validated['vendor_id'],
+                        'estimated_cost' => $validated['estimated_cost'],
+                        'scheduled_date' => $validated['scheduled_date'] ?? null,
+                        'status' => 'assigned',
+                    ]));
+
+                    $payment = Payment::query()
+                        ->where('maintenance_request_id', $maintenance->id)
+                        ->where('work_order_id', $workOrder->id)
+                        ->latest('id')
+                        ->first();
+
+                    if (! $payment) {
+                        throw new DomainException('Payment record not found for the created work order.');
+                    }
+
+                    $this->paymentService->approve(
+                        $payment,
+                        request()->user()->id,
+                        'Approved directly by admin from maintenance request.'
+                    );
+                }
+
+                if ($isFinalApproval) {
+                    $this->maintenanceService->review($maintenance->refresh());
+                }
             });
         } catch (DomainException $exception) {
             return back()->withErrors([
@@ -404,7 +447,15 @@ class MaintenanceRequestController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Request approved and work order created.');
+        if ($isAdminFastTrack) {
+            return back()->with('success', 'Request approved, work order created, and payment approved.');
+        }
+
+        if ($isFinalApproval) {
+            return back()->with('success', 'Request finally approved and moved to in progress.');
+        }
+
+        return back()->with('success', 'Request approved and sent for final approval.');
     }
 
     public function reject(MaintenanceRequest $maintenance)

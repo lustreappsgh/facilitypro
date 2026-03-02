@@ -124,12 +124,7 @@ class MaintenanceRequestPolicy
             return $override;
         }
 
-        if (! $user->can('maintenance.start')) {
-            return false;
-        }
-
-        return $user->can('maintenance.manage_all')
-            || $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+        return false;
     }
 
     public function complete(User $user, MaintenanceRequest $maintenanceRequest): bool
