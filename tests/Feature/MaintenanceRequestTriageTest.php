@@ -149,5 +149,5 @@ test('admin can fast-track request from submitted to work order and approved pay
         ->first();
 
     expect($payment)->not->toBeNull();
-    expect($payment?->status)->toBe('paid');
+    expect($payment?->status)->toBe('approved');
 });

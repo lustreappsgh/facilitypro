@@ -45,6 +45,6 @@ test('reports page shows summary data', function () {
 
     $response->assertSuccessful();
     $response->assertInertia(fn (Assert $page) => $page
-        ->where('data.facilities', 1)
+        ->where('data.summary.facilities', 1)
     );
 });

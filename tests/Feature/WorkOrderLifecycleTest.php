@@ -74,6 +74,69 @@ test('maintenance manager can update work order status', function () {
     expect($workOrder->refresh()->status)->toBe('in_progress');
 });
 
+test('work order can start without approved payment', function () {
+    $user = User::factory()->create();
+
+    Permission::findOrCreate('work_orders.update');
+    $user->givePermissionTo('work_orders.update');
+    $user->assignRole(Role::findOrCreate('Maintenance Manager'));
+
+    $facilityType = FacilityType::firstOrCreate(['name' => 'Campus']);
+    $facility = Facility::create([
+        'name' => 'South Campus',
+        'facility_type_id' => $facilityType->id,
+        'parent_id' => null,
+        'condition' => 'Good',
+        'managed_by' => $user->id,
+    ]);
+
+    $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
+    $maintenance = MaintenanceRequest::create([
+        'facility_id' => $facility->id,
+        'request_type_id' => $requestType->id,
+        'description' => 'Breaker issue',
+        'cost' => 650,
+        'status' => 'approved',
+        'requested_by' => $user->id,
+    ]);
+
+    $vendor = Vendor::create([
+        'name' => 'Circuit Crew',
+        'email' => 'hello@circuit.test',
+        'phone' => '555-0155',
+        'service_type' => 'Electrical',
+        'status' => 'active',
+    ]);
+
+    $workOrder = WorkOrder::create([
+        'maintenance_request_id' => $maintenance->id,
+        'vendor_id' => $vendor->id,
+        'assigned_date' => now()->toDateString(),
+        'scheduled_date' => now()->addDays(3)->toDateString(),
+        'completed_date' => null,
+        'estimated_cost' => 700,
+        'actual_cost' => null,
+        'status' => 'assigned',
+        'assigned_by' => $user->id,
+    ]);
+    Payment::create([
+        'maintenance_request_id' => $maintenance->id,
+        'work_order_id' => $workOrder->id,
+        'cost' => 700,
+        'amount_payed' => 0,
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($user);
+
+    $response = $this->patch(route('work-orders.update', $workOrder), [
+        'status' => 'in_progress',
+    ]);
+
+    $response->assertRedirect();
+    expect($workOrder->refresh()->status)->toBe('in_progress');
+});
+
 test('work order cannot be completed without actual cost', function () {
     $user = User::factory()->create();
 

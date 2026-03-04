@@ -69,16 +69,10 @@ class UpdateWorkOrderAction
 
     protected function validateTransition(WorkOrder $workOrder, array $payload): void
     {
-        $paymentStatus = $workOrder->payment?->status;
-        $paymentApproved = in_array($paymentStatus, ['approved', 'paid'], true);
         $vendorChanging = array_key_exists('vendor_id', $payload)
             && (string) ($payload['vendor_id'] ?? '') !== (string) ($workOrder->vendor_id ?? '');
         $statusChanging = array_key_exists('status', $payload)
             && ($payload['status'] ?? $workOrder->status) !== $workOrder->status;
-
-        if (($vendorChanging || $statusChanging) && ! $paymentApproved) {
-            throw new DomainException('Work order must be approved by admin before assigning vendor or changing status.');
-        }
 
         if ($vendorChanging && empty($payload['vendor_id'])) {
             throw new DomainException('Vendor is required once assignment begins.');

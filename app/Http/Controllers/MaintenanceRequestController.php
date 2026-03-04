@@ -41,7 +41,7 @@ class MaintenanceRequestController extends Controller
 
         $user = $request->user();
         $canViewAllRequests = $user->can('maintenance.manage_all');
-        $isFacilityManager = method_exists($user, 'hasRole') && $user->hasRole('facility_manager');
+        $isFacilityManager = method_exists($user, 'hasRole') && $user->hasRole('Facility Manager');
         $showRequesterName = $canViewAllRequests || $user->can('maintenance_requests.view');
         $showFacilityManagerName = $canViewAllRequests;
 

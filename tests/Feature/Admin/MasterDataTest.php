@@ -73,11 +73,11 @@ test('admin can manage request types and log audit events', function () {
     $this->actingAs($user);
 
     $create = $this->post(route('request-types.store'), [
-        'name' => 'Electrical',
+        'name' => 'Electrical - Custom',
     ]);
     $create->assertRedirect();
 
-    $requestType = RequestType::query()->where('name', 'Electrical')->firstOrFail();
+    $requestType = RequestType::query()->where('name', 'Electrical - Custom')->firstOrFail();
     expect(AuditLog::query()->where('action', 'request_type.created')->exists())->toBeTrue();
 
     $update = $this->put(route('request-types.update', $requestType), [
@@ -105,7 +105,7 @@ test('request type cannot be deleted if in use', function () {
         'managed_by' => $user->id,
     ]);
 
-    $requestType = RequestType::create(['name' => 'Plumbing']);
+    $requestType = RequestType::firstOrCreate(['name' => 'Plumbing']);
 
     MaintenanceRequest::create([
         'facility_id' => $facility->id,

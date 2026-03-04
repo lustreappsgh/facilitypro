@@ -9,7 +9,6 @@ use App\Traits\ResolvesMaintenanceScope;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\DB;
 
 class MaintenanceRequest extends BaseModel
 {
@@ -82,16 +81,10 @@ class MaintenanceRequest extends BaseModel
         }
 
         if ($user->can('maintenance_requests.view')) {
-            $allowedRequestTypes = ['carpentry', 'electrical', 'plumbing'];
-
             return $query
                 ->whereHas('facility', fn ($q) => $q->whereIn(
                     'managed_by',
                     $this->maintenanceScopeManagerIds($user)
-                ))
-                ->whereHas('requestType', fn ($requestTypeQuery) => $requestTypeQuery->whereIn(
-                    DB::raw('LOWER(name)'),
-                    $allowedRequestTypes
                 ));
         }
 

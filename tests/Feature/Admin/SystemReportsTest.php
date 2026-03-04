@@ -39,7 +39,7 @@ test('admin reports export supports csv and pdf', function () {
 
     $csv = $this->get(route('reports.admin.export', ['format' => 'csv']));
     $csv->assertOk();
-    $csv->assertHeader('Content-Type', 'text/csv');
+    $csv->assertHeader('Content-Type', 'text/csv; charset=utf-8');
 
     $pdf = $this->get(route('reports.admin.export', ['format' => 'pdf']));
     $pdf->assertOk();

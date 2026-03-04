@@ -53,24 +53,19 @@ class ApprovePaymentAction
 
         PaymentApproval::create($approvalData);
 
-        // Approval gates work-order creation; final settlement can happen later.
         if ($payment->status === 'pending') {
             $payment->update([
-                'status' => 'paid',
-                'amount_payed' => $payment->cost,
+                'status' => 'approved',
             ]);
         }
 
         $maintenanceRequest = $payment->maintenanceRequest;
         if (
             $maintenanceRequest
-            && in_array($maintenanceRequest->status, [
-                MaintenanceStatus::CompletedPendingPayment->value,
-                MaintenanceStatus::Completed->value,
-            ], true)
+            && $maintenanceRequest->status === MaintenanceStatus::CompletedPendingPayment->value
         ) {
             $maintenanceRequest->update([
-                'status' => MaintenanceStatus::Paid->value,
+                'status' => MaintenanceStatus::Completed->value,
             ]);
         }
 

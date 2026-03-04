@@ -101,7 +101,7 @@ class ReportService
             $trendStart = Carbon::now()->subMonths(5)->startOfMonth();
             $trend = Payment::query()
                 ->select(
-                    DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
+                    DB::raw($this->monthlyPeriodExpression('created_at') . ' as period'),
                     DB::raw('COUNT(*) as count'),
                     DB::raw('SUM(cost) as total_cost')
                 )
@@ -167,7 +167,7 @@ class ReportService
 
             $paymentTrendRaw = Payment::query()
                 ->select(
-                    DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
+                    DB::raw($this->monthlyPeriodExpression('created_at') . ' as period'),
                     DB::raw('COUNT(*) as count'),
                     DB::raw('SUM(cost) as total_cost')
                 )
@@ -178,7 +178,7 @@ class ReportService
 
             $maintenanceTrendRaw = MaintenanceRequest::query()
                 ->select(
-                    DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
+                    DB::raw($this->monthlyPeriodExpression('created_at') . ' as period'),
                     DB::raw('COUNT(*) as count')
                 )
                 ->where('created_at', '>=', $trendStart)
@@ -188,7 +188,7 @@ class ReportService
 
             $workOrderTrendRaw = WorkOrder::query()
                 ->select(
-                    DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
+                    DB::raw($this->monthlyPeriodExpression('created_at') . ' as period'),
                     DB::raw('COUNT(*) as count')
                 )
                 ->where('created_at', '>=', $trendStart)
@@ -293,9 +293,7 @@ class ReportService
                 ? $endAt->copy()->startOfWeek()->subWeeks($defaultPoints - 1)
                 : $endAt->copy()->startOfMonth()->subMonths($defaultPoints - 1));
 
-        $periodExpression = $unit === 'week'
-            ? "DATE(DATE_SUB(created_at, INTERVAL WEEKDAY(created_at) DAY))"
-            : "DATE_FORMAT(created_at, '%Y-%m-01')";
+        $periodExpression = $this->periodStartExpression('created_at', $unit);
 
         $rows = Payment::query()
             ->selectRaw("{$periodExpression} as period_start, COUNT(*) as count, SUM(cost) as total_cost")
@@ -335,9 +333,7 @@ class ReportService
                 ? $endAt->copy()->startOfWeek()->subWeeks($defaultPoints - 1)
                 : $endAt->copy()->startOfMonth()->subMonths($defaultPoints - 1));
 
-        $periodExpression = $unit === 'week'
-            ? "DATE(DATE_SUB(created_at, INTERVAL WEEKDAY(created_at) DAY))"
-            : "DATE_FORMAT(created_at, '%Y-%m-01')";
+        $periodExpression = $this->periodStartExpression('created_at', $unit);
 
         $rows = MaintenanceRequest::query()
             ->selectRaw("{$periodExpression} as period_start, COUNT(*) as count")
@@ -365,5 +361,30 @@ class ReportService
         }
 
         return $series;
+    }
+
+    private function monthlyPeriodExpression(string $column): string
+    {
+        return $this->dbDriver() === 'sqlite'
+            ? "strftime('%Y-%m', {$column})"
+            : "DATE_FORMAT({$column}, '%Y-%m')";
+    }
+
+    private function periodStartExpression(string $column, string $unit): string
+    {
+        if ($unit === 'week') {
+            return $this->dbDriver() === 'sqlite'
+                ? "date({$column}, 'weekday 1', '-7 days')"
+                : "DATE(DATE_SUB({$column}, INTERVAL WEEKDAY({$column}) DAY))";
+        }
+
+        return $this->dbDriver() === 'sqlite'
+            ? "date({$column}, 'start of month')"
+            : "DATE_FORMAT({$column}, '%Y-%m-01')";
+    }
+
+    private function dbDriver(): string
+    {
+        return DB::getDriverName();
     }
 }
