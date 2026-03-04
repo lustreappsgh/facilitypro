@@ -1,0 +1,16 @@
+.git
+.github
+.vscode
+.env
+node_modules
+vendor
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+storage/app/public
+tests
+docker-compose*.yml
+Makefile
+*.log
+*.md
