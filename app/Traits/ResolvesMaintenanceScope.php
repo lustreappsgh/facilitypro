@@ -12,8 +12,11 @@ trait ResolvesMaintenanceScope
     {
         return User::query()
             ->select('id')
-            ->where('manager_id', $user->id)
-            ->orWhere('id', $user->id);
+            ->where('is_active', true)
+            ->where(function ($query) use ($user) {
+                $query->where('manager_id', $user->id)
+                    ->orWhere('id', $user->id);
+            });
     }
 
     protected function maintenanceScopeFacilityIds(User $user): Builder

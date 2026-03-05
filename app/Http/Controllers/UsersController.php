@@ -141,6 +141,7 @@ class UsersController extends Controller
         $manager = $user->manager;
 
         $managerOptions = User::query()
+            ->active()
             ->role('Facility Manager')
             ->whereDoesntHave('roles', fn($query) => $query->whereIn('name', $disallowedSupervisorRoles))
             ->whereNull('manager_id')
@@ -165,12 +166,14 @@ class UsersController extends Controller
         }
 
         $reportOptionsQuery = User::query()
+            ->active()
             ->role('Facility Manager')
             ->whereKeyNot($user->id)
             ->orderBy('name');
 
         $reportOptions = $reportOptionsQuery->get(['id', 'name', 'email']);
         $directReportIds = User::query()
+            ->active()
             ->role('Facility Manager')
             ->where('manager_id', $user->id)
             ->pluck('id')
@@ -192,7 +195,7 @@ class UsersController extends Controller
                     : null,
                 'has_maintenance_access' => $manager?->can('maintenance_requests.view') ?? false,
                 'other_direct_reports' => $manager
-                    ? $manager->subordinates()->whereKeyNot($user->id)->count()
+                    ? $manager->subordinates()->whereKeyNot($user->id)->where('is_active', true)->count()
                     : 0,
                 'is_facility_manager' => $user->can('inspections.create'),
             ],

@@ -214,6 +214,7 @@ class WorkOrderController extends Controller
 
         return Inertia::render('WorkOrders/BulkCreate', [
             'facilityManagers' => User::query()
+                ->active()
                 ->whereIn('id', $facilityManagerIds)
                 ->orderBy('name')
                 ->get(['id', 'name']),

@@ -124,7 +124,7 @@ class DashboardService
                     'facilities' => Facility::query()->count(),
                     'facilityTypes' => FacilityType::query()->count(),
                     'requestTypes' => RequestType::query()->count(),
-                    'users' => User::query()->count(),
+                    'users' => User::active()->count(),
                     'inspections' => Inspection::query()->count(),
                     'maintenanceRequests' => MaintenanceRequest::query()->count(),
                     'vendors' => Vendor::query()->count(),
@@ -171,6 +171,7 @@ class DashboardService
     protected function facilityManagers(): array
     {
         return User::query()
+            ->active()
             ->role('Facility Manager')
             ->withCount('facilities')
             ->orderBy('name')
@@ -193,6 +194,7 @@ class DashboardService
         $today = Carbon::today()->toDateString();
 
         return User::query()
+            ->active()
             ->with(['roles'])
             ->whereDoesntHave('roles', fn ($query) => $query->whereIn('name', ['Admin']))
             ->withCount(['facilities', 'maintenanceRequestsRequested'])

@@ -45,7 +45,7 @@ class UserRequest extends FormRequest
             'manager_id' => [
                 'nullable',
                 'integer',
-                Rule::exists(User::class, 'id'),
+                Rule::exists(User::class, 'id')->where('is_active', true),
                 Rule::notIn(array_filter([$userId])),
             ],
         ];
@@ -68,7 +68,7 @@ class UserRequest extends FormRequest
                 );
             }
 
-            $manager = User::query()->find($managerId);
+            $manager = User::query()->active()->find($managerId);
             if (! $manager) {
                 return;
             }

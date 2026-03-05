@@ -47,7 +47,7 @@ class ApprovePaymentAction
         ];
 
         if (PaymentApproval::hasApprovalLevelColumn()) {
-            $approver = User::query()->find($userId);
+            $approver = User::query()->active()->find($userId);
             $approvalData['approval_level'] = $approver?->can('maintenance.manage_all') ? 'admin' : 'manager';
         }
 

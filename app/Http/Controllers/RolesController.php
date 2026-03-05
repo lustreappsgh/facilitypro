@@ -129,7 +129,7 @@ class RolesController extends Controller
             abort(403);
         }
 
-        if (User::role($role->name)->exists()) {
+        if (User::role($role->name)->active()->exists()) {
             return back()->withErrors([
                 'role' => 'Role is assigned to users and cannot be deleted.',
             ]);

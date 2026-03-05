@@ -19,7 +19,7 @@ class GrantMaintenanceManagerAccessAction
 
     public function execute(ManagerAccessData $data): User
     {
-        $manager = User::query()->findOrFail($data->manager_id);
+        $manager = User::query()->active()->findOrFail($data->manager_id);
 
         $before = [
             'roles' => Arr::sort($manager->getRoleNames()->toArray()),

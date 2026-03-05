@@ -22,7 +22,7 @@ class CreateTodoAction
 
     public function execute(TodoData $data): Todo
     {
-        $user = User::query()->find($data->user_id);
+        $user = User::query()->active()->find($data->user_id);
         $facility = Facility::query()->find($data->facility_id);
 
         if ($user && ! $user->can('users.manage') && $facility?->managed_by !== $user->id) {

@@ -198,7 +198,7 @@ class ReportService
 
             return [
                 'summary' => [
-                    'users' => User::query()->count(),
+                    'users' => User::active()->count(),
                     'facilities' => Facility::query()->count(),
                     'facilityTypes' => FacilityType::query()->count(),
                     'requestTypes' => RequestType::query()->count(),

@@ -25,6 +25,7 @@ class UpdateManagerReportsAction
         }
 
         $eligibleReportIds = User::query()
+            ->active()
             ->role('Facility Manager')
             ->whereKeyNot($manager->id)
             ->pluck('id');
@@ -39,6 +40,7 @@ class UpdateManagerReportsAction
         }
 
         $currentIds = User::query()
+            ->active()
             ->where('manager_id', $manager->id)
             ->pluck('id');
 
@@ -46,6 +48,7 @@ class UpdateManagerReportsAction
         $detachIds = $currentIds->diff($requestedIds);
 
         $invalidManagers = User::query()
+            ->active()
             ->whereIn('id', $requestedIds)
             ->whereHas('subordinates', fn ($query) => $query->role('Facility Manager'))
             ->pluck('id');
@@ -55,7 +58,7 @@ class UpdateManagerReportsAction
         }
 
         foreach ($attachIds as $userId) {
-            $report = User::query()->find($userId);
+            $report = User::query()->active()->find($userId);
             if (! $report) {
                 continue;
             }
@@ -74,7 +77,7 @@ class UpdateManagerReportsAction
         }
 
         foreach ($detachIds as $userId) {
-            $report = User::query()->find($userId);
+            $report = User::query()->active()->find($userId);
             if (! $report) {
                 continue;
             }

@@ -84,6 +84,7 @@ class FacilityController extends Controller
 
         // Fetch facility managers for the sidebar
         $managersQuery = User::permission('inspections.view')
+            ->active()
             ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
             ->orderBy('name')
             ->withCount('facilities');
@@ -166,6 +167,7 @@ class FacilityController extends Controller
         $this->authorize('create', Facility::class);
 
         $usersQuery = User::permission('inspections.view')
+            ->active()
             ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
             ->orderBy('name');
 
@@ -256,6 +258,7 @@ class FacilityController extends Controller
         $this->authorize('update', $facility);
 
         $usersQuery = User::permission('inspections.view')
+            ->active()
             ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
             ->orderBy('name');
 
@@ -412,7 +415,7 @@ class FacilityController extends Controller
         return Inertia::render('Facilities/AdminIndex', [
             'facilities' => $facilities,
             'facilityTypes' => FacilityType::orderBy('name')->get(),
-            'users' => User::orderBy('name')->get(['id', 'name']),
+            'users' => User::active()->orderBy('name')->get(['id', 'name']),
             'filters' => [
                 'manager_id' => $managerId,
             ],

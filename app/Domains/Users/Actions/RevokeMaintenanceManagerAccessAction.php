@@ -20,7 +20,7 @@ class RevokeMaintenanceManagerAccessAction
 
     public function execute(ManagerAccessData $data): User
     {
-        $manager = User::query()->findOrFail($data->manager_id);
+        $manager = User::query()->active()->findOrFail($data->manager_id);
         $hasOtherReports = $manager->subordinates()
             ->whereKeyNot($data->facility_manager_id)
             ->exists();
