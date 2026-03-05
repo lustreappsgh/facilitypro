@@ -1,9 +1,14 @@
 <script setup lang="ts">
+defineOptions({
+    inheritAttrs: false,
+});
 </script>
 
 <template>
-
-    <div class="ml-1 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate leading-tight font-semibold">Anagkazo Facilities</span>
-    </div>
+    <img
+        src="/brand/anagkazo_logo.png"
+        alt="Anagkazo"
+        class="h-9 w-auto object-contain"
+        v-bind="$attrs"
+    />
 </template>

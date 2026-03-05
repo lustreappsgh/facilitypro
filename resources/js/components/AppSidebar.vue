@@ -31,14 +31,12 @@ const { adminNavItems } = useAdminNavigation();
                     <SidebarMenuButton size="lg" as-child class="hover:bg-transparent px-0">
                         <Link :href="dashboard()" class="flex items-center gap-3">
                             <div
-                                class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_20px_rgba(255,202,75,0.4)] transition-transform hover:scale-105">
-                                <AppLogo class="h-6 w-6" />
+                                class="flex h-10 w-10 items-center justify-center rounded-2xl bg-transparent text-sidebar-foreground transition-transform hover:scale-105">
+                                <AppLogo class="h-7 w-auto" />
                             </div>
                             <div class="flex flex-col gap-0 leading-none">
                                 <span
                                     class="text-base font-black uppercase tracking-widest text-sidebar-foreground">Anagkazo</span>
-                                <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">Systems
-                                    Group</span>
                             </div>
                         </Link>
                     </SidebarMenuButton>
