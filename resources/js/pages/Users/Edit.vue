@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ interface User {
     name: string;
     email: string;
     is_active: boolean;
+    profile_photo_url?: string;
     manager_id?: number | null;
     roles?: (Role | string)[];
 }
@@ -79,6 +81,7 @@ const form = useForm({
     roles: props.assignedRoles ?? [],
     is_active: props.user.is_active,
     manager_id: props.managerAssignment.manager_id,
+    profile_photo: null as File | null,
 });
 
 const accessForm = useForm({});
@@ -102,6 +105,32 @@ const orderedRoles = computed(() => {
         return indexA - indexB;
     });
 });
+
+const profilePreviewUrl = ref<string | null>(null);
+
+const initials = computed(() => {
+    const trimmed = form.name.trim();
+    if (!trimmed) {
+        return 'U';
+    }
+
+    const parts = trimmed.split(' ').filter(Boolean);
+    const letters = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '');
+
+    return letters.join('') || 'U';
+});
+
+const activeProfileUrl = computed(() =>
+    profilePreviewUrl.value || props.user.profile_photo_url || null,
+);
+
+const updateProfilePreview = (file: File | null) => {
+    if (profilePreviewUrl.value) {
+        URL.revokeObjectURL(profilePreviewUrl.value);
+    }
+
+    profilePreviewUrl.value = file ? URL.createObjectURL(file) : null;
+};
 
 const assignedManagerSelection = computed(() =>
     props.managerAssignment.manager_id
@@ -132,6 +161,11 @@ watch(
     (value) => {
         form.roles = [...value];
     },
+);
+
+watch(
+    () => form.profile_photo,
+    (file) => updateProfilePreview(file),
 );
 
 const hasPendingManagerChange = computed(
@@ -180,7 +214,12 @@ const toggleRole = (roleName: string, checked: boolean) => {
 };
 
 const submit = () => {
-    form.put(usersUpdate(props.user).url);
+    form
+        .transform((data) => ({
+            ...data,
+            _method: 'put',
+        }))
+        .post(usersUpdate(props.user).url, { forceFormData: true });
 };
 
 const grantAccess = () => {
@@ -263,6 +302,34 @@ const submitReports = () => {
                         Leave blank to keep the existing password.
                     </p>
                     <InputError :message="form.errors.password" />
+                </div>
+
+                <div class="grid gap-3">
+                    <Label for="profile_photo">Profile photo</Label>
+                    <div class="flex flex-wrap items-center gap-4 rounded-lg border border-border/60 p-4">
+                        <Avatar class="h-16 w-16">
+                            <AvatarImage
+                                v-if="activeProfileUrl"
+                                :src="activeProfileUrl"
+                                :alt="form.name || 'User photo'"
+                            />
+                            <AvatarFallback class="text-lg font-semibold">
+                                {{ initials }}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div class="flex-1 space-y-2">
+                            <Input
+                                id="profile_photo"
+                                type="file"
+                                accept="image/*"
+                                v-model="form.profile_photo"
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                PNG, JPG, or WEBP up to 2MB.
+                            </p>
+                        </div>
+                    </div>
+                    <InputError :message="form.errors.profile_photo" />
                 </div>
 
                 <div class="grid gap-2">

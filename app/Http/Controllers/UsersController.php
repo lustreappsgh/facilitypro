@@ -22,6 +22,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -115,6 +116,11 @@ class UsersController extends Controller
 
         $payload = $request->validated();
         $password = $payload['password'] ?? Str::password(16);
+        $profilePhotoPath = null;
+
+        if ($request->hasFile('profile_photo')) {
+            $profilePhotoPath = $request->file('profile_photo')->store('profile-photos', 'public');
+        }
 
         $data = new UserData(
             name: $payload['name'],
@@ -123,6 +129,7 @@ class UsersController extends Controller
             is_active: $payload['is_active'] ?? true,
             is_default_password: ! isset($payload['password']),
             manager_id: $payload['manager_id'] ?? null,
+            profile_photo_path: $profilePhotoPath,
         );
 
         $this->createUserAction->execute(
@@ -218,19 +225,34 @@ class UsersController extends Controller
         $this->authorize('update', $user);
 
         $payload = $request->validated();
+        $profilePhotoPath = $user->profile_photo_path;
+
+        if ($request->hasFile('profile_photo')) {
+            $profilePhotoPath = $request->file('profile_photo')->store('profile-photos', 'public');
+
+            if ($user->profile_photo_path) {
+                Storage::disk('public')->delete($user->profile_photo_path);
+            }
+        }
+
         $data = new UserData(
-            name: $payload['name'],
-            email: $payload['email'],
+            name: $payload['name'] ?? $user->name,
+            email: $payload['email'] ?? $user->email,
             password: $payload['password'] ?? null,
             is_active: $payload['is_active'] ?? $user->is_active,
             is_default_password: isset($payload['password']) && $payload['password'] ? false : $user->is_default_password,
             manager_id: $payload['manager_id'] ?? $user->manager_id,
+            profile_photo_path: $profilePhotoPath,
         );
+
+        $roles = array_key_exists('roles', $payload)
+            ? ($payload['roles'] ?? [])
+            : null;
 
         $this->updateUserAction->execute(
             $user,
             $data,
-            $payload['roles'] ?? []
+            $roles
         );
 
         return redirect()->route('users.index')->with('success', 'User updated.');

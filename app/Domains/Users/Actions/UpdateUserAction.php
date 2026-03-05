@@ -18,9 +18,9 @@ class UpdateUserAction
     ) {}
 
     /**
-     * @param  array<int, string>  $roles
+     * @param  array<int, string>|null  $roles
      */
-    public function execute(User $user, UserData $data, array $roles = []): User
+    public function execute(User $user, UserData $data, ?array $roles = null): User
     {
         $before = array_merge($user->getOriginal(), [
             'roles' => Arr::sort($user->getRoleNames()->toArray()),
@@ -33,7 +33,9 @@ class UpdateUserAction
 
         $user->update($payload);
 
-        $user->syncRoles($roles);
+        if (is_array($roles)) {
+            $user->syncRoles($roles);
+        }
         $user = $user->refresh();
 
         $after = array_merge($user->getAttributes(), [

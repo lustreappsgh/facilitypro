@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { index as usersIndex, store as usersStore } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 interface Role {
     id: number;
@@ -38,7 +40,35 @@ const form = useForm({
     password: '',
     roles: [] as string[],
     is_active: true,
+    profile_photo: null as File | null,
 });
+
+const profilePreviewUrl = ref<string | null>(null);
+
+const initials = computed(() => {
+    const trimmed = form.name.trim();
+    if (!trimmed) {
+        return 'U';
+    }
+
+    const parts = trimmed.split(' ').filter(Boolean);
+    const letters = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '');
+
+    return letters.join('') || 'U';
+});
+
+const updateProfilePreview = (file: File | null) => {
+    if (profilePreviewUrl.value) {
+        URL.revokeObjectURL(profilePreviewUrl.value);
+    }
+
+    profilePreviewUrl.value = file ? URL.createObjectURL(file) : null;
+};
+
+watch(
+    () => form.profile_photo,
+    (file) => updateProfilePreview(file),
+);
 
 const toggleRole = (roleName: string, checked: boolean) => {
     if (checked) {
@@ -52,7 +82,7 @@ const toggleRole = (roleName: string, checked: boolean) => {
 };
 
 const submit = () => {
-    form.post(usersStore().url);
+    form.post(usersStore().url, { forceFormData: true });
 };
 </script>
 
@@ -83,6 +113,34 @@ const submit = () => {
                         Leave blank to auto-generate and force reset at login.
                     </p>
                     <InputError :message="form.errors.password" />
+                </div>
+
+                <div class="grid gap-3">
+                    <Label for="profile_photo">Profile photo</Label>
+                    <div class="flex flex-wrap items-center gap-4 rounded-lg border border-border/60 p-4">
+                        <Avatar class="h-16 w-16">
+                            <AvatarImage
+                                v-if="profilePreviewUrl"
+                                :src="profilePreviewUrl"
+                                :alt="form.name || 'User photo'"
+                            />
+                            <AvatarFallback class="text-lg font-semibold">
+                                {{ initials }}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div class="flex-1 space-y-2">
+                            <Input
+                                id="profile_photo"
+                                type="file"
+                                accept="image/*"
+                                v-model="form.profile_photo"
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                PNG, JPG, or WEBP up to 2MB.
+                            </p>
+                        </div>
+                    </div>
+                    <InputError :message="form.errors.profile_photo" />
                 </div>
 
                 <div class="grid gap-2">

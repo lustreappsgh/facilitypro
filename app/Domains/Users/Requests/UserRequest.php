@@ -30,18 +30,22 @@ class UserRequest extends FormRequest
             ];
         }
 
+        $nameRules = [$userId ? 'sometimes' : 'required', 'string', 'max:255'];
+        $emailRules = [
+            $userId ? 'sometimes' : 'required',
+            'email',
+            'max:255',
+            Rule::unique(User::class)->ignore($userId),
+        ];
+
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($userId),
-            ],
+            'name' => $nameRules,
+            'email' => $emailRules,
             'password' => $passwordRules,
             'roles' => ['nullable', 'array'],
             'roles.*' => ['string', 'exists:roles,name'],
             'is_active' => ['sometimes', 'boolean'],
+            'profile_photo' => ['nullable', 'image', 'max:2048'],
             'manager_id' => [
                 'nullable',
                 'integer',

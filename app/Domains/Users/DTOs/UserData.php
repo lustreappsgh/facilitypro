@@ -11,6 +11,7 @@ class UserData
         public bool $is_active,
         public bool $is_default_password,
         public ?int $manager_id = null,
+        public ?string $profile_photo_path = null,
     ) {}
 
     public function toArray(): array
@@ -21,6 +22,7 @@ class UserData
             'is_active' => $this->is_active,
             'is_default_password' => $this->is_default_password,
             'manager_id' => $this->manager_id,
+            'profile_photo_path' => $this->profile_photo_path,
         ];
     }
 
