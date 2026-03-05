@@ -16,6 +16,8 @@ use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Database\QueryException;
 use Inertia\Inertia;
 
 class FacilityController extends Controller
@@ -48,6 +50,8 @@ class FacilityController extends Controller
         $search = $request->query('search');
         $condition = $request->query('condition');
         $facilityTypeId = $request->query('facility_type_id');
+        $parentId = $request->query('parent_id');
+        $childrenScope = $request->query('children_scope');
 
         $baseFacilitiesQuery = $canManagePortfolio
             ? Facility::query()
@@ -55,6 +59,7 @@ class FacilityController extends Controller
 
         $facilitiesQuery = (clone $baseFacilitiesQuery)
             ->with(['facilityType', 'manager', 'parent'])
+            ->withCount('children')
             ->latest();
 
         if ($managerId === 'self') {
@@ -77,6 +82,16 @@ class FacilityController extends Controller
         }
         if ($facilityTypeId) {
             $facilitiesQuery->where('facility_type_id', $facilityTypeId);
+        }
+        if ($parentId === 'root') {
+            $facilitiesQuery->whereNull('parent_id');
+        } elseif ($parentId) {
+            $facilitiesQuery->where('parent_id', $parentId);
+        }
+        if ($childrenScope === 'with') {
+            $facilitiesQuery->has('children');
+        } elseif ($childrenScope === 'without') {
+            $facilitiesQuery->doesntHave('children');
         }
 
         $perPage = max(10, min((int) $request->integer('per_page', 50), 100));
@@ -135,6 +150,10 @@ class FacilityController extends Controller
             ],
             'formOptions' => [
                 'facilities' => (clone $formFacilitiesQuery)->orderBy('name')->get(['id', 'name']),
+                'parents' => (clone $baseFacilitiesQuery)
+                    ->withCount('children')
+                    ->orderBy('name')
+                    ->get(['id', 'name']),
                 'facilityTypes' => FacilityType::orderBy('name')->get(['id', 'name']),
                 'conditions' => collect(Condition::cases())
                     ->map(fn(Condition $condition) => $condition->name)
@@ -186,10 +205,23 @@ class FacilityController extends Controller
     {
         $this->authorize('create', Facility::class);
 
-        $data = FacilityData::fromRequest($request->validated());
-        $this->facilityService->createFacility($data);
+        $validated = $request->validated();
+        $records = collect($validated['facilities'] ?? [
+            Arr::only($validated, ['name', 'facility_type_id', 'parent_id', 'condition', 'managed_by']),
+        ]);
 
-        return redirect()->route('facilities.index')->with('success', 'Facility created successfully.');
+        $createdCount = 0;
+        foreach ($records as $record) {
+            $data = FacilityData::fromRequest($record);
+            $this->facilityService->createFacility($data);
+            $createdCount++;
+        }
+
+        $message = $createdCount === 1
+            ? 'Facility created successfully.'
+            : "{$createdCount} facilities created successfully.";
+
+        return redirect()->route('facilities.index')->with('success', $message);
     }
 
     public function show(Facility $facility)
@@ -303,6 +335,21 @@ class FacilityController extends Controller
         return redirect()->route('facilities.index')->with('success', 'Facility updated successfully.');
     }
 
+    public function destroy(Facility $facility): RedirectResponse
+    {
+        $this->authorize('delete', $facility);
+
+        try {
+            $facility->delete();
+        } catch (QueryException $exception) {
+            return back()->withErrors([
+                'facility' => 'Facility cannot be deleted because it has related records.',
+            ]);
+        }
+
+        return redirect()->route('facilities.index')->with('success', 'Facility deleted successfully.');
+    }
+
     public function myFacilities(Request $request)
     {
         $this->authorize('viewAny', Facility::class);
@@ -408,6 +455,7 @@ class FacilityController extends Controller
 
         $facilities = Facility::query()
             ->with(['facilityType', 'manager', 'parent'])
+            ->withCount('children')
             ->when($managerId, fn ($query) => $query->where('managed_by', $managerId))
             ->orderBy('name')
             ->get();

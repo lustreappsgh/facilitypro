@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, h, watch, computed } from 'vue';
-import { Head, router, useForm, usePage, useRemember } from '@inertiajs/vue3';
+import { ref, h, watch, computed, onBeforeUnmount } from 'vue';
+import { Head, Link, router, useForm, usePage, useRemember } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,9 @@ import { usePermissions } from '@/composables/usePermissions';
 import {
     Building2, ClipboardCheck, Eye, Pencil, Plus,
     LayoutGrid, List,
-    Search, Wrench,
+    Search, Wrench, Trash2,
 } from 'lucide-vue-next';
-import { index as facilitiesIndex, show as facilitiesShow, edit as facilitiesEdit, create as facilitiesCreate } from '@/routes/facilities';
+import { index as facilitiesIndex, show as facilitiesShow, edit as facilitiesEdit, create as facilitiesCreate, destroy as facilitiesDestroy } from '@/routes/facilities';
 import type { ColumnDef } from '@tanstack/vue-table';
 
 interface Manager {
@@ -39,6 +39,12 @@ interface FacilityTypeOption {
     name: string;
 }
 
+interface ParentOption {
+    id: number;
+    name: string;
+    children_count: number;
+}
+
 interface RequestTypeOption {
     id: number;
     name: string;
@@ -48,6 +54,7 @@ interface Facility {
     id: number;
     name: string;
     condition: string;
+    children_count?: number;
     facilityType?: { name: string };
     parent?: { name: string };
     manager?: { name: string };
@@ -67,6 +74,7 @@ interface Props {
     };
     formOptions: {
         facilities: FacilityOption[];
+        parents: ParentOption[];
         facilityTypes: FacilityTypeOption[];
         conditions: string[];
         requestTypes: RequestTypeOption[];
@@ -97,9 +105,16 @@ const breadcrumbs = [
 
 const search = ref(getQueryParam('search') ?? '');
 const viewMode = ref<'table' | 'grid'>(getViewFromUrl(page.url) ?? 'table');
-const selectedManager = ref(props.activeManagerId ? String(props.activeManagerId) : 'all');
-const selectedCondition = ref(getQueryParam('condition') ?? 'all');
-const selectedFacilityType = ref(getQueryParam('facility_type_id') ?? 'all');
+const appliedManager = ref(props.activeManagerId ? String(props.activeManagerId) : 'all');
+const appliedCondition = ref(getQueryParam('condition') ?? 'all');
+const appliedFacilityType = ref(getQueryParam('facility_type_id') ?? 'all');
+const appliedParent = ref(getQueryParam('parent_id') ?? 'all');
+const appliedChildrenScope = ref(getQueryParam('children_scope') ?? 'all');
+const selectedManager = ref(appliedManager.value);
+const selectedCondition = ref(appliedCondition.value);
+const selectedFacilityType = ref(appliedFacilityType.value);
+const selectedParent = ref(appliedParent.value);
+const selectedChildrenScope = ref(appliedChildrenScope.value);
 const facilitiesPerPageFromProps = computed(() => {
     const facilitiesAny = props.facilities as any;
     const perPage = facilitiesAny.meta?.per_page ?? facilitiesAny.per_page;
@@ -132,6 +147,7 @@ const canInspect = computed(() => can('inspections.create'));
 const canRequest = computed(() => can('maintenance.create') || can('maintenance_requests.create'));
 const canViewFacility = computed(() => can('facilities.view'));
 const canEditFacility = computed(() => can('facilities.update'));
+const canDeleteFacility = computed(() => can('facilities.delete'));
 const canAssignManager = computed(() => can('facilities.assign_manager'));
 const managerOptions = computed(() =>
     props.managers.filter((manager) => !['self', 'unassigned'].includes(String(manager.id))),
@@ -147,6 +163,7 @@ const assignManagerForm = useForm({
     facility_ids: [] as number[],
     manager_id: 'unassigned' as string,
 });
+let searchDebounceTimer: number | null = null;
 
 const normalizeManagerId = (value: string) => {
     if (!value || value === 'all') return undefined;
@@ -161,10 +178,12 @@ function handlePerPageChange(pageSize: number) {
 const applyFilters = (options: Record<string, unknown> = {}) => {
     const parsedPerPage = Number(selectedPerPage.value);
     router.get(facilitiesIndex().url, {
-        manager_id: normalizeManagerId(selectedManager.value),
+        manager_id: normalizeManagerId(appliedManager.value),
         search: search.value || undefined,
-        condition: selectedCondition.value === 'all' ? undefined : selectedCondition.value,
-        facility_type_id: selectedFacilityType.value === 'all' ? undefined : selectedFacilityType.value,
+        condition: appliedCondition.value === 'all' ? undefined : appliedCondition.value,
+        facility_type_id: appliedFacilityType.value === 'all' ? undefined : appliedFacilityType.value,
+        parent_id: appliedParent.value === 'all' ? undefined : appliedParent.value,
+        children_scope: appliedChildrenScope.value === 'all' ? undefined : appliedChildrenScope.value,
         per_page: Number.isFinite(parsedPerPage) && parsedPerPage > 0 ? parsedPerPage : undefined,
         view: viewMode.value
     }, {
@@ -174,16 +193,34 @@ const applyFilters = (options: Record<string, unknown> = {}) => {
     });
 };
 
+const applySelectedFilters = () => {
+    appliedManager.value = selectedManager.value;
+    appliedCondition.value = selectedCondition.value;
+    appliedFacilityType.value = selectedFacilityType.value;
+    appliedParent.value = selectedParent.value;
+    appliedChildrenScope.value = selectedChildrenScope.value;
+    applyFilters({ replace: true, only: ['facilities'] });
+};
+
 const resetFilters = () => {
     search.value = '';
+    appliedManager.value = 'all';
+    appliedCondition.value = 'all';
+    appliedFacilityType.value = 'all';
+    appliedParent.value = 'all';
+    appliedChildrenScope.value = 'all';
     selectedManager.value = 'all';
     selectedCondition.value = 'all';
     selectedFacilityType.value = 'all';
+    selectedParent.value = 'all';
+    selectedChildrenScope.value = 'all';
     applyFilters({ replace: true, only: ['facilities'] });
 };
 
 watch(() => props.activeManagerId, (value) => {
-    selectedManager.value = value ? String(value) : 'all';
+    const manager = value ? String(value) : 'all';
+    appliedManager.value = manager;
+    selectedManager.value = manager;
 });
 
 watch(() => facilitiesPerPageFromProps.value, (value) => {
@@ -194,6 +231,22 @@ watch(() => facilitiesPerPageFromProps.value, (value) => {
 
 watch(viewMode, () => {
     applyFilters({ replace: true, only: ['facilities'] });
+});
+
+watch(search, () => {
+    if (searchDebounceTimer !== null) {
+        window.clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = window.setTimeout(() => {
+        applyFilters({ replace: true, only: ['facilities'] });
+    }, 350);
+});
+
+onBeforeUnmount(() => {
+    if (searchDebounceTimer !== null) {
+        window.clearTimeout(searchDebounceTimer);
+    }
 });
 
 const conditionClass = (condition?: string) => {
@@ -271,6 +324,20 @@ const openAssignDialog = () => {
     assignDialogOpen.value = true;
 };
 
+const deleteFacility = (facilityId: number) => {
+    if (!canDeleteFacility.value) {
+        return;
+    }
+
+    if (!window.confirm('Delete this facility? This action cannot be undone.')) {
+        return;
+    }
+
+    router.delete(facilitiesDestroy(facilityId).url, {
+        preserveScroll: true,
+    });
+};
+
 const submitAssignManager = () => {
     assignManagerForm.facility_ids = [...selectedFacilityIds.value];
     assignManagerForm.manager_id = assignManagerForm.manager_id || 'unassigned';
@@ -335,7 +402,25 @@ const columns: ColumnDef<Facility>[] = [
     {
         accessorKey: 'parent.name',
         header: 'Parent Node',
-        cell: ({ row }) => h('span', { class: 'text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest' }, row.original.parent?.name || 'Root'),
+        cell: ({ row }) =>
+            h(
+                'span',
+                { class: 'text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest' },
+                row.original.parent?.name
+                    ? row.original.parent.name
+                    : `Root (${row.original.children_count ?? 0} child${(row.original.children_count ?? 0) === 1 ? '' : 'ren'})`,
+            ),
+        enableSorting: true,
+    },
+    {
+        accessorKey: 'manager.name',
+        header: 'Manager',
+        cell: ({ row }) =>
+            h(
+                'span',
+                { class: 'text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest' },
+                row.original.manager?.name || 'Unassigned',
+            ),
         enableSorting: true,
     },
     {
@@ -361,6 +446,11 @@ const columns: ColumnDef<Facility>[] = [
                 canEditFacility.value
                     ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', onClick: () => router.get(facilitiesEdit(row.original.id).url), 'aria-label': 'Edit facility' }, () =>
                         h(Pencil, { class: 'h-4 w-4' }),
+                    )
+                    : null,
+                canDeleteFacility.value
+                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8 text-destructive hover:text-destructive', onClick: () => deleteFacility(row.original.id), 'aria-label': 'Delete facility' }, () =>
+                        h(Trash2, { class: 'h-4 w-4' }),
                     )
                     : null,
             ]),
@@ -391,7 +481,7 @@ const columns: ColumnDef<Facility>[] = [
             </PageHeader>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_180px_auto] lg:items-end">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_170px_170px_220px_170px_auto] lg:items-end">
                     <div class="relative min-w-[220px] flex-1">
                         <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input v-model="search" class="h-9 pl-9" placeholder="Search facilities..." />
@@ -433,8 +523,32 @@ const columns: ColumnDef<Facility>[] = [
                         </SelectContent>
                     </Select>
 
+                    <Select v-model="selectedParent">
+                        <SelectTrigger class="h-9 min-w-[200px]">
+                            <SelectValue placeholder="Any parent node" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Any parent node</SelectItem>
+                            <SelectItem value="root">Root nodes only</SelectItem>
+                            <SelectItem v-for="parent in formOptions.parents" :key="parent.id" :value="String(parent.id)">
+                                {{ parent.name }} ({{ parent.children_count }} child{{ parent.children_count === 1 ? '' : 'ren' }})
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select v-model="selectedChildrenScope">
+                        <SelectTrigger class="h-9 min-w-[160px]">
+                            <SelectValue placeholder="Any child count" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Any child count</SelectItem>
+                            <SelectItem value="with">With children</SelectItem>
+                            <SelectItem value="without">Without children</SelectItem>
+                        </SelectContent>
+                    </Select>
+
                     <div class="flex items-center gap-2">
-                        <Button size="sm" class="h-9 px-4" @click="applyFilters({ replace: true, only: ['facilities'] })">Apply filters</Button>
+                        <Button size="sm" class="h-9 px-4" @click="applySelectedFilters">Apply filters</Button>
                         <Button size="sm" variant="ghost" class="h-9 px-3" @click="resetFilters">Reset</Button>
                     </div>
                 </div>
@@ -557,6 +671,15 @@ const columns: ColumnDef<Facility>[] = [
                                     @click="router.get(facilitiesEdit(facility.id).url)">
                                     <Pencil class="h-4 w-4" />
                                 </Button>
+                                <Button
+                                    v-if="canDeleteFacility"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8 text-destructive hover:text-destructive"
+                                    @click="deleteFacility(facility.id)"
+                                >
+                                    <Trash2 class="h-4 w-4" />
+                                </Button>
                             </div>
                             <div class="flex items-start justify-between gap-3">
                                 <div class="space-y-1">
@@ -581,7 +704,13 @@ const columns: ColumnDef<Facility>[] = [
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-muted-foreground/50">Parent</span>
-                                    <span class="text-foreground/80">{{ facility.parent?.name || 'Root' }}</span>
+                                    <span class="text-foreground/80">
+                                        {{
+                                            facility.parent?.name
+                                                ? facility.parent.name
+                                                : `Root (${facility.children_count ?? 0} child${(facility.children_count ?? 0) === 1 ? '' : 'ren'})`
+                                        }}
+                                    </span>
                                 </div>
                             </div>
 
