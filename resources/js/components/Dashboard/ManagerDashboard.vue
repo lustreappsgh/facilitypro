@@ -2,7 +2,6 @@
 import { Button } from '@/components/ui/button';
 import StatsCard from '@/components/StatsCard.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
 import { index as todosIndex } from '@/routes/todos';
 import { index as inspectionsIndex } from '@/routes/inspections';
 import { index as reportsIndex } from '@/routes/reports';
@@ -46,6 +45,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const paymentApprovalsUrl = '/payment-approvals';
 
 const currencyFormat = new Intl.NumberFormat(undefined, {
     style: 'currency',
@@ -61,21 +61,21 @@ const actionCenterItems = computed(() => [
         label: 'Pending approvals',
         value: props.data.pendingApprovals,
         helper: 'Awaiting payment decisions',
-        href: paymentApprovalsIndex().url,
+        href: paymentApprovalsUrl,
     },
     {
         key: 'queue-age',
         label: 'Oldest approval',
         value: props.data.oldestPendingDays ? `${props.data.oldestPendingDays}d` : '--',
         helper: props.data.oldestPendingDate ?? 'No delayed queue',
-        href: paymentApprovalsIndex().url,
+        href: paymentApprovalsUrl,
     },
     {
         key: 'high-cost',
         label: 'High-cost alerts',
         value: props.data.highCostPendingCount || 0,
         helper: `Threshold ${currencyFormat.format(props.data.highCostThreshold || 0)}`,
-        href: paymentApprovalsIndex().url,
+        href: paymentApprovalsUrl,
     },
     {
         key: 'overdue-todos',
@@ -161,7 +161,7 @@ const actionCenterItems = computed(() => [
             <CardContent>
                 <div class="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" as-child>
-                        <Link :href="paymentApprovalsIndex().url">Payment Approvals</Link>
+                        <Link :href="paymentApprovalsUrl">Payment Approvals</Link>
                     </Button>
                     <Button size="sm" variant="outline" as-child>
                         <Link :href="maintenanceOversight().url">Maintenance Oversight</Link>

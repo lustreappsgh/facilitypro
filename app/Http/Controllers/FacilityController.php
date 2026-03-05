@@ -147,6 +147,7 @@ class FacilityController extends Controller
             'activeManagerId' => $managerId,
             'routes' => [
                 'bulkAssignManager' => route('facilities.bulk-assign-manager'),
+                'managerAssignments' => route('facilities.manager-assignments'),
             ],
             'formOptions' => [
                 'facilities' => (clone $formFacilitiesQuery)->orderBy('name')->get(['id', 'name']),
@@ -179,6 +180,63 @@ class FacilityController extends Controller
         $targetLabel = $managerId ? 'manager' : 'unassigned';
 
         return back()->with('success', "Updated {$updated} facilities to {$targetLabel}.");
+    }
+
+    public function managerAssignments(Request $request)
+    {
+        if (! $request->user()->can('facilities.assign_manager')) {
+            abort(403);
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        $currentManagerId = $request->query('current_manager_id', 'all');
+
+        $facilitiesQuery = Facility::query()
+            ->with(['facilityType', 'manager', 'parent'])
+            ->withCount('children')
+            ->orderBy('name');
+
+        if ($search !== '') {
+            $facilitiesQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhereHas('manager', fn($managerQuery) => $managerQuery->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('facilityType', fn($typeQuery) => $typeQuery->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($currentManagerId === 'unassigned') {
+            $facilitiesQuery->whereNull('managed_by');
+        } elseif ($currentManagerId !== 'all' && $currentManagerId !== null && $currentManagerId !== '') {
+            $facilitiesQuery->where('managed_by', $currentManagerId);
+        }
+
+        $facilities = $facilitiesQuery->paginate(20)->withQueryString();
+
+        $managers = User::permission('inspections.view')
+            ->active()
+            ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
+            ->orderBy('name')
+            ->withCount('facilities')
+            ->get(['id', 'name'])
+            ->map(fn($manager) => [
+                'id' => $manager->id,
+                'name' => $manager->name,
+                'facilities_count' => $manager->facilities_count,
+            ]);
+
+        return Inertia::render('Facilities/ManagerAssignments', [
+            'facilities' => $facilities,
+            'managers' => $managers,
+            'filters' => [
+                'search' => $search,
+                'currentManagerId' => $currentManagerId ?: 'all',
+            ],
+            'routes' => [
+                'index' => route('facilities.manager-assignments'),
+                'bulkAssignManager' => route('facilities.bulk-assign-manager'),
+                'facilitiesIndex' => route('facilities.index'),
+            ],
+        ]);
     }
 
     public function create(Request $request)

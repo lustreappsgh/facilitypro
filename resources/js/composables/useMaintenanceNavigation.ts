@@ -1,5 +1,4 @@
 import { usePermissions } from '@/composables/usePermissions';
-import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
 import { index as paymentsIndex } from '@/routes/payments';
 import { index as requestTypesIndex } from '@/routes/request-types';
 import { index as vendorsIndex } from '@/routes/vendors';
@@ -43,7 +42,7 @@ export function useMaintenanceNavigation() {
         },
         {
             title: 'Approval Queue',
-            href: paymentApprovalsIndex(),
+            href: '/payment-approvals',
             icon: CreditCard,
             permissions: ['payments.approve', 'payments.reject'],
         },

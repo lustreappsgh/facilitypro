@@ -71,6 +71,7 @@ interface Props {
     activeManagerId: string | number | null;
     routes: {
         bulkAssignManager: string;
+        managerAssignments: string;
     };
     formOptions: {
         facilities: FacilityOption[];
@@ -467,6 +468,17 @@ const columns: ColumnDef<Facility>[] = [
         <div class="flex h-full flex-col gap-8 p-6 lg:p-10">
             <PageHeader title="Facilities" subtitle="Oversee your portfolio of properties.">
                 <template #actions>
+                    <Button
+                        v-if="canAssignManager"
+                        size="sm"
+                        variant="outline"
+                        class="h-9 px-3 text-[10px] font-bold uppercase tracking-widest"
+                        as-child
+                    >
+                        <Link :href="routes.managerAssignments">
+                            Manage Assignments
+                        </Link>
+                    </Button>
                     <Button
                         v-if="can('facilities.create')"
                         size="icon"

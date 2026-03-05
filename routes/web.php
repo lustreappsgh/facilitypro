@@ -26,6 +26,18 @@ use Laravel\Fortify\Features;
 //     ]);
 // })->name('home');
 
+// routes/web.php
+Route::get('/health', function () {
+    return response()->json([
+        'status'    => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'services'  => [
+            'database' => DB::connection()->getPdo() ? 'ok' : 'error',
+            'cache'    => Cache::store('redis')->ping() ? 'ok' : 'error',
+        ]
+    ]);
+});
+
 Route::get('/', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('home');
@@ -41,6 +53,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:admin-actions');
     Route::patch('facilities/{facility}/hierarchy', [FacilityController::class, 'updateHierarchy'])
         ->name('facilities.hierarchy')
+        ->middleware('throttle:admin-actions');
+    Route::get('facilities/manager-assignments', [FacilityController::class, 'managerAssignments'])
+        ->name('facilities.manager-assignments')
         ->middleware('throttle:admin-actions');
     Route::post('facilities/bulk-assign-manager', [FacilityController::class, 'bulkAssignManager'])
         ->name('facilities.bulk-assign-manager')

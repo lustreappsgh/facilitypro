@@ -28,7 +28,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { index as paymentApprovalsIndex } from '@/routes/payment-approvals/index';
 import {
     approve as paymentApprove,
     bulkApprove as paymentBulkApprove,
@@ -95,6 +94,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const paymentApprovalsUrl = '/payment-approvals';
 
 const statusFilter = ref(props.filters.status ?? 'pending');
 const facilityFilter = ref(props.filters.facility ?? '');
@@ -304,7 +304,7 @@ watch(
 <template>
     <div class="space-y-4">
         <form
-            :action="paymentApprovalsIndex().url"
+            :action="paymentApprovalsUrl"
             method="get"
             class="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card p-4"
         >
@@ -399,9 +399,9 @@ watch(
 
             <div class="flex items-center gap-2">
                 <Button type="submit">Apply filters</Button>
-                <Button variant="ghost" as-child>
-                    <Link :href="paymentApprovalsIndex().url">Reset</Link>
-                </Button>
+                    <Button variant="ghost" as-child>
+                        <Link :href="paymentApprovalsUrl">Reset</Link>
+                    </Button>
             </div>
         </form>
 

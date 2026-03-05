@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import FacilityController from '@/actions/App/Http/Controllers/FacilityController';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { index as facilitiesIndex } from '@/routes/facilities';
+import { index as facilitiesIndex, store as facilitiesStore } from '@/routes/facilities';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Plus, Trash2 } from 'lucide-vue-next';
 
 interface FacilityType {
     id: number;
@@ -23,6 +23,14 @@ interface FacilityParent {
 interface FacilityManager {
     id: number;
     name: string;
+}
+
+interface FacilityRow {
+    name: string;
+    facility_type_id: string;
+    parent_id: string;
+    condition: string;
+    managed_by: string;
 }
 
 interface Props {
@@ -48,134 +56,206 @@ const selectClass =
     'h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
 
 const conditions = ['Good', 'Bad', 'OutOfOrder'];
+
+const createDefaultRow = (): FacilityRow => ({
+    name: '',
+    facility_type_id: '',
+    parent_id: '',
+    condition: 'Good',
+    managed_by: '',
+});
+
+const form = useForm({
+    facilities: [createDefaultRow()],
+});
+
+const addRow = () => {
+    form.facilities.push(createDefaultRow());
+};
+
+const removeRow = (index: number) => {
+    if (form.facilities.length === 1) {
+        return;
+    }
+
+    form.facilities.splice(index, 1);
+};
+
+const rowError = (index: number, field: keyof FacilityRow) => {
+    const rowKey = `facilities.${index}.${field}`;
+    const fallbackKey = index === 0 ? field : null;
+
+    return form.errors[rowKey] || (fallbackKey ? form.errors[fallbackKey] : undefined);
+};
+
+const submit = () => {
+    form.post(facilitiesStore().url, {
+        preserveScroll: true,
+        transform: (data) => ({
+            facilities: data.facilities.map((facility) => ({
+                ...facility,
+                parent_id: facility.parent_id || null,
+                managed_by: facility.managed_by || null,
+            })),
+        }),
+    });
+};
 </script>
 
 <template>
-    <Head title="Create facility" />
+    <Head title="Create facilities" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Create facility" subtitle="Add facility details and ownership." />
+            <PageHeader title="Create facilities" subtitle="Add one or more facilities in a single submit." />
 
             <div class="relative rounded-2xl border border-sidebar-border/70 bg-muted/30 p-6">
-                <div
-                    class="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-sm"
-                >
+                <div class="mx-auto w-full max-w-5xl rounded-2xl border border-border bg-card p-6 shadow-sm">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-lg font-semibold">Facility create</h2>
+                            <h2 class="text-lg font-semibold">Bulk facility create</h2>
                             <p class="text-sm text-muted-foreground">
-                                Provide the core details used for reporting.
+                                Add multiple facilities dynamically and save in one action.
                             </p>
                         </div>
-                        <Button variant="ghost" as-child>
-                            <Link :href="facilitiesIndex().url">Cancel</Link>
-                        </Button>
+                        <div class="flex items-center gap-2">
+                            <Button type="button" variant="outline" class="gap-2" @click="addRow">
+                                <Plus class="h-4 w-4" />
+                                Add row
+                            </Button>
+                            <Button variant="ghost" as-child>
+                                <Link :href="facilitiesIndex().url">Cancel</Link>
+                            </Button>
+                        </div>
                     </div>
 
-                    <Form
-                        v-bind="FacilityController.store.form()"
-                        class="mt-6 space-y-6"
-                        v-slot="{ errors, processing }"
-                    >
-                        <div class="grid gap-6 md:grid-cols-2">
-                            <div class="grid gap-2 md:col-span-2">
-                                <Label for="name">Facility name</Label>
-                                <Input
-                                    id="name"
-                                    name="name"
-                                    placeholder="North Campus Gym"
-                                    required
-                                />
-                                <InputError :message="errors.name" />
-                            </div>
-
-                            <div class="grid gap-2">
-                                <Label for="facility_type_id">Facility type</Label>
-                                <select
-                                    id="facility_type_id"
-                                    name="facility_type_id"
-                                    :class="selectClass"
-                                    required
-                                >
-                                    <option value="" disabled>Select a type</option>
-                                    <option
-                                        v-for="type in facilityTypes"
-                                        :key="type.id"
-                                        :value="type.id"
+                    <form class="mt-6 space-y-6" @submit.prevent="submit">
+                        <div class="space-y-4">
+                            <div
+                                v-for="(facility, index) in form.facilities"
+                                :key="index"
+                                class="rounded-xl border border-border/70 p-4"
+                            >
+                                <div class="mb-3 flex items-center justify-between">
+                                    <h3 class="text-sm font-semibold">Facility {{ index + 1 }}</h3>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="text-destructive"
+                                        :disabled="form.facilities.length === 1"
+                                        @click="removeRow(index)"
                                     >
-                                        {{ type.name }}
-                                    </option>
-                                </select>
-                                <InputError :message="errors.facility_type_id" />
-                            </div>
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                </div>
 
-                            <div class="grid gap-2">
-                                <Label for="condition">Condition</Label>
-                                <select
-                                    id="condition"
-                                    name="condition"
-                                    :class="selectClass"
-                                    required
-                                >
-                                    <option value="" disabled>Select condition</option>
-                                    <option
-                                        v-for="condition in conditions"
-                                        :key="condition"
-                                        :value="condition"
-                                    >
-                                        {{ condition }}
-                                    </option>
-                                </select>
-                                <InputError :message="errors.condition" />
-                            </div>
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div class="grid gap-2 md:col-span-2">
+                                        <Label :for="`name-${index}`">Facility name</Label>
+                                        <Input
+                                            :id="`name-${index}`"
+                                            v-model="facility.name"
+                                            placeholder="North Campus Gym"
+                                            required
+                                        />
+                                        <InputError :message="rowError(index, 'name')" />
+                                    </div>
 
-                            <div class="grid gap-2">
-                                <Label for="parent_id">Parent facility</Label>
-                                <select
-                                    id="parent_id"
-                                    name="parent_id"
-                                    :class="selectClass"
-                                >
-                                    <option value="">No parent</option>
-                                    <option
-                                        v-for="parent in parents"
-                                        :key="parent.id"
-                                        :value="parent.id"
-                                    >
-                                        {{ parent.name }}
-                                    </option>
-                                </select>
-                                <InputError :message="errors.parent_id" />
-                            </div>
+                                    <div class="grid gap-2">
+                                        <Label :for="`facility-type-${index}`">Facility type</Label>
+                                        <select
+                                            :id="`facility-type-${index}`"
+                                            v-model="facility.facility_type_id"
+                                            :class="selectClass"
+                                            required
+                                        >
+                                            <option value="" disabled>Select a type</option>
+                                            <option
+                                                v-for="type in facilityTypes"
+                                                :key="type.id"
+                                                :value="String(type.id)"
+                                            >
+                                                {{ type.name }}
+                                            </option>
+                                        </select>
+                                        <InputError :message="rowError(index, 'facility_type_id')" />
+                                    </div>
 
-                            <div class="grid gap-2">
-                                <Label for="managed_by">Facility manager</Label>
-                                <select
-                                    id="managed_by"
-                                    name="managed_by"
-                                    :class="selectClass"
-                                >
-                                    <option value="">Unassigned</option>
-                                    <option
-                                        v-for="manager in users"
-                                        :key="manager.id"
-                                        :value="manager.id"
-                                    >
-                                        {{ manager.name }}
-                                    </option>
-                                </select>
-                                <InputError :message="errors.managed_by" />
+                                    <div class="grid gap-2">
+                                        <Label :for="`condition-${index}`">Condition</Label>
+                                        <select
+                                            :id="`condition-${index}`"
+                                            v-model="facility.condition"
+                                            :class="selectClass"
+                                            required
+                                        >
+                                            <option value="" disabled>Select condition</option>
+                                            <option
+                                                v-for="condition in conditions"
+                                                :key="condition"
+                                                :value="condition"
+                                            >
+                                                {{ condition }}
+                                            </option>
+                                        </select>
+                                        <InputError :message="rowError(index, 'condition')" />
+                                    </div>
+
+                                    <div class="grid gap-2">
+                                        <Label :for="`parent-${index}`">Parent facility</Label>
+                                        <select
+                                            :id="`parent-${index}`"
+                                            v-model="facility.parent_id"
+                                            :class="selectClass"
+                                        >
+                                            <option value="">No parent</option>
+                                            <option
+                                                v-for="parent in parents"
+                                                :key="parent.id"
+                                                :value="String(parent.id)"
+                                            >
+                                                {{ parent.name }}
+                                            </option>
+                                        </select>
+                                        <InputError :message="rowError(index, 'parent_id')" />
+                                    </div>
+
+                                    <div class="grid gap-2">
+                                        <Label :for="`manager-${index}`">Facility manager</Label>
+                                        <select
+                                            :id="`manager-${index}`"
+                                            v-model="facility.managed_by"
+                                            :class="selectClass"
+                                        >
+                                            <option value="">Unassigned</option>
+                                            <option
+                                                v-for="manager in users"
+                                                :key="manager.id"
+                                                :value="String(manager.id)"
+                                            >
+                                                {{ manager.name }}
+                                            </option>
+                                        </select>
+                                        <InputError :message="rowError(index, 'managed_by')" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-3">
-                            <Button :disabled="processing">Create facility</Button>
+                            <Button type="submit" :disabled="form.processing">
+                                Create {{ form.facilities.length > 1 ? `${form.facilities.length} facilities` : 'facility' }}
+                            </Button>
+                            <Button type="button" variant="outline" class="gap-2" @click="addRow">
+                                <Plus class="h-4 w-4" />
+                                Add another
+                            </Button>
                             <Button variant="secondary" as-child>
                                 <Link :href="facilitiesIndex().url">Back</Link>
                             </Button>
                         </div>
-                    </Form>
+                    </form>
                 </div>
             </div>
         </div>
