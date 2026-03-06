@@ -60,8 +60,25 @@ class UserRequest extends FormRequest
         $validator->after(function ($validator) {
             $user = $this->route('user');
             $managerId = $this->input('manager_id');
+            $roles = $this->input('roles');
+            $isFacilityManager = is_array($roles)
+                ? in_array('Facility Manager', $roles, true)
+                : ($user instanceof User ? $user->hasRole('Facility Manager') : false);
 
             if (! $managerId) {
+                return;
+            }
+
+            if ($user instanceof User && (int) $managerId === (int) $user->manager_id) {
+                return;
+            }
+
+            if (! $isFacilityManager) {
+                $validator->errors()->add(
+                    'manager_id',
+                    'Only facility managers can have a supervising manager.'
+                );
+
                 return;
             }
 
@@ -77,10 +94,10 @@ class UserRequest extends FormRequest
                 return;
             }
 
-            if ($manager->hasAnyRole(['Admin', 'Manager']) || ! $manager->hasRole('Facility Manager')) {
+            if (! $manager->hasRole('Manager')) {
                 $validator->errors()->add(
                     'manager_id',
-                    'Selected manager is not eligible to supervise facility managers.'
+                    'Selected manager must have the Manager role.'
                 );
             }
 

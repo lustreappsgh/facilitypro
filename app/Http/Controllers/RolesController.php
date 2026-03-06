@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
+use App\Domains\Roles\Actions\UpdateRoleRequestTypesAction;
 use App\Domains\Roles\Requests\RoleRequest;
+use App\Domains\Roles\Requests\RoleRequestTypesRequest;
+use App\Models\RequestType;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -14,7 +18,8 @@ use Spatie\Permission\Models\Role;
 class RolesController extends Controller
 {
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected UpdateRoleRequestTypesAction $updateRoleRequestTypesAction
     ) {}
 
     public function index(Request $request)
@@ -88,6 +93,15 @@ class RolesController extends Controller
         return Inertia::render('Roles/Edit', [
             'role' => $role->load('permissions'),
             'permissions' => Permission::orderBy('name')->get(['id', 'name']),
+            'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
+            'allowedRequestTypeIds' => DB::table('maintenance_request_type_role')
+                ->where('role_id', $role->id)
+                ->pluck('request_type_id')
+                ->map(fn ($id) => (int) $id)
+                ->values(),
+            'routes' => [
+                'updateRequestTypes' => route('roles.request-types.update', $role),
+            ],
         ]);
     }
 
@@ -152,5 +166,18 @@ class RolesController extends Controller
         ));
 
         return back()->with('success', 'Role deleted.');
+    }
+
+    public function updateRequestTypes(RoleRequestTypesRequest $request, Role $role)
+    {
+        if (! $request->user()->can('roles.manage')) {
+            abort(403);
+        }
+
+        $requestTypeIds = $request->validated('request_type_ids', []);
+
+        $this->updateRoleRequestTypesAction->execute($role, $requestTypeIds);
+
+        return back()->with('success', 'Role request types updated.');
     }
 }

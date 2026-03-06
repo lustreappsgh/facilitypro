@@ -1,0 +1,266 @@
+[
+    {
+        "id": 1,
+        "name": "Academic block",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 2,
+        "name": "Accomodation",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 3,
+        "name": "Dormitories",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 4,
+        "name": "Huts",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 5,
+        "name": "Animals",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 6,
+        "name": "Apartment",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 7,
+        "name": "Boardroom",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 8,
+        "name": "Boreholes",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 9,
+        "name": "Brigde",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 10,
+        "name": "Clinic",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 11,
+        "name": "Conference hall",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 12,
+        "name": "Gallery",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 13,
+        "name": "Garden",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 14,
+        "name": "Generators",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 15,
+        "name": "Golf carts",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 16,
+        "name": "Chapel",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 17,
+        "name": "Incinerator",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 18,
+        "name": "Lawnmowers",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 19,
+        "name": "Lawns",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 20,
+        "name": "Library",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 21,
+        "name": "Lounge",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 22,
+        "name": "Parks and roads",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 23,
+        "name": "Plantations",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 24,
+        "name": "Plaza",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 25,
+        "name": "Refuse area",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 26,
+        "name": "Restaurant",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 27,
+        "name": "Septic tanks biodigesters",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 28,
+        "name": "Storerooms",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 29,
+        "name": "Terrace",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 30,
+        "name": "The office",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 31,
+        "name": "The volante",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 32,
+        "name": "Vehicles",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 33,
+        "name": "Washrooms",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 34,
+        "name": "Water houses",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 35,
+        "name": "Waterfall",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 36,
+        "name": "ECG ACQUISITION",
+        "created_at": "2023-04-14 10:39:24",
+        "updated_at": null
+    },
+    {
+        "id": 37,
+        "name": "SOUND SETUP",
+        "created_at": "2023-04-14 10:39:24",
+        "updated_at": null
+    },
+    {
+        "id": 38,
+        "name": "SECURITYY",
+        "created_at": "2023-04-14 10:39:24",
+        "updated_at": null
+    },
+    {
+        "id": 39,
+        "name": "CONSTRUCTION PROJECTS",
+        "created_at": "2023-04-14 10:39:24",
+        "updated_at": null
+    },
+    {
+        "id": 40,
+        "name": "Fire Service",
+        "created_at": "2023-04-18 05:41:12",
+        "updated_at": null
+    },
+    {
+        "id": 41,
+        "name": "Other",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 42,
+        "name": "Campus Pay Jobs",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 43,
+        "name": "Castle",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 44,
+        "name": "Workshop",
+        "created_at": null,
+        "updated_at": null
+    }
+]

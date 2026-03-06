@@ -5,6 +5,7 @@ use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
 use App\Models\RequestType;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -25,7 +26,12 @@ test('maintenance start is allowed for in-scope maintenance managers', function 
     ]);
 
     $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
-    $user->maintenanceRequestTypes()->sync([$requestType->id]);
+    DB::table('maintenance_request_type_role')->insert([
+        'role_id' => Role::findByName('Maintenance Manager')->id,
+        'request_type_id' => $requestType->id,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
     $maintenance = MaintenanceRequest::create([
         'facility_id' => $facility->id,
         'request_type_id' => $requestType->id,
@@ -62,7 +68,12 @@ test('maintenance start is forbidden outside manager scope', function () {
 
     $allowedType = RequestType::firstOrCreate(['name' => 'Plumbing']);
     $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
-    $user->maintenanceRequestTypes()->sync([$allowedType->id]);
+    DB::table('maintenance_request_type_role')->insert([
+        'role_id' => Role::findByName('Maintenance Manager')->id,
+        'request_type_id' => $allowedType->id,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
     $maintenance = MaintenanceRequest::create([
         'facility_id' => $facility->id,
         'request_type_id' => $requestType->id,

@@ -27,7 +27,7 @@ test('admin can view users index', function () {
     $response = $this->get(route('users.index'));
 
     $response->assertSuccessful();
-    $response->assertInertia(fn(Assert $page) => $page->has('data.users.data'));
+    $response->assertInertia(fn (Assert $page) => $page->has('data.users.data'));
 });
 
 test('users index requires permission', function () {
@@ -78,6 +78,42 @@ test('admin can update user and audit log is captured', function () {
 
     expect($target->refresh()->name)->toBe('Updated Name');
     expect(AuditLog::query()->where('action', 'user.updated')->exists())->toBeTrue();
+});
+
+test('admin can update user email and role even when the user already has a manager assigned', function () {
+    Role::findOrCreate('Admin');
+    Role::findOrCreate('Manager');
+    Role::findOrCreate('Facility Manager');
+
+    $admin = adminUserWithPermissions(['users.manage']);
+    $admin->assignRole('Admin');
+
+    $manager = User::factory()->create();
+    $manager->assignRole('Manager');
+
+    $target = User::factory()->create([
+        'email' => 'before@example.com',
+        'manager_id' => $manager->id,
+    ]);
+    $target->assignRole('Facility Manager');
+
+    $this->actingAs($admin);
+
+    $response = $this->put(route('users.update', $target), [
+        'name' => $target->name,
+        'email' => 'after@example.com',
+        'roles' => ['Manager'],
+        'is_active' => true,
+        'manager_id' => $manager->id,
+    ]);
+
+    $response->assertRedirect(route('users.index'));
+
+    $target->refresh();
+
+    expect($target->email)->toBe('after@example.com');
+    expect($target->hasRole('Manager'))->toBeTrue();
+    expect($target->manager_id)->toBeNull();
 });
 
 test('admin can bulk deactivate users with audit log', function () {

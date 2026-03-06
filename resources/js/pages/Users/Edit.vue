@@ -24,11 +24,6 @@ interface Role {
     name: string;
 }
 
-interface RequestTypeOption {
-    id: number;
-    name: string;
-}
-
 interface User {
     id: number;
     name: string;
@@ -63,8 +58,6 @@ interface Props {
     managerAssignment: ManagerAssignment;
     reportOptions: ManagerOption[];
     directReportIds: number[];
-    requestTypes: RequestTypeOption[];
-    allowedRequestTypeIds: number[];
     routes: Record<string, string>;
 }
 
@@ -94,9 +87,6 @@ const form = useForm({
 const accessForm = useForm({});
 const reportsForm = useForm({
     report_ids: props.directReportIds.map((id) => Number(id)),
-});
-const requestTypesForm = useForm({
-    request_type_ids: props.allowedRequestTypeIds.map((id) => Number(id)),
 });
 const roleDescriptions: Record<string, string> = {
     Admin: 'Full platform administration access.',
@@ -167,13 +157,6 @@ watch(
 );
 
 watch(
-    () => props.allowedRequestTypeIds,
-    (value) => {
-        requestTypesForm.request_type_ids = value.map((id) => Number(id));
-    },
-);
-
-watch(
     () => props.assignedRoles,
     (value) => {
         form.roles = [...value];
@@ -196,16 +179,6 @@ const hasAssignedManager = computed(
 const hasAssignedReports = computed(() => props.directReportIds.length > 0);
 const isManagerRoleSelected = computed(() => form.roles.includes('Manager'));
 const isFacilityManagerRoleSelected = computed(() => form.roles.includes('Facility Manager'));
-const isMaintenanceManagerRoleSelected = computed(() => form.roles.includes('Maintenance Manager'));
-const canEditRequestTypes = computed(
-    () => isMaintenanceManagerRoleSelected.value || isManagerRoleSelected.value,
-);
-const shouldShowRequestTypeAccess = computed(
-    () =>
-        isMaintenanceManagerRoleSelected.value ||
-        isManagerRoleSelected.value ||
-        requestTypesForm.request_type_ids.length > 0,
-);
 const eligibleManagerCount = computed(
     () => props.managerOptions.filter((manager) => !manager.disabled).length,
 );
@@ -301,32 +274,6 @@ const submitReports = () => {
     });
 };
 
-const selectAllRequestTypes = () => {
-    requestTypesForm.request_type_ids = props.requestTypes.map((type) => type.id);
-};
-
-const clearRequestTypes = () => {
-    requestTypesForm.request_type_ids = [];
-};
-
-const toggleRequestType = (typeId: number, checked: boolean) => {
-    if (checked) {
-        if (!requestTypesForm.request_type_ids.includes(typeId)) {
-            requestTypesForm.request_type_ids.push(typeId);
-        }
-        return;
-    }
-
-    requestTypesForm.request_type_ids = requestTypesForm.request_type_ids.filter(
-        (id) => id !== typeId,
-    );
-};
-
-const submitRequestTypes = () => {
-    requestTypesForm.post(props.routes.updateMaintenanceRequestTypes, {
-        preserveScroll: true,
-    });
-};
 </script>
 
 <template>
@@ -498,101 +445,6 @@ const submitRequestTypes = () => {
                             @click="submitReports"
                         >
                             Save direct reports
-                        </Button>
-                    </div>
-                </div>
-
-                <div
-                    v-if="shouldShowRequestTypeAccess"
-                    class="grid gap-4 rounded-xl border border-border/60 bg-card/60 p-5"
-                >
-                    <div class="space-y-1">
-                        <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                            Request Type Access
-                        </h2>
-                        <p class="text-xs text-muted-foreground">
-                            Limit which maintenance request types this user can approve and create
-                            work orders for.
-                        </p>
-                        <p v-if="!canEditRequestTypes" class="text-xs text-amber-600">
-                            Assign the Manager or Maintenance Manager role to manage request type access.
-                        </p>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>Selected: {{ requestTypesForm.request_type_ids.length }}</span>
-                        <span>Total: {{ props.requestTypes.length }}</span>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-3">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            :disabled="
-                                requestTypesForm.processing ||
-                                !canEditRequestTypes
-                            "
-                            @click="selectAllRequestTypes"
-                        >
-                            Select all
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            :disabled="
-                                requestTypesForm.processing ||
-                                requestTypesForm.request_type_ids.length === 0
-                            "
-                            @click="clearRequestTypes"
-                        >
-                            Clear
-                        </Button>
-                    </div>
-
-                    <div class="grid gap-2">
-                        <div
-                            v-for="requestType in props.requestTypes"
-                            :key="requestType.id"
-                            class="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
-                        >
-                            <Checkbox
-                                :id="`request-type-${requestType.id}`"
-                                :model-value="requestTypesForm.request_type_ids.includes(requestType.id)"
-                                :disabled="
-                                    requestTypesForm.processing ||
-                                    !canEditRequestTypes
-                                "
-                                @update:modelValue="
-                                    (checked) =>
-                                        toggleRequestType(
-                                            requestType.id,
-                                            checked === true,
-                                        )
-                                "
-                            />
-                            <label
-                                class="flex-1 cursor-pointer"
-                                :for="`request-type-${requestType.id}`"
-                            >
-                                {{ requestType.name }}
-                            </label>
-                        </div>
-                        <InputError :message="requestTypesForm.errors.request_type_ids" />
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            :disabled="
-                                requestTypesForm.processing ||
-                                !canEditRequestTypes
-                            "
-                            @click="submitRequestTypes"
-                        >
-                            Save request types
                         </Button>
                     </div>
                 </div>

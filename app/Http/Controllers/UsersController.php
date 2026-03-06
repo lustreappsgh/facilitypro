@@ -7,27 +7,23 @@ use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\Users\Actions\CreateUserAction;
 use App\Domains\Users\Actions\GrantMaintenanceManagerAccessAction;
 use App\Domains\Users\Actions\RevokeMaintenanceManagerAccessAction;
-use App\Domains\Users\Actions\UpdateMaintenanceRequestTypesAction;
 use App\Domains\Users\Actions\UpdateManagerReportsAction;
 use App\Domains\Users\Actions\UpdateUserAction;
-use App\Domains\Users\DTOs\MaintenanceRequestTypesData;
 use App\Domains\Users\DTOs\ManagerAccessData;
 use App\Domains\Users\DTOs\ManagerReportsData;
 use App\Domains\Users\DTOs\UserData;
-use App\Domains\Users\Requests\MaintenanceRequestTypesRequest;
-use App\Domains\Users\Requests\UserBulkStatusRequest;
 use App\Domains\Users\Requests\ManagerReportsRequest;
+use App\Domains\Users\Requests\UserBulkStatusRequest;
 use App\Domains\Users\Requests\UserRequest;
 use App\Models\Facility;
-use App\Models\RequestType;
 use App\Models\User;
 use DomainException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -42,8 +38,7 @@ class UsersController extends Controller
         protected RecordAuditLogAction $recordAuditLogAction,
         protected GrantMaintenanceManagerAccessAction $grantMaintenanceManagerAccessAction,
         protected RevokeMaintenanceManagerAccessAction $revokeMaintenanceManagerAccessAction,
-        protected UpdateManagerReportsAction $updateManagerReportsAction,
-        protected UpdateMaintenanceRequestTypesAction $updateMaintenanceRequestTypesAction
+        protected UpdateManagerReportsAction $updateManagerReportsAction
     ) {}
 
     public function index(Request $request): Response
@@ -66,7 +61,7 @@ class UsersController extends Controller
             ->with('roles')
             ->when(
                 $request->user()->can('maintenance.manage_all') && ! $request->user()->can('users.manage'),
-                fn($query) => $query->where('manager_id', $request->user()->id)
+                fn ($query) => $query->where('manager_id', $request->user()->id)
             )
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
@@ -74,8 +69,8 @@ class UsersController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->when($role !== '', fn($query) => $query->whereHas('roles', fn($roles) => $roles->where('name', $role)))
-            ->when($status !== '' && $status !== 'all', fn($query) => $query->where('is_active', $status === 'active'))
+            ->when($role !== '', fn ($query) => $query->whereHas('roles', fn ($roles) => $roles->where('name', $role)))
+            ->when($status !== '' && $status !== 'all', fn ($query) => $query->where('is_active', $status === 'active'))
             ->latest()
             ->paginate($perPage)
             ->withQueryString();
@@ -153,18 +148,16 @@ class UsersController extends Controller
     {
         $this->authorize('update', $user);
 
-        $disallowedSupervisorRoles = ['Admin', 'Manager'];
         $manager = $user->manager;
 
         $managerOptions = User::query()
             ->active()
-            ->role('Facility Manager')
-            ->whereDoesntHave('roles', fn($query) => $query->whereIn('name', $disallowedSupervisorRoles))
+            ->role('Manager')
             ->whereNull('manager_id')
             ->whereKeyNot($user->id)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
-            ->map(fn(User $option) => [
+            ->map(fn (User $option) => [
                 'id' => $option->id,
                 'name' => $option->name,
                 'email' => $option->email,
@@ -215,22 +208,16 @@ class UsersController extends Controller
                     : 0,
                 'is_facility_manager' => $user->can('inspections.create'),
             ],
-            'reportOptions' => $reportOptions->map(fn(User $report) => [
+            'reportOptions' => $reportOptions->map(fn (User $report) => [
                 'id' => $report->id,
                 'name' => $report->name,
                 'email' => $report->email,
             ]),
             'directReportIds' => $directReportIds,
-            'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
-            'allowedRequestTypeIds' => $user->maintenanceRequestTypes()
-                ->pluck('request_types.id')
-                ->map(fn ($id) => (int) $id)
-                ->values(),
             'routes' => [
                 'grantManagerAccess' => route('users.manager-access.grant', $user),
                 'revokeManagerAccess' => route('users.manager-access.revoke', $user),
                 'updateDirectReports' => route('users.manager-reports.update', $user),
-                'updateMaintenanceRequestTypes' => route('users.maintenance-request-types.update', $user),
             ],
         ]);
     }
@@ -250,19 +237,21 @@ class UsersController extends Controller
             }
         }
 
+        $roles = array_key_exists('roles', $payload)
+            ? ($payload['roles'] ?? [])
+            : null;
+
         $data = new UserData(
             name: $payload['name'] ?? $user->name,
             email: $payload['email'] ?? $user->email,
             password: $payload['password'] ?? null,
             is_active: $payload['is_active'] ?? $user->is_active,
             is_default_password: isset($payload['password']) && $payload['password'] ? false : $user->is_default_password,
-            manager_id: $payload['manager_id'] ?? $user->manager_id,
+            manager_id: $roles !== null && ! in_array('Facility Manager', $roles, true)
+                ? null
+                : ($payload['manager_id'] ?? $user->manager_id),
             profile_photo_path: $profilePhotoPath,
         );
-
-        $roles = array_key_exists('roles', $payload)
-            ? ($payload['roles'] ?? [])
-            : null;
 
         $this->updateUserAction->execute(
             $user,
@@ -452,18 +441,5 @@ class UsersController extends Controller
         }
 
         return back()->with('success', 'Direct reports updated.');
-    }
-
-    public function updateMaintenanceRequestTypes(MaintenanceRequestTypesRequest $request, User $user)
-    {
-        $this->authorize('update', $user);
-
-        $data = new MaintenanceRequestTypesData(
-            request_type_ids: $request->validated('request_type_ids', []),
-        );
-
-        $this->updateMaintenanceRequestTypesAction->execute($user, $data);
-
-        return back()->with('success', 'Maintenance request types updated.');
     }
 }

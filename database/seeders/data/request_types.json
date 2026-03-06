@@ -1,0 +1,152 @@
+[
+    {
+        "id": 1,
+        "name": "Electrical",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 2,
+        "name": "Carpentery - doors ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 3,
+        "name": "Carpentery - General",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 4,
+        "name": "Plumbing",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 5,
+        "name": "Masonary ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 6,
+        "name": "Air conditioning ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 7,
+        "name": "Borehole",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 8,
+        "name": "Waterhouse ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 9,
+        "name": "Generator ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 10,
+        "name": "Lawn management ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 11,
+        "name": "Snacks & drinks ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 12,
+        "name": "Subscription ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 13,
+        "name": "Painting ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 14,
+        "name": "Equipment maintenance ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 15,
+        "name": "Tiling ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 16,
+        "name": "Animal Feed/care ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 17,
+        "name": "Paid work ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 18,
+        "name": "Clinic ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 19,
+        "name": "Septic tank dislodgement ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 20,
+        "name": "Refuse disposal ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 21,
+        "name": "Fuel - lawnmower ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 22,
+        "name": "Fuel - incinerator ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 23,
+        "name": "Fuel - generators ",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 24,
+        "name": "ECG",
+        "created_at": null,
+        "updated_at": null
+    },
+    {
+        "id": 25,
+        "name": "BMCDR Meals",
+        "created_at": null,
+        "updated_at": null
+    }
+]

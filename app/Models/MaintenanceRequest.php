@@ -2,18 +2,19 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
-use App\Models\User;
 use App\Support\TextNormalizer;
 use App\Traits\ResolvesMaintenanceScope;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
 
 class MaintenanceRequest extends BaseModel
 {
     use HasFactory;
     use ResolvesMaintenanceScope;
+
     protected $casts = [
         'created_at' => 'date:M j, Y',
         'week_start' => 'date:M j, Y',
@@ -39,10 +40,8 @@ class MaintenanceRequest extends BaseModel
         $weekNumber = $startOfWeek->weekOfMonth;
         $monthName = $startOfWeek->format('F');
 
-        return $monthName . ' wk ' . $weekNumber . ' (' . $startOfWeek->format('M d') . ' - ' . $endOfWeek->format('M d') . ')';
+        return $monthName.' wk '.$weekNumber.' ('.$startOfWeek->format('M d').' - '.$endOfWeek->format('M d').')';
     }
-
-
 
     public function facility(): BelongsTo
     {
@@ -54,11 +53,11 @@ class MaintenanceRequest extends BaseModel
         return $this->belongsTo(User::class, 'requested_by', 'id');
     }
 
-
     public function requestType(): BelongsTo
     {
         return $this->belongsTo(RequestType::class);
     }
+
     public function scopeUserRequests($query, ?User $user = null)
     {
         $user = $user ?? auth()->user();
@@ -136,10 +135,10 @@ class MaintenanceRequest extends BaseModel
     {
         $query->when($filters['status'] ?? null, function ($query, $status) {
             $query->where(function ($query) use ($status) {
-                if (!$status === 'approved' || !$status === 'pending') {
+                if (! $status === 'approved' || ! $status === 'pending') {
                     return $query;
                 } else {
-                    $query->where('status', 'like', '%' . $status . '%');
+                    $query->where('status', 'like', '%'.$status.'%');
                 }
             });
         })->when($filters['role'] ?? null, function ($query, $role) {
@@ -178,9 +177,18 @@ class MaintenanceRequest extends BaseModel
 
     protected function allowedRequestTypeIds(User $user): array
     {
-        return $user->maintenanceRequestTypes()
-            ->pluck('request_types.id')
+        $roleIds = $user->roles()->pluck('roles.id');
+
+        if ($roleIds->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('maintenance_request_type_role')
+            ->whereIn('role_id', $roleIds)
+            ->pluck('request_type_id')
             ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
             ->all();
     }
 

@@ -1,0 +1,338 @@
+[
+    {
+        "id": 1,
+        "name": "facilities.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:27",
+        "updated_at": "2026-03-06 19:31:27"
+    },
+    {
+        "id": 2,
+        "name": "facilities.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:27",
+        "updated_at": "2026-03-06 19:31:27"
+    },
+    {
+        "id": 3,
+        "name": "facilities.update",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:27",
+        "updated_at": "2026-03-06 19:31:27"
+    },
+    {
+        "id": 4,
+        "name": "facilities.delete",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:27",
+        "updated_at": "2026-03-06 19:31:27"
+    },
+    {
+        "id": 5,
+        "name": "facilities.assign_manager",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:27",
+        "updated_at": "2026-03-06 19:31:27"
+    },
+    {
+        "id": 6,
+        "name": "inspections.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:27",
+        "updated_at": "2026-03-06 19:31:27"
+    },
+    {
+        "id": 7,
+        "name": "inspections.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:27",
+        "updated_at": "2026-03-06 19:31:27"
+    },
+    {
+        "id": 8,
+        "name": "inspections.update",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 9,
+        "name": "inspections.lock",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 10,
+        "name": "maintenance.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 11,
+        "name": "maintenance.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 12,
+        "name": "maintenance.update",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 13,
+        "name": "maintenance.review",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 14,
+        "name": "maintenance.assign",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 15,
+        "name": "maintenance.start",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 16,
+        "name": "maintenance.complete",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 17,
+        "name": "maintenance.close",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 18,
+        "name": "maintenance.manage_all",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 19,
+        "name": "maintenance_requests.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 20,
+        "name": "maintenance_requests.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 21,
+        "name": "maintenance_requests.update",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 22,
+        "name": "work_orders.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 23,
+        "name": "work_orders.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 24,
+        "name": "work_orders.update",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 25,
+        "name": "work_orders.delete",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 26,
+        "name": "vendors.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 27,
+        "name": "vendors.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 28,
+        "name": "vendors.update",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 29,
+        "name": "vendors.delete",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 30,
+        "name": "payments.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 31,
+        "name": "payments.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 32,
+        "name": "payments.submit",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 33,
+        "name": "payments.approve",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 34,
+        "name": "payments.reject",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 35,
+        "name": "payments.mark_paid",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 36,
+        "name": "todos.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 37,
+        "name": "todos.create",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 38,
+        "name": "todos.update",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 39,
+        "name": "todos.complete",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 40,
+        "name": "reports.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 41,
+        "name": "audit.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 42,
+        "name": "users.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 43,
+        "name": "users.manage",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 44,
+        "name": "roles.manage",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 45,
+        "name": "permissions.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 46,
+        "name": "facility_types.manage",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 47,
+        "name": "request_types.manage",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    },
+    {
+        "id": 48,
+        "name": "settings.view",
+        "guard_name": "web",
+        "created_at": "2026-03-06 19:31:28",
+        "updated_at": "2026-03-06 19:31:28"
+    }
+]

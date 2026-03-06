@@ -30,12 +30,12 @@ use Laravel\Fortify\Features;
 // routes/web.php
 Route::get('/health', function () {
     return response()->json([
-        'status'    => 'ok',
+        'status' => 'ok',
         'timestamp' => now()->toIso8601String(),
-        'services'  => [
+        'services' => [
             'database' => DB::connection()->getPdo() ? 'ok' : 'error',
-            'cache'    => Cache::store('redis')->ping() ? 'ok' : 'error',
-        ]
+            'cache' => Cache::store('redis')->ping() ? 'ok' : 'error',
+        ],
     ]);
 });
 
@@ -148,9 +148,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('users/{user}/manager-reports', [UsersController::class, 'updateManagerReports'])
         ->name('users.manager-reports.update')
         ->middleware('throttle:admin-actions');
-    Route::post('users/{user}/maintenance-request-types', [UsersController::class, 'updateMaintenanceRequestTypes'])
-        ->name('users.maintenance-request-types.update')
-        ->middleware('throttle:admin-actions');
     Route::post('users/{user}/manager-access/grant', [UsersController::class, 'grantManagerAccess'])
         ->name('users.manager-access.grant')
         ->middleware('throttle:admin-actions');
@@ -163,6 +160,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('roles', RolesController::class)
         ->except(['show'])
+        ->middleware('throttle:admin-actions');
+    Route::post('roles/{role}/request-types', [RolesController::class, 'updateRequestTypes'])
+        ->name('roles.request-types.update')
         ->middleware('throttle:admin-actions');
     Route::get('permissions', [PermissionsController::class, 'index'])
         ->name('permissions.index')
