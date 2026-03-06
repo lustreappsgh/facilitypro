@@ -27,6 +27,18 @@ interface MaintenanceManagerData {
     workOrdersInFlight: number;
     workOrdersThisWeek?: number;
     pendingPayments: number;
+    users?: {
+        id: number;
+        name: string;
+        email: string;
+        profile_photo_url: string;
+        is_active: boolean;
+        facilities_managed: number;
+        inspections_last_week: number;
+        upcoming_todos: number;
+        requests_submitted: number;
+        roles: string[];
+    }[];
 }
 
 interface ManagerData {
@@ -44,6 +56,18 @@ interface ManagerData {
         profile_photo_url: string;
         is_active: boolean;
         facilities_managed: number;
+    }[];
+    users: {
+        id: number;
+        name: string;
+        email: string;
+        profile_photo_url: string;
+        is_active: boolean;
+        facilities_managed: number;
+        inspections_last_week: number;
+        upcoming_todos: number;
+        requests_submitted: number;
+        roles: string[];
     }[];
     todoSummary: {
         pending: number;

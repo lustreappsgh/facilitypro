@@ -50,7 +50,7 @@ class DashboardService
             ];
         }
 
-        if ($user->can('work_orders.create') || $user->can('maintenance.start')) {
+        if ($user->can('maintenance.start')) {
             $weekStart = Carbon::now()->startOfWeek(Carbon::MONDAY);
             $weekEnd = Carbon::now()->endOfWeek(Carbon::SUNDAY);
 
@@ -74,11 +74,14 @@ class DashboardService
                     ->whereHas('maintenanceRequest', fn ($q) => $q->maintenanceScope($user))
                     ->where('status', 'pending')
                     ->count(),
+                'users' => $user->can('users.manage') ? [] : $this->userCardsForMaintenanceManager(),
             ];
         }
 
-        if ($user->can('payments.approve')) {
-            $facilityManagers ??= $this->facilityManagers();
+        if ($user->can('maintenance.manage_all') && ! $user->can('users.manage')) {
+            $facilityManagers ??= $user->can('users.manage')
+                ? $this->facilityManagers()
+                : $this->facilityManagersForManager($user);
             $todoSummary = $this->todoSummary();
             $inspectionSummary = $this->inspectionSummary();
             $oldestPending = Payment::query()
@@ -108,12 +111,13 @@ class DashboardService
                 'highCostPendingCount' => $highCostPending->count(),
                 'highCostPendingTotal' => $highCostPending->sum('cost'),
                 'facilityManagers' => $facilityManagers,
+                'users' => $user->can('users.manage') ? [] : $this->userCardsForManager($user),
                 'todoSummary' => $todoSummary,
                 'inspectionSummary' => $inspectionSummary,
             ];
         }
 
-        if ($user->can('audit.view')) {
+        if ($user->can('users.manage')) {
             $facilityManagers ??= $this->facilityManagers();
             $staleThresholdDays = 14;
             $staleDate = Carbon::now()->subDays($staleThresholdDays);
@@ -187,6 +191,26 @@ class DashboardService
             ->all();
     }
 
+    protected function facilityManagersForManager(User $manager): array
+    {
+        return User::query()
+            ->active()
+            ->role('Facility Manager')
+            ->where('manager_id', $manager->id)
+            ->withCount('facilities')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'profile_photo_path', 'is_active'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'profile_photo_url' => $user->profile_photo_url,
+                'is_active' => $user->is_active,
+                'facilities_managed' => $user->facilities_count ?? 0,
+            ])
+            ->all();
+    }
+
     protected function userCards(): array
     {
         $lastWeekStart = Carbon::now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString();
@@ -197,6 +221,85 @@ class DashboardService
             ->active()
             ->with(['roles'])
             ->whereDoesntHave('roles', fn ($query) => $query->whereIn('name', ['Admin']))
+            ->withCount(['facilities', 'maintenanceRequestsRequested'])
+            ->addSelect([
+                'inspections_last_week' => Inspection::query()
+                    ->selectRaw('count(*)')
+                    ->whereColumn('added_by', 'users.id')
+                    ->whereBetween('inspection_date', [$lastWeekStart, $lastWeekEnd]),
+                'upcoming_todos' => Todo::query()
+                    ->selectRaw('count(*)')
+                    ->whereColumn('user_id', 'users.id')
+                    ->whereDate('week_start', '>=', $today)
+                    ->where('status', '!=', TodoStatus::Completed->value),
+            ])
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'profile_photo_path', 'is_active'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'profile_photo_url' => $user->profile_photo_url,
+                'is_active' => $user->is_active,
+                'facilities_managed' => $user->facilities_count ?? 0,
+                'inspections_last_week' => (int) ($user->inspections_last_week ?? 0),
+                'upcoming_todos' => (int) ($user->upcoming_todos ?? 0),
+                'requests_submitted' => (int) ($user->maintenance_requests_requested_count ?? 0),
+                'roles' => $user->roles->pluck('name')->values()->all(),
+            ])
+            ->all();
+    }
+
+    protected function userCardsForManager(User $manager): array
+    {
+        $lastWeekStart = Carbon::now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString();
+        $lastWeekEnd = Carbon::now()->subWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $today = Carbon::today()->toDateString();
+
+        return User::query()
+            ->active()
+            ->role('Facility Manager')
+            ->where('manager_id', $manager->id)
+            ->with(['roles'])
+            ->withCount(['facilities', 'maintenanceRequestsRequested'])
+            ->addSelect([
+                'inspections_last_week' => Inspection::query()
+                    ->selectRaw('count(*)')
+                    ->whereColumn('added_by', 'users.id')
+                    ->whereBetween('inspection_date', [$lastWeekStart, $lastWeekEnd]),
+                'upcoming_todos' => Todo::query()
+                    ->selectRaw('count(*)')
+                    ->whereColumn('user_id', 'users.id')
+                    ->whereDate('week_start', '>=', $today)
+                    ->where('status', '!=', TodoStatus::Completed->value),
+            ])
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'profile_photo_path', 'is_active'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'profile_photo_url' => $user->profile_photo_url,
+                'is_active' => $user->is_active,
+                'facilities_managed' => $user->facilities_count ?? 0,
+                'inspections_last_week' => (int) ($user->inspections_last_week ?? 0),
+                'upcoming_todos' => (int) ($user->upcoming_todos ?? 0),
+                'requests_submitted' => (int) ($user->maintenance_requests_requested_count ?? 0),
+                'roles' => $user->roles->pluck('name')->values()->all(),
+            ])
+            ->all();
+    }
+
+    protected function userCardsForMaintenanceManager(): array
+    {
+        $lastWeekStart = Carbon::now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString();
+        $lastWeekEnd = Carbon::now()->subWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $today = Carbon::today()->toDateString();
+
+        return User::query()
+            ->active()
+            ->role('Facility Manager')
+            ->with(['roles'])
             ->withCount(['facilities', 'maintenanceRequestsRequested'])
             ->addSelect([
                 'inspections_last_week' => Inspection::query()

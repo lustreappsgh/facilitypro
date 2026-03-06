@@ -71,6 +71,7 @@ interface Props {
     activeManagerId: string | number | null;
     routes: {
         bulkAssignManager: string;
+        bulkUpdate: string;
         managerAssignments: string;
     };
     formOptions: {
@@ -150,6 +151,7 @@ const canViewFacility = computed(() => can('facilities.view'));
 const canEditFacility = computed(() => can('facilities.update'));
 const canDeleteFacility = computed(() => can('facilities.delete'));
 const canAssignManager = computed(() => can('facilities.assign_manager'));
+const canBulkEdit = computed(() => can('facilities.update'));
 const managerOptions = computed(() =>
     props.managers.filter((manager) => !['self', 'unassigned'].includes(String(manager.id))),
 );
@@ -157,12 +159,20 @@ const managerOptions = computed(() =>
 const inspectionModalOpen = ref(false);
 const requestModalOpen = ref(false);
 const assignDialogOpen = ref(false);
+const bulkEditDialogOpen = ref(false);
 const selectedFacilityIds = useRemember<number[]>([], 'facilities.selection');
 const modalFacilityIds = ref<number[]>([]);
 
 const assignManagerForm = useForm({
     facility_ids: [] as number[],
     manager_id: 'unassigned' as string,
+});
+const bulkEditForm = useForm({
+    facility_ids: [] as number[],
+    condition: '__no_change__' as string,
+    facility_type_id: '__no_change__' as string,
+    parent_id: '__no_change__' as string,
+    managed_by: '__no_change__' as string,
 });
 let searchDebounceTimer: number | null = null;
 
@@ -263,7 +273,7 @@ const conditionClass = (condition?: string) => {
 
 const manageableFacilityIds = computed(() => new Set(props.formOptions.facilities.map((facility) => facility.id)));
 const canSelectFacility = (facilityId: number) =>
-    manageableFacilityIds.value.has(facilityId) && (canInspect.value || canRequest.value || canAssignManager.value);
+    manageableFacilityIds.value.has(facilityId) && (canInspect.value || canRequest.value || canAssignManager.value || canBulkEdit.value);
 
 const selectableFacilityIdsOnPage = computed(() =>
     props.facilities.data
@@ -325,6 +335,21 @@ const openAssignDialog = () => {
     assignDialogOpen.value = true;
 };
 
+const openBulkEditDialog = () => {
+    if (!selectionCount.value || !canBulkEdit.value) {
+        return;
+    }
+
+    bulkEditForm.reset();
+    bulkEditForm.clearErrors();
+    bulkEditForm.facility_ids = [...selectedFacilityIds.value];
+    bulkEditForm.condition = '__no_change__';
+    bulkEditForm.facility_type_id = '__no_change__';
+    bulkEditForm.parent_id = '__no_change__';
+    bulkEditForm.managed_by = '__no_change__';
+    bulkEditDialogOpen.value = true;
+};
+
 const deleteFacility = (facilityId: number) => {
     if (!canDeleteFacility.value) {
         return;
@@ -350,6 +375,32 @@ const submitAssignManager = () => {
         preserveScroll: true,
         onSuccess: () => {
             assignDialogOpen.value = false;
+            selectedFacilityIds.value = [];
+        },
+    });
+};
+
+const submitBulkEdit = () => {
+    bulkEditForm.facility_ids = [...selectedFacilityIds.value];
+    bulkEditForm.post(props.routes.bulkUpdate, {
+        transform: (data) => ({
+            facility_ids: data.facility_ids,
+            condition: data.condition === '__no_change__' ? undefined : data.condition,
+            facility_type_id: data.facility_type_id === '__no_change__' ? undefined : Number(data.facility_type_id),
+            parent_id: data.parent_id === '__no_change__'
+                ? undefined
+                : data.parent_id === '__none__'
+                    ? null
+                    : Number(data.parent_id),
+            managed_by: data.managed_by === '__no_change__'
+                ? undefined
+                : data.managed_by === 'unassigned'
+                    ? null
+                    : Number(data.managed_by),
+        }),
+        preserveScroll: true,
+        onSuccess: () => {
+            bulkEditDialogOpen.value = false;
             selectedFacilityIds.value = [];
         },
     });
@@ -619,6 +670,11 @@ const columns: ColumnDef<Facility>[] = [
                                 @click="openAssignDialog">
                                 Assign Manager
                             </Button>
+                            <Button v-if="canBulkEdit" variant="outline" size="sm" :disabled="!selectionCount"
+                                class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border hover:bg-primary/5 hover:text-primary transition-colors"
+                                @click="openBulkEditDialog">
+                                Bulk Edit
+                            </Button>
                             <Button variant="ghost" size="sm" :disabled="!selectionCount"
                                 class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
                                 @click="selectedFacilityIds = []">
@@ -661,6 +717,11 @@ const columns: ColumnDef<Facility>[] = [
                             class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border hover:bg-primary/5 hover:text-primary transition-colors"
                             @click="openAssignDialog">
                             Assign Manager
+                        </Button>
+                        <Button v-if="canBulkEdit" variant="outline" size="sm" :disabled="!selectionCount"
+                            class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border hover:bg-primary/5 hover:text-primary transition-colors"
+                            @click="openBulkEditDialog">
+                            Bulk Edit
                         </Button>
                         <Button variant="ghost" size="sm" :disabled="!selectionCount"
                             class="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
@@ -791,6 +852,81 @@ const columns: ColumnDef<Facility>[] = [
                     <Button variant="ghost" @click="assignDialogOpen = false">Cancel</Button>
                     <Button :disabled="assignManagerForm.processing || !selectionCount" @click="submitAssignManager">
                         Save assignment
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="bulkEditDialogOpen">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Bulk Edit Facilities</DialogTitle>
+                    <DialogDescription>
+                        Update fields for {{ selectionCount }} selected facilities.
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-3">
+                    <Select v-model="bulkEditForm.condition">
+                        <SelectTrigger class="h-10 w-full">
+                            <SelectValue placeholder="Condition" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="__no_change__">Condition: No change</SelectItem>
+                            <SelectItem v-for="condition in formOptions.conditions" :key="condition" :value="condition">
+                                Condition: {{ condition }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <template v-if="canAssignManager">
+                        <Select v-model="bulkEditForm.facility_type_id">
+                            <SelectTrigger class="h-10 w-full">
+                                <SelectValue placeholder="Facility type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__no_change__">Facility Type: No change</SelectItem>
+                                <SelectItem v-for="type in formOptions.facilityTypes" :key="type.id" :value="String(type.id)">
+                                    Facility Type: {{ type.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select v-model="bulkEditForm.parent_id">
+                            <SelectTrigger class="h-10 w-full">
+                                <SelectValue placeholder="Parent node" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__no_change__">Parent: No change</SelectItem>
+                                <SelectItem value="__none__">Parent: Root (no parent)</SelectItem>
+                                <SelectItem v-for="parent in formOptions.parents" :key="parent.id" :value="String(parent.id)">
+                                    Parent: {{ parent.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select v-model="bulkEditForm.managed_by">
+                            <SelectTrigger class="h-10 w-full">
+                                <SelectValue placeholder="Manager assignment" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__no_change__">Manager: No change</SelectItem>
+                                <SelectItem value="unassigned">Manager: Unassigned</SelectItem>
+                                <SelectItem v-for="manager in managerOptions" :key="manager.id" :value="String(manager.id)">
+                                    Manager: {{ manager.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </template>
+
+                    <p v-if="bulkEditForm.errors.bulk_edit" class="text-xs text-red-600">{{ bulkEditForm.errors.bulk_edit }}</p>
+                    <p v-if="bulkEditForm.errors.condition" class="text-xs text-red-600">{{ bulkEditForm.errors.condition }}</p>
+                    <p v-if="bulkEditForm.errors.parent_id" class="text-xs text-red-600">{{ bulkEditForm.errors.parent_id }}</p>
+                    <p v-if="bulkEditForm.errors.facility_ids" class="text-xs text-red-600">{{ bulkEditForm.errors.facility_ids }}</p>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" @click="bulkEditDialogOpen = false">Cancel</Button>
+                    <Button :disabled="bulkEditForm.processing || !selectionCount" @click="submitBulkEdit">
+                        Save changes
                     </Button>
                 </DialogFooter>
             </DialogContent>

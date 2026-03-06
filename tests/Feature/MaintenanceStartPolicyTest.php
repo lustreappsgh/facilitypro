@@ -24,7 +24,8 @@ test('maintenance start is allowed for in-scope maintenance managers', function 
         'managed_by' => $user->id,
     ]);
 
-    $requestType = RequestType::firstOrCreate(['name' => 'General']);
+    $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
+    $user->maintenanceRequestTypes()->sync([$requestType->id]);
     $maintenance = MaintenanceRequest::create([
         'facility_id' => $facility->id,
         'request_type_id' => $requestType->id,
@@ -59,7 +60,9 @@ test('maintenance start is forbidden outside manager scope', function () {
         'managed_by' => $otherUser->id,
     ]);
 
+    $allowedType = RequestType::firstOrCreate(['name' => 'Plumbing']);
     $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
+    $user->maintenanceRequestTypes()->sync([$allowedType->id]);
     $maintenance = MaintenanceRequest::create([
         'facility_id' => $facility->id,
         'request_type_id' => $requestType->id,

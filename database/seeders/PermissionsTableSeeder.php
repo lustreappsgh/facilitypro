@@ -87,14 +87,14 @@ class PermissionsTableSeeder extends Seeder
         $admin->givePermissionTo(Permission::all()); // Admin gets all permissions
 
         $manager = Role::firstOrCreate(['name' => 'Manager']);
-        // Manager handles approvals and oversight
-        $manager->givePermissionTo([
+        // Manager handles oversight and coordination (no payment approval actions).
+        $manager->syncPermissions([
             'payments.view',
-            'payments.approve',
-            'payments.reject',
             'maintenance_requests.view',
             'maintenance.manage_all',
             'work_orders.view',
+            'work_orders.create',
+            'work_orders.update',
             'reports.view',
             'audit.view',
         ]);

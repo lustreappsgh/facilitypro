@@ -5,12 +5,14 @@ namespace App\Models;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Support\TextNormalizer;
+use App\Traits\ResolvesMaintenanceScope;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Inspection extends BaseModel
 {
     use HasFactory;
+    use ResolvesMaintenanceScope;
 
     protected $fillable = [
         'inspection_date',
@@ -71,6 +73,14 @@ class Inspection extends BaseModel
 
         if ($user->can('users.manage')) {
             return $query->with(['facility', 'addedBy']);
+        }
+
+        if ($user->can('maintenance.manage_all')) {
+            return $query->with(['facility', 'addedBy'])
+                ->where(function ($builder) use ($user) {
+                    $builder->whereIn('added_by', $this->maintenanceScopeManagerIds($user))
+                        ->orWhereIn('facility_id', $this->maintenanceScopeFacilityIds($user));
+                });
         }
 
         return $query->with(['facility', 'addedBy'])

@@ -84,8 +84,8 @@ test('dashboard shows manager approval stats', function () {
     Role::findOrCreate('Facility Manager');
 
     $user = dashboardUserWithPermissions([
-        'payments.approve',
-        'maintenance.view',
+        'maintenance.manage_all',
+        'payments.view',
     ]);
 
     $facilityType = FacilityType::create(['name' => 'Campus']);

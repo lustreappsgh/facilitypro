@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/PageHeader.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show as maintenanceShow } from '@/routes/maintenance';
-import { edit, index as workOrdersIndex } from '@/routes/work-orders';
+import { edit, index as workOrdersIndex, payment as workOrdersPayment } from '@/routes/work-orders';
 import { index as paymentsIndex } from '@/routes/payments';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link, useForm } from '@inertiajs/vue3';
@@ -347,7 +347,7 @@ const paymentStatusBadgeClass = (status: string) => {
                         class="grid gap-4 md:grid-cols-3"
                         @submit.prevent="
                             paymentForm.patch(
-                                route('work-orders.payment.update', workOrder.id),
+                                workOrdersPayment.update(workOrder.id).url,
                                 { preserveScroll: true },
                             )
                         "

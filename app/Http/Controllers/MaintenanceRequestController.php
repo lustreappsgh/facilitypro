@@ -14,6 +14,7 @@ use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
 use App\Models\Payment;
 use App\Models\RequestType;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
@@ -60,6 +61,18 @@ class MaintenanceRequestController extends Controller
         }
 
         $facilitiesQuery = Facility::maintenanceFacilities($user);
+        $users = collect();
+        if ($canViewAllRequests) {
+            $usersQuery = User::query()
+                ->active()
+                ->orderBy('name');
+
+            if (! $user->can('users.manage')) {
+                $usersQuery->where('manager_id', $user->id);
+            }
+
+            $users = $usersQuery->get(['id', 'name', 'email']);
+        }
 
         $baseQuery = MaintenanceRequest::maintenanceScope($user)->with([
             'facility',
@@ -161,6 +174,7 @@ class MaintenanceRequestController extends Controller
                 'show_requester_name' => $showRequesterName,
                 'show_facility_manager_name' => $showFacilityManagerName,
                 'is_facility_manager' => $isFacilityManager,
+                'users' => $users,
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,

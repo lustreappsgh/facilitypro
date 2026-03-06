@@ -286,7 +286,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             v-if="canFirstApproval || canAdminFastTrack"
                             class="flex flex-wrap items-end gap-2"
                             @submit.prevent="
-                                approveForm.post(route('maintenance.approve', request.id), {
+                                approveForm.post(`/maintenance/${request.id}/approve`, {
                                     preserveScroll: true,
                                 })
                             "
@@ -337,7 +337,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             as-child
                         >
                             <Link
-                                :href="route('maintenance.approve', request.id)"
+                                :href="`/maintenance/${request.id}/approve`"
                                 method="post"
                                 as="button"
                                 aria-label="Final approve request"
@@ -352,7 +352,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
                             as-child
                         >
-                            <Link :href="route('maintenance.reject', request.id)" method="post" as="button" aria-label="Reject request">
+                            <Link :href="`/maintenance/${request.id}/reject`" method="post" as="button" aria-label="Reject request">
                                 <X class="h-4 w-4" />
                             </Link>
                         </Button>
@@ -399,7 +399,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="route('maintenance.close', request.id)" method="post" as="button" aria-label="Close request">
+                            <Link :href="`/maintenance/${request.id}/close`" method="post" as="button" aria-label="Close request">
                                 <ClipboardCheck class="h-4 w-4" />
                             </Link>
                         </Button>

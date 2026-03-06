@@ -14,10 +14,15 @@ class TodoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'facility_id' => ['nullable', 'required_without:facility_ids', 'exists:facilities,id'],
-            'facility_ids' => ['nullable', 'required_without:facility_id', 'array'],
+            'facility_id' => ['nullable', 'required_without_all:facility_ids,bulk_todos', 'exists:facilities,id'],
+            'facility_ids' => ['nullable', 'required_without_all:facility_id,bulk_todos', 'array', 'min:1'],
             'facility_ids.*' => ['exists:facilities,id'],
-            'description' => ['required', 'string', 'max:1000'],
+            'description' => ['required_without:bulk_todos', 'string', 'max:1000'],
+            'week' => ['nullable', 'date'],
+            'bulk_todos' => ['sometimes', 'array', 'min:1'],
+            'bulk_todos.*.facility_id' => ['required', 'exists:facilities,id'],
+            'bulk_todos.*.description' => ['required', 'string', 'max:1000'],
+            'bulk_todos.*.week' => ['nullable', 'date'],
         ];
     }
 }

@@ -16,7 +16,7 @@ class TodoData
         return new self(
             facility_id: (int) $data['facility_id'],
             description: $data['description'],
-            week: now()->next('Monday')->format('Y-m-d'),
+            week: $data['week'] ?? now()->next('Monday')->format('Y-m-d'),
             user_id: (int) ($data['user_id'] ?? auth()->id()),
         );
     }

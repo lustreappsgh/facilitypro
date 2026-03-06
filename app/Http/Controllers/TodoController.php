@@ -8,7 +8,9 @@ use App\Domains\Todos\Requests\TodoBulkCompleteRequest;
 use App\Domains\Todos\Requests\TodoRequest;
 use App\Domains\Todos\Services\TodoService;
 use App\Models\Facility;
+use App\Models\FacilityType;
 use App\Models\Todo;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +31,7 @@ class TodoController extends Controller
         $this->authorize('viewAny', Todo::class);
 
         $user = $request->user();
-        $canViewAllTodos = $user->can('users.manage');
+        $canViewAllTodos = $user->can('users.manage') || $user->can('maintenance.manage_all');
 
         $startDateInput = $request->input('start_date');
         $endDateInput = $request->input('end_date');
@@ -46,6 +48,18 @@ class TodoController extends Controller
         }
 
         $facilitiesQuery = Facility::userFacilities(null, $user);
+        $users = collect();
+        if ($canViewAllTodos) {
+            $usersQuery = User::query()
+                ->active()
+                ->orderBy('name');
+
+            if (! $user->can('users.manage')) {
+                $usersQuery->where('manager_id', $user->id);
+            }
+
+            $users = $usersQuery->get(['id', 'name', 'email']);
+        }
 
         $baseQuery = Todo::userVisible($user)
             ->with([
@@ -127,6 +141,7 @@ class TodoController extends Controller
                 'weeks_by_year_month' => $weeksByYearMonth,
                 'facilities' => $facilitiesQuery->orderBy('name')->get(),
                 'show_manager_name' => $canViewAllTodos,
+                'users' => $users,
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
@@ -150,9 +165,37 @@ class TodoController extends Controller
     {
         $this->authorize('create', Todo::class);
 
+        $facilities = Facility::userFacilities(null, $request->user())
+            ->with('facilityType:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'facility_type_id']);
+
+        $facilityTypeIds = $facilities
+            ->pluck('facility_type_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $selectedFacilityIds = collect((array) $request->input('facility_ids', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $singleFacilityId = $request->integer('facility_id');
+        if ($singleFacilityId > 0 && ! in_array($singleFacilityId, $selectedFacilityIds, true)) {
+            $selectedFacilityIds[] = $singleFacilityId;
+        }
+
         return Inertia::render('Todos/Create', [
             'data' => [
-                'facilities' => Facility::userFacilities(null, $request->user())->orderBy('name')->get(),
+                'facilities' => $facilities,
+                'facilityTypes' => FacilityType::query()
+                    ->whereIn('id', $facilityTypeIds)
+                    ->orderBy('name')
+                    ->get(['id', 'name']),
+                'selectedFacilityId' => $singleFacilityId ?: null,
+                'selectedFacilityIds' => $selectedFacilityIds,
             ],
             'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
             'routes' => [
@@ -170,13 +213,34 @@ class TodoController extends Controller
         $this->authorize('create', Todo::class);
 
         $validated = $request->validated();
+        $bulkTodos = collect($validated['bulk_todos'] ?? [])
+            ->filter(fn (array $item) => isset($item['facility_id']))
+            ->unique('facility_id')
+            ->values()
+            ->all();
+
+        if ($bulkTodos !== []) {
+            foreach ($bulkTodos as $item) {
+                $data = TodoData::fromRequest([
+                    ...$item,
+                    'user_id' => auth()->id(),
+                ]);
+                $this->todoService->create($data);
+            }
+
+            $redirectTo = $request->input('redirect_to') ?? route('todos.index');
+
+            return redirect()
+                ->to($redirectTo)
+                ->with('success', 'Bulk todos created.');
+        }
 
         if (! empty($validated['facility_ids'])) {
             foreach ($validated['facility_ids'] as $facilityId) {
                 $data = new TodoData(
                     facility_id: (int) $facilityId,
                     description: $validated['description'],
-                    week: now()->next('Monday')->format('Y-m-d'),
+                    week: $validated['week'] ?? now()->next('Monday')->format('Y-m-d'),
                     user_id: auth()->id(),
                 );
                 $this->todoService->create($data);

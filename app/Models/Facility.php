@@ -56,10 +56,18 @@ class Facility extends BaseModel
         }
 
         if (! $user->can('users.manage')) {
-            if ($parentFacility === 'Campus Paid Job') {
-                $query->where('name', 'Campus Paid Jobs');
+            if ($user->can('maintenance.manage_all')) {
+                if ($parentFacility === 'Campus Paid Job') {
+                    $query->where('name', 'Campus Paid Jobs');
+                } else {
+                    $query->whereIn('managed_by', $this->maintenanceScopeManagerIds($user));
+                }
             } else {
-                $query->where('managed_by', $user->id);
+                if ($parentFacility === 'Campus Paid Job') {
+                    $query->where('name', 'Campus Paid Jobs');
+                } else {
+                    $query->where('managed_by', $user->id);
+                }
             }
         }
 
@@ -78,8 +86,12 @@ class Facility extends BaseModel
             return $query->whereRaw('1 = 0');
         }
 
-        if ($user->can('maintenance.manage_all')) {
+        if ($user->can('users.manage')) {
             return $query;
+        }
+
+        if ($user->can('maintenance.manage_all')) {
+            return $query->whereIn('managed_by', $this->maintenanceScopeManagerIds($user));
         }
 
         return $query->whereIn('managed_by', $this->maintenanceScopeManagerIds($user));

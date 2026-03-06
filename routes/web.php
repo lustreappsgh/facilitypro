@@ -60,6 +60,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('facilities/bulk-assign-manager', [FacilityController::class, 'bulkAssignManager'])
         ->name('facilities.bulk-assign-manager')
         ->middleware('throttle:admin-actions');
+    Route::post('facilities/bulk-update', [FacilityController::class, 'bulkUpdate'])
+        ->name('facilities.bulk-update')
+        ->middleware('throttle:admin-actions');
     Route::resource('facilities', FacilityController::class);
 
     Route::get('inspections/my', [InspectionController::class, 'index'])->name('inspections.my');
@@ -143,6 +146,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:admin-actions');
     Route::post('users/{user}/manager-reports', [UsersController::class, 'updateManagerReports'])
         ->name('users.manager-reports.update')
+        ->middleware('throttle:admin-actions');
+    Route::post('users/{user}/maintenance-request-types', [UsersController::class, 'updateMaintenanceRequestTypes'])
+        ->name('users.maintenance-request-types.update')
         ->middleware('throttle:admin-actions');
     Route::post('users/{user}/manager-access/grant', [UsersController::class, 'grantManagerAccess'])
         ->name('users.manager-access.grant')

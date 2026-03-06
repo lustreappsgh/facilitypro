@@ -6,12 +6,10 @@ use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Policies\Concerns\HandlesAdminOverrides;
-use App\Traits\ResolvesMaintenanceScope;
 
 class MaintenanceRequestPolicy
 {
     use HandlesAdminOverrides;
-    use ResolvesMaintenanceScope;
 
     public function view(User $user, MaintenanceRequest $maintenanceRequest): bool
     {
@@ -24,12 +22,12 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        if ($user->can('maintenance.manage_all')) {
+        if ($user->can('users.manage')) {
             return true;
         }
 
         if ($user->can('maintenance_requests.view')) {
-            return $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+            return $this->isInMaintenanceRequestScope($user, $maintenanceRequest);
         }
 
         return $maintenanceRequest->requested_by === $user->id
@@ -59,7 +57,7 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        if ($user->can('maintenance.manage_all')) {
+        if ($user->can('users.manage')) {
             return true;
         }
 
@@ -68,7 +66,7 @@ class MaintenanceRequestPolicy
                 return false;
             }
 
-            return $this->inMaintenanceScope($user, $maintenanceRequest->facility_id)
+            return $this->isInMaintenanceRequestScope($user, $maintenanceRequest)
                 && ! $maintenanceRequest->workOrders()->exists();
         }
 
@@ -88,8 +86,8 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        return $user->can('maintenance.manage_all')
-            || $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+        return $user->can('users.manage')
+            || $this->isReviewableMaintenanceRequest($user, $maintenanceRequest);
     }
 
     public function create(User $user): bool
@@ -113,8 +111,8 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        return $user->can('maintenance.manage_all')
-            || $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+        return $user->can('users.manage')
+            || $this->isInMaintenanceRequestScope($user, $maintenanceRequest);
     }
 
     public function start(User $user, MaintenanceRequest $maintenanceRequest): bool
@@ -128,8 +126,8 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        return $user->can('maintenance.manage_all')
-            || $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+        return $user->can('users.manage')
+            || $this->isInMaintenanceRequestScope($user, $maintenanceRequest);
     }
 
     public function complete(User $user, MaintenanceRequest $maintenanceRequest): bool
@@ -143,8 +141,8 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        return $user->can('maintenance.manage_all')
-            || $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+        return $user->can('users.manage')
+            || $this->isInMaintenanceRequestScope($user, $maintenanceRequest);
     }
 
     public function close(User $user, MaintenanceRequest $maintenanceRequest): bool
@@ -158,7 +156,23 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        return $user->can('maintenance.manage_all')
-            || $this->inMaintenanceScope($user, $maintenanceRequest->facility_id);
+        return $user->can('users.manage')
+            || $this->isInMaintenanceRequestScope($user, $maintenanceRequest);
+    }
+
+    protected function isInMaintenanceRequestScope(User $user, MaintenanceRequest $maintenanceRequest): bool
+    {
+        return MaintenanceRequest::query()
+            ->maintenanceScope($user)
+            ->whereKey($maintenanceRequest->id)
+            ->exists();
+    }
+
+    protected function isReviewableMaintenanceRequest(User $user, MaintenanceRequest $maintenanceRequest): bool
+    {
+        return MaintenanceRequest::query()
+            ->reviewableBy($user)
+            ->whereKey($maintenanceRequest->id)
+            ->exists();
     }
 }

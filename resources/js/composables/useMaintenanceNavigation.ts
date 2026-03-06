@@ -1,8 +1,4 @@
 import { usePermissions } from '@/composables/usePermissions';
-import { index as paymentsIndex } from '@/routes/payments';
-import { index as requestTypesIndex } from '@/routes/request-types';
-import { index as vendorsIndex } from '@/routes/vendors';
-import { index as workOrdersIndex } from '@/routes/work-orders';
 import type { NavItem } from '@/types';
 import { ClipboardList, CreditCard, Users, Wrench } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -18,25 +14,25 @@ export function useMaintenanceNavigation() {
     const maintenanceItemDefinitions: NavItemDefinition[] = [
         {
             title: 'Work Orders',
-            href: workOrdersIndex(),
+            href: '/work-orders',
             icon: ClipboardList,
             permission: 'work_orders.view',
         },
         {
             title: 'Vendors',
-            href: vendorsIndex(),
+            href: '/vendors',
             icon: Users,
             permission: 'vendors.view',
         },
         {
             title: 'Request Types',
-            href: requestTypesIndex(),
+            href: '/request-types',
             icon: Wrench,
             permission: 'request_types.manage',
         },
         {
             title: 'Payments',
-            href: paymentsIndex(),
+            href: '/payments',
             icon: CreditCard,
             permission: 'payments.view',
         },

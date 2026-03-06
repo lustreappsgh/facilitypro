@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domains\Facilities\DTOs\FacilityData;
 use App\Domains\Facilities\Requests\FacilityBulkAssignManagerRequest;
+use App\Domains\Facilities\Requests\FacilityBulkUpdateRequest;
 use App\Domains\Facilities\Requests\FacilityHierarchyRequest;
 use App\Domains\Facilities\Requests\FacilityRequest;
 use App\Domains\Facilities\Services\FacilityService;
@@ -34,8 +35,7 @@ class FacilityController extends Controller
 
         $user = $request->user();
         $canManagePortfolio = $user->can('facilities.assign_manager')
-            || $user->can('users.manage')
-            || $user->can('maintenance.manage_all');
+            || $user->can('users.manage');
         $canViewMaintenanceScope = $user->can('maintenance_requests.view');
         $isFacilityManager = $user->can('facilities.view') || $user->can('facilities.update');
 
@@ -147,6 +147,7 @@ class FacilityController extends Controller
             'activeManagerId' => $managerId,
             'routes' => [
                 'bulkAssignManager' => route('facilities.bulk-assign-manager'),
+                'bulkUpdate' => route('facilities.bulk-update'),
                 'managerAssignments' => route('facilities.manager-assignments'),
             ],
             'formOptions' => [
@@ -180,6 +181,77 @@ class FacilityController extends Controller
         $targetLabel = $managerId ? 'manager' : 'unassigned';
 
         return back()->with('success', "Updated {$updated} facilities to {$targetLabel}.");
+    }
+
+    public function bulkUpdate(FacilityBulkUpdateRequest $request): RedirectResponse
+    {
+        if (! $request->user()->can('facilities.update')) {
+            abort(403);
+        }
+
+        $validated = $request->validated();
+        $facilityIds = $validated['facility_ids'];
+
+        $isAssignable = $request->user()->can('facilities.assign_manager');
+        $requestedChanges = Arr::only($validated, ['condition', 'facility_type_id', 'parent_id', 'managed_by']);
+
+        if (! $isAssignable) {
+            $requestedChanges = Arr::only($requestedChanges, ['condition']);
+        }
+
+        if (empty($requestedChanges)) {
+            return back()->withErrors([
+                'bulk_edit' => 'Select at least one field to update.',
+            ]);
+        }
+
+        $updatableFacilitiesQuery = Facility::userFacilities(null, $request->user())
+            ->whereIn('id', $facilityIds);
+
+        $updatableFacilityIds = $updatableFacilitiesQuery->pluck('id');
+        if ($updatableFacilityIds->count() !== count($facilityIds)) {
+            abort(403);
+        }
+
+        $updatableFacilities = Facility::query()
+            ->whereIn('id', $updatableFacilityIds)
+            ->get();
+
+        if (array_key_exists('parent_id', $requestedChanges) && $requestedChanges['parent_id'] !== null) {
+            if ($updatableFacilities->contains(fn(Facility $facility) => $facility->id === (int) $requestedChanges['parent_id'])) {
+                return back()->withErrors([
+                    'parent_id' => 'A facility cannot be its own parent.',
+                ]);
+            }
+        }
+
+        $updatedCount = 0;
+
+        foreach ($updatableFacilities as $facility) {
+            $payload = [
+                'name' => $facility->name,
+                'facility_type_id' => $facility->facility_type_id,
+                'parent_id' => $facility->parent_id,
+                'condition' => $facility->condition,
+                'managed_by' => $facility->managed_by,
+            ];
+
+            foreach ($requestedChanges as $field => $value) {
+                $payload[$field] = $value;
+            }
+
+            try {
+                $this->facilityService->updateFacility($facility, FacilityData::fromRequest($payload));
+            } catch (DomainException $exception) {
+                return back()->withErrors([
+                    'bulk_edit' => $exception->getMessage(),
+                ]);
+            }
+
+            $updatedCount++;
+        }
+
+        return back()->with('success', "Updated {$updatedCount} facilities.");
     }
 
     public function managerAssignments(Request $request)

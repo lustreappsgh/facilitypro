@@ -5,12 +5,14 @@ namespace App\Models;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Support\TextNormalizer;
+use App\Traits\ResolvesMaintenanceScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Todo extends BaseModel
 {
     use HasFactory;
+    use ResolvesMaintenanceScope;
 
     public $fillable = [
         'user_id',
@@ -69,6 +71,10 @@ class Todo extends BaseModel
 
         if ($user->can('users.manage')) {
             return $query;
+        }
+
+        if ($user->can('maintenance.manage_all')) {
+            return $query->whereIn('user_id', $this->maintenanceScopeManagerIds($user));
         }
 
         return $query->where('user_id', $user->id);

@@ -2,6 +2,7 @@
 import { h, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { hierarchy as facilitiesHierarchy } from '@/routes/facilities';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +46,7 @@ props.facilities.forEach((f) => {
 
 const updateHierarchy = (facility: Facility) => {
     const parentId = parentSelections.value[facility.id] ?? ROOT_PARENT;
-    router.patch(route('facilities.hierarchy', facility.id), {
+    router.patch(facilitiesHierarchy(facility.id).url, {
         parent_id: parentId === ROOT_PARENT ? null : Number(parentId),
     }, { preserveScroll: true });
 };

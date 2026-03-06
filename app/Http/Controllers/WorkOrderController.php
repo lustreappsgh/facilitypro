@@ -166,7 +166,7 @@ class WorkOrderController extends Controller
         $this->authorize('create', WorkOrder::class);
 
         return Inertia::render('WorkOrders/Create', [
-            'maintenanceRequests' => MaintenanceRequest::maintenanceScope($request->user())
+            'maintenanceRequests' => MaintenanceRequest::reviewableBy($request->user())
                 ->with(['facility', 'requestType'])
                 ->whereIn('status', [
                     MaintenanceStatus::Submitted->value,
@@ -195,7 +195,7 @@ class WorkOrderController extends Controller
             $intent = null;
         }
 
-        $maintenanceRequests = MaintenanceRequest::maintenanceScope($request->user())
+        $maintenanceRequests = MaintenanceRequest::reviewableBy($request->user())
             ->with(['facility.facilityType', 'requestType'])
             ->whereIn('status', MaintenanceStatus::approvalQueue())
             ->whereDoesntHave('workOrders')
@@ -247,6 +247,8 @@ class WorkOrderController extends Controller
         $this->authorize('create', WorkOrder::class);
 
         $data = WorkOrderData::fromRequest($request->validated());
+        $maintenanceRequest = MaintenanceRequest::query()->findOrFail($data->maintenance_request_id);
+        $this->authorize('review', $maintenanceRequest);
         try {
             $this->createWorkOrderAction->execute($data);
         } catch (DomainException $exception) {

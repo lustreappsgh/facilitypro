@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, h } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { computed, ref, h, watch } from 'vue';
+import { Head, Link, router, useRemember } from '@inertiajs/vue3';
 import PageHeader from '@/components/PageHeader.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Accordion,
     AccordionContent,
@@ -12,6 +13,7 @@ import {
     AccordionTrigger
 } from '@/components/ui/accordion';
 import DataTable from '@/components/data-table/DataTable.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import {
     Building2, ClipboardCheck, Eye, Wrench,
     List, LayoutGrid
@@ -19,6 +21,7 @@ import {
 import { show as facilitiesShow } from '@/routes/facilities';
 import { create as inspectionsCreate } from '@/routes/inspections';
 import { create as maintenanceCreate } from '@/routes/maintenance';
+import { create as todosCreate } from '@/routes/todos';
 import type { ColumnDef } from '@tanstack/vue-table';
 
 interface Facility {
@@ -45,6 +48,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { can } = usePermissions();
 
 const breadcrumbs = [
     { title: 'My Management', href: '/facilities/my' },
@@ -52,9 +56,89 @@ const breadcrumbs = [
 ];
 
 const viewMode = ref<'grid' | 'table'>('grid');
+const selectedFacilityIds = useRemember<number[]>([], 'my-facilities.selection');
+const canInspect = computed(() => can('inspections.create'));
+const canCreateTodo = computed(() => can('todos.create'));
+
+const flattenedFacilities = computed(() => props.facilityGroups.flatMap(g => g.facilities));
+const selectableFacilityIds = computed(() => flattenedFacilities.value.map((facility) => facility.id));
+const selectionCount = computed(() => selectedFacilityIds.value.length);
+const allFacilitiesSelected = computed(() => {
+    const selectable = selectableFacilityIds.value;
+    return selectable.length > 0 && selectable.every((id) => selectedFacilityIds.value.includes(id));
+});
+const someFacilitiesSelected = computed(() => {
+    const selectableSet = new Set(selectableFacilityIds.value);
+    return selectedFacilityIds.value.some((id) => selectableSet.has(id)) && !allFacilitiesSelected.value;
+});
+
+const toggleFacilitySelection = (id: number, checked: boolean) => {
+    if (checked) {
+        if (!selectedFacilityIds.value.includes(id)) {
+            selectedFacilityIds.value = [...selectedFacilityIds.value, id];
+        }
+        return;
+    }
+
+    selectedFacilityIds.value = selectedFacilityIds.value.filter((item) => item !== id);
+};
+
+const toggleSelectAllFacilities = (checked: boolean) => {
+    if (checked) {
+        selectedFacilityIds.value = [...selectableFacilityIds.value];
+        return;
+    }
+
+    selectedFacilityIds.value = [];
+};
+
+const openBulkInspectionModal = () => {
+    if (!selectionCount.value || !canInspect.value) {
+        return;
+    }
+
+    router.visit(inspectionsCreate({
+        query: {
+            facility_ids: selectedFacilityIds.value,
+        },
+    }).url);
+};
+
+const openBulkTodoModal = () => {
+    if (!selectionCount.value || !canCreateTodo.value) {
+        return;
+    }
+
+    router.visit(todosCreate({
+        query: {
+            facility_ids: selectedFacilityIds.value,
+        },
+    }).url);
+};
+
+watch(flattenedFacilities, (rows) => {
+    const available = new Set(rows.map((row) => row.id));
+    selectedFacilityIds.value = selectedFacilityIds.value.filter((id) => available.has(id));
+});
 
 // DataTable Columns for Asset view
 const columns: ColumnDef<Facility>[] = [
+    {
+        id: 'select',
+        header: () => h(Checkbox, {
+            modelValue: allFacilitiesSelected.value || (someFacilitiesSelected.value && 'indeterminate'),
+            disabled: selectableFacilityIds.value.length === 0,
+            'onUpdate:modelValue': (value: boolean | 'indeterminate') => toggleSelectAllFacilities(value === true),
+            'aria-label': 'Select all',
+        }),
+        cell: ({ row }) => h(Checkbox, {
+            modelValue: selectedFacilityIds.value.includes(row.original.id),
+            'onUpdate:modelValue': (value: boolean | 'indeterminate') => toggleFacilitySelection(row.original.id, value === true),
+            'aria-label': 'Select row',
+        }),
+        enableSorting: false,
+        enableHiding: false,
+    },
     {
         accessorKey: 'name',
         header: 'Registered Asset',
@@ -111,8 +195,6 @@ const columns: ColumnDef<Facility>[] = [
         ])
     }
 ];
-
-const flattenedFacilities = computed(() => props.facilityGroups.flatMap(g => g.facilities));
 </script>
 
 <template>
@@ -137,6 +219,49 @@ const flattenedFacilities = computed(() => props.facilityGroups.flatMap(g => g.f
                     </div>
                 </template>
             </PageHeader>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/60 p-3">
+                <div class="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                    <Checkbox
+                        :model-value="allFacilitiesSelected || (someFacilitiesSelected && 'indeterminate')"
+                        :disabled="!selectableFacilityIds.length"
+                        @update:model-value="(value: boolean | 'indeterminate') => toggleSelectAllFacilities(value === true)"
+                        aria-label="Select all managed facilities"
+                    />
+                    <span>{{ selectionCount }} selected</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <Button
+                        v-if="canInspect"
+                        variant="outline"
+                        size="sm"
+                        class="h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
+                        :disabled="!selectionCount"
+                        @click="openBulkInspectionModal"
+                    >
+                        Bulk Inspect
+                    </Button>
+                    <Button
+                        v-if="canCreateTodo"
+                        variant="outline"
+                        size="sm"
+                        class="h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
+                        :disabled="!selectionCount"
+                        @click="openBulkTodoModal"
+                    >
+                        Bulk Todos
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        class="h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
+                        :disabled="!selectionCount"
+                        @click="selectedFacilityIds = []"
+                    >
+                        Clear Selection
+                    </Button>
+                </div>
+            </div>
 
             <!-- Dashboard Body -->
             <div class="flex flex-col gap-10">
@@ -207,6 +332,11 @@ const flattenedFacilities = computed(() => props.facilityGroups.flatMap(g => g.f
                                         <div class="flex flex-col h-full justify-between gap-4">
                                             <div class="space-y-3">
                                                 <div class="flex items-start justify-between">
+                                                    <Checkbox
+                                                        :model-value="selectedFacilityIds.includes(facility.id)"
+                                                        @update:model-value="(value: boolean | 'indeterminate') => toggleFacilitySelection(facility.id, value === true)"
+                                                        aria-label="Select facility"
+                                                    />
                                                     <Badge variant="outline"
                                                         class="rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-primary/5 text-primary border-primary/20 shadow-sm">
                                                         {{ facility.condition }}
@@ -266,6 +396,7 @@ const flattenedFacilities = computed(() => props.facilityGroups.flatMap(g => g.f
                 </div>
             </div>
         </div>
+
     </AppLayout>
 </template>
 

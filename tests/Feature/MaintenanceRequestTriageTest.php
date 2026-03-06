@@ -65,8 +65,9 @@ test('admin final approval moves manager-approved request to in progress', funct
     Permission::findOrCreate('maintenance.manage_all');
     Permission::findOrCreate('maintenance.review');
     Permission::findOrCreate('maintenance_requests.view');
+    Permission::findOrCreate('users.manage');
     Permission::findOrCreate('work_orders.create');
-    $admin->givePermissionTo(['maintenance.manage_all', 'maintenance.review', 'maintenance_requests.view']);
+    $admin->givePermissionTo(['maintenance.manage_all', 'maintenance.review', 'maintenance_requests.view', 'users.manage']);
     $manager->givePermissionTo(['maintenance.review', 'maintenance_requests.view', 'work_orders.create']);
     $manager->assignRole(Role::findOrCreate('Maintenance Manager'));
 
@@ -103,7 +104,8 @@ test('admin can fast-track request from submitted to work order and approved pay
     Permission::findOrCreate('maintenance.manage_all');
     Permission::findOrCreate('maintenance.review');
     Permission::findOrCreate('maintenance_requests.view');
-    $admin->givePermissionTo(['maintenance.manage_all', 'maintenance.review', 'maintenance_requests.view']);
+    Permission::findOrCreate('users.manage');
+    $admin->givePermissionTo(['maintenance.manage_all', 'maintenance.review', 'maintenance_requests.view', 'users.manage']);
 
     $facilityType = FacilityType::create(['name' => 'Campus']);
     $facility = Facility::create([

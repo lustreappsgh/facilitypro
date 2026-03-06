@@ -24,6 +24,12 @@ interface Facility {
     name: string;
 }
 
+interface UserOption {
+    id: number;
+    name: string;
+    email?: string | null;
+}
+
 interface Todo {
     id: number;
     description: string;
@@ -58,10 +64,12 @@ interface Props {
         weeks_by_year_month: WeeksByYearMonth[];
         facilities: Facility[];
         show_manager_name: boolean;
+        users?: UserOption[];
         filters: {
             start_date: string;
             end_date: string;
             facility_id: string | null;
+            user_id?: string | null;
         };
     };
     permissions: string[];
@@ -86,6 +94,7 @@ const todoModalOpen = ref(false);
 const filterStartDate = ref(props.data.filters.start_date || '');
 const filterEndDate = ref(props.data.filters.end_date || '');
 const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
+const filterUserId = ref(props.data.filters.user_id ? String(props.data.filters.user_id) : 'all');
 const selectedTodoIds = ref<number[]>([]);
 
 const allTodos = computed(() => props.data.groups.flatMap((group) => group.todos));
@@ -131,6 +140,7 @@ const applyFilters = () => {
             start_date: filterStartDate.value || undefined,
             end_date: filterEndDate.value || undefined,
             facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
+            user_id: filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
         { preserveState: true, preserveScroll: true },
     );
@@ -327,7 +337,7 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
             </div>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-end">
                     <div class="grid gap-2 sm:grid-cols-2">
                         <DatePicker
                             v-model="filterStartDate"
@@ -352,6 +362,17 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
                                 :value="String(facility.id)"
                             >
                                 {{ facility.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select v-if="data.users && data.users.length" v-model="filterUserId">
+                        <SelectTrigger class="h-9 w-full">
+                            <SelectValue placeholder="All users" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All users</SelectItem>
+                            <SelectItem v-for="user in data.users" :key="user.id" :value="String(user.id)">
+                                {{ user.name }}
                             </SelectItem>
                         </SelectContent>
                     </Select>

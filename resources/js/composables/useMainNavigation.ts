@@ -4,7 +4,6 @@ import { index as facilityTypesIndex } from '@/routes/facility-types';
 import inspections, { my as inspectionsMy } from '@/routes/inspections';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as auditLogsIndex } from '@/routes/audit-logs';
-import { index as todosIndex } from '@/routes/todos';
 import maintenance from '@/routes/maintenance/index';
 import { edit as profileEdit } from '@/routes/profile';
 import { usePermissions } from '@/composables/usePermissions';
@@ -63,7 +62,7 @@ export function useMainNavigation() {
         },
         {
             title: 'Todos',
-            href: todosIndex(),
+            href: '/todos',
             icon: CheckSquare,
             permission: 'todos.view',
         },

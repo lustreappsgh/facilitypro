@@ -33,11 +33,6 @@ class CreateTodoAction
             'status' => TodoStatus::Pending->value,
         ]));
 
-
-        // Force the week to be the upcoming Monday
-        $todo->week_start = now()->next('Monday');
-        $todo->save();
-
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),
             action: 'todo.created',

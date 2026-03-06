@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 // use Laravel\Jetstream\HasProfilePhoto;
 use App\Models\Concerns\FormatsDates;
+use App\Models\RequestType;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -136,5 +137,10 @@ class User extends Authenticatable
     public function maintenanceRequestsRequested()
     {
         return $this->hasMany(MaintenanceRequest::class, 'requested_by');
+    }
+
+    public function maintenanceRequestTypes()
+    {
+        return $this->belongsToMany(RequestType::class, 'maintenance_request_type_user');
     }
 }
