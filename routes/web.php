@@ -7,6 +7,7 @@ use App\Http\Controllers\FacilityTypesController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\MaintenanceManagerDashboardController;
 use App\Http\Controllers\MaintenanceRequestController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PermissionsController;
 use App\Http\Controllers\ReportController;
@@ -197,6 +198,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('todos', TodoController::class)->only(['index', 'create', 'store', 'edit', 'update']);
     Route::post('todos/{todo}/complete', [TodoController::class, 'complete'])->name('todos.complete');
     Route::post('todos/bulk-complete', [TodoController::class, 'bulkComplete'])->name('todos.bulk-complete');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])
+        ->name('notifications.read');
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.read-all');
 });
 
 require __DIR__.'/settings.php';

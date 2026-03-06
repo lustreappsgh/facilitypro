@@ -2,6 +2,7 @@
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import NotificationsBell from '@/components/NotificationsBell.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -160,6 +161,7 @@ const isNavItemDisabled = (item: NavItem) => Boolean(item.disabled);
                 </div>
 
                 <div class="ml-auto flex items-center space-x-2">
+                    <NotificationsBell />
                     <DropdownMenu>
                         <DropdownMenuTrigger :as-child="true">
                             <Button

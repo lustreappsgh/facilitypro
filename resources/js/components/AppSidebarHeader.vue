@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import NotificationsBell from '@/components/NotificationsBell.vue';
 import { Switch } from '@/components/ui/switch';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAppearance } from '@/composables/useAppearance';
@@ -35,6 +36,7 @@ const handleToggle = (checked: boolean) => {
             </template>
         </div>
         <div class="flex items-center gap-2">
+            <NotificationsBell />
             <Sun class="h-4 w-4 text-muted-foreground/60 transition-colors" :class="{ 'text-primary': !isDark }" />
             <Switch :checked="isDark" @update:checked="handleToggle" aria-label="Toggle dark mode" />
             <Moon class="h-4 w-4 text-muted-foreground/60 transition-colors" :class="{ 'text-primary': isDark }" />

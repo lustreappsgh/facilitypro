@@ -5,6 +5,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
+import { initializeEcho } from './lib/echo';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ACF';
 
@@ -16,6 +17,9 @@ createInertiaApp({
             import.meta.glob<DefineComponent>('./pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
+        const userId = props.initialPage?.props?.auth?.user?.id ?? null;
+        initializeEcho(userId);
+
         createApp({ render: () => h(App, props) })
             .use(plugin)
             .mount(el);
