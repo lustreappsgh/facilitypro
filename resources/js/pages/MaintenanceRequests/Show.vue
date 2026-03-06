@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import CostTracker from '@/components/CostTracker.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import StatusTimeline from '@/components/StatusTimeline.vue';
-import WorkOrderCard from '@/components/WorkOrderCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import DataTable from '@/components/data-table/DataTable.vue';
@@ -24,7 +22,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { ArrowLeft, ClipboardCheck, ClipboardList, Eye, Pencil, X } from 'lucide-vue-next';
+import { ArrowLeft, ClipboardCheck, ClipboardList, Eye, Pencil, UsersRound, X } from 'lucide-vue-next';
 import { computed, h } from 'vue';
 
 interface FacilityType {
@@ -160,16 +158,19 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
     currency: 'USD',
 });
 
-const statusSteps = [
-    { value: 'submitted', label: 'Submitted' },
-    { value: 'approved', label: 'Manager Approved' },
-    { value: 'work_order_created', label: 'Work Order Created' },
-    { value: 'in_progress', label: 'In progress' },
-    { value: 'completed_pending_payment', label: 'Completed / Pending payment' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'closed', label: 'Closed' },
-    { value: 'rejected', label: 'Rejected' },
-];
+const statusLabel = computed(() => props.request.status.replace(/_/g, ' '));
+const hasApprovedRequest = computed(() =>
+    [
+        'approved',
+        'assigned',
+        'work_order_created',
+        'in_progress',
+        'completed_pending_payment',
+        'paid',
+        'closed',
+        'completed',
+    ].includes(props.request.status),
+);
 
 const statusBadgeClass = (status: string) => {
     if (status === 'paid') {
@@ -263,6 +264,62 @@ const paymentColumns: ColumnDef<Payment>[] = [
         enableHiding: false,
     },
 ];
+
+const workOrderColumns: ColumnDef<WorkOrder>[] = [
+    {
+        id: 'id',
+        header: 'Work order',
+        cell: ({ row }) => `#${row.original.id}`,
+    },
+    {
+        id: 'vendor',
+        header: 'Vendor',
+        cell: ({ row }) => row.original.vendor?.name ?? '-',
+    },
+    {
+        id: 'scheduled',
+        header: 'Scheduled',
+        cell: ({ row }) => row.original.scheduled_date ?? '-',
+    },
+    {
+        id: 'estimated',
+        header: 'Est. cost',
+        cell: ({ row }) =>
+            row.original.estimated_cost !== null && row.original.estimated_cost !== undefined
+                ? currencyFormat.format(row.original.estimated_cost)
+                : '-',
+    },
+    {
+        id: 'actual',
+        header: 'Actual cost',
+        cell: ({ row }) =>
+            row.original.actual_cost !== null && row.original.actual_cost !== undefined
+                ? currencyFormat.format(row.original.actual_cost)
+                : '-',
+    },
+    {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) =>
+            h(
+                Badge,
+                { variant: 'secondary', class: statusBadgeClass(row.original.status ?? '') },
+                () => row.original.status ?? 'unknown',
+            ),
+    },
+    {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) =>
+            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
+                    h(Eye, { class: 'h-4 w-4' }),
+                ),
+            ),
+        enableSorting: false,
+        enableHiding: false,
+    },
+];
 </script>
 
 <template>
@@ -270,7 +327,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
     <Head title="Maintenance request" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
+        <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
             <PageHeader
                 title="Maintenance request"
                 subtitle="Review request context and advance maintenance work."
@@ -407,134 +464,121 @@ const paymentColumns: ColumnDef<Payment>[] = [
                 </template>
             </PageHeader>
 
-            <div class="grid gap-6 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Facility details</CardTitle>
-                        <CardDescription>
-                            Location context and operational ownership.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent class="space-y-4">
+            <Card class="overflow-hidden">
+                <CardHeader class="border-b border-border/60 bg-muted/30">
+                    <div class="flex items-start justify-between gap-4">
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
-                                Facility
-                            </p>
-                            <p class="text-base font-medium">
-                                {{ request.facility?.name ?? '-' }}
-                            </p>
+                            <CardTitle>Request details</CardTitle>
+                            <CardDescription>
+                                Scope, facility, and status summary.
+                            </CardDescription>
                         </div>
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <p class="text-xs uppercase text-muted-foreground">
-                                    Type
-                                </p>
-                                <p class="text-sm font-medium">
-                                    {{ request.facility?.facilityType?.name ?? '-' }}
-                                </p>
-                            </div>
-                            <div>
-                                <p class="text-xs uppercase text-muted-foreground">
-                                    Manager
-                                </p>
-                                <p class="text-sm font-medium">
-                                    {{ request.facility?.manager?.name ?? '-' }}
-                                </p>
-                            </div>
-                        </div>
-                        <div>
-                            <p class="text-xs uppercase text-muted-foreground">
-                                Condition
-                            </p>
-                            <p class="text-sm font-medium">
-                                {{ request.facility?.condition ?? '-' }}
-                            </p>
-                        </div>
-                        <Button variant="ghost" class="px-0" as-child>
+                        <Button variant="ghost" size="sm" as-child>
                             <Link :href="vendorsIndex().url">
                                 Browse vendors
                             </Link>
                         </Button>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Request details</CardTitle>
-                        <CardDescription>
-                            Scope, cost, and status tracking.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent class="space-y-4">
-                        <div>
-                            <p class="text-xs uppercase text-muted-foreground">
-                                Request type
-                            </p>
-                            <p class="text-base font-medium">
+                    </div>
+                </CardHeader>
+                <CardContent class="p-0">
+                    <div class="divide-y divide-border/60 text-sm">
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Facility</div>
+                            <div class="col-span-2 font-semibold">{{ request.facility?.name ?? '-' }}</div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Facility type</div>
+                            <div class="col-span-2 font-semibold">{{ request.facility?.facilityType?.name ?? '-' }}</div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Facility manager</div>
+                            <div class="col-span-2 flex items-center gap-2 font-semibold">
+                                <UsersRound class="h-4 w-4 text-muted-foreground" />
+                                <span>{{ request.facility?.manager?.name ?? '-' }}</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Condition</div>
+                            <div class="col-span-2 font-semibold">{{ request.facility?.condition ?? '-' }}</div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Request type</div>
+                            <div class="col-span-2 font-semibold">
                                 {{ request.requestType?.name ?? request.request_type?.name ?? '-' }}
-                            </p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-xs uppercase text-muted-foreground">
-                                Requested by
-                            </p>
-                            <p class="text-sm font-medium">
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Requested by</div>
+                            <div class="col-span-2 font-semibold">
                                 {{ request.requestedBy?.name ?? request.requested_by?.name ?? '-' }}
-                            </p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-xs uppercase text-muted-foreground">
-                                Description
-                            </p>
-                            <p class="text-sm text-muted-foreground">
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Status</div>
+                            <div class="col-span-2">
+                                <Badge variant="secondary" :class="statusBadgeClass(request.status)">
+                                    {{ statusLabel }}
+                                </Badge>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div class="text-xs uppercase text-muted-foreground">Description</div>
+                            <div class="col-span-2 text-muted-foreground">
                                 {{
                                     request.description ??
                                     'No description provided.'
                                 }}
-                            </p>
+                            </div>
                         </div>
-                        <CostTracker :estimated="request.cost" :actual="null" />
-                        <div class="space-y-2">
-                            <p class="text-xs uppercase text-muted-foreground">
-                                Status progress
-                            </p>
-                            <StatusTimeline :steps="statusSteps" :current="request.status" />
-                            <Badge variant="secondary" :class="statusBadgeClass(request.status)">
-                                Current: {{ request.status.replace('_', ' ') }}
-                            </Badge>
+                        <div class="px-6 py-4">
+                            <CostTracker :estimated="request.cost" :actual="null" />
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-            <div class="grid gap-6 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
+            <div v-if="hasApprovedRequest" class="grid gap-6 xl:grid-cols-2">
+                <Card class="overflow-hidden">
+                    <CardHeader class="border-b border-border/60 bg-muted/30">
                         <CardTitle>Linked work orders</CardTitle>
                         <CardDescription>
                             Assignments created from this request.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent class="space-y-3">
-                        <WorkOrderCard v-for="workOrder in workOrders" :key="workOrder.id" :work-order="workOrder"
-                            :show-route="workOrderShow" />
-                        <div v-if="!workOrders.length"
-                            class="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
+                    <CardContent class="p-6">
+                        <DataTable
+                            :data="workOrders"
+                            :columns="workOrderColumns"
+                            :show-search="false"
+                            :enable-column-toggle="false"
+                            :show-selection-summary="false"
+                            class="portfolio-table"
+                        />
+                        <div
+                            v-if="!workOrders.length"
+                            class="mt-4 rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground"
+                        >
                             No work orders linked yet.
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
+                <Card class="overflow-hidden">
+                    <CardHeader class="border-b border-border/60 bg-muted/30">
                         <CardTitle>Linked payments</CardTitle>
                         <CardDescription>
                             Payment readiness and approvals.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <DataTable :data="payments" :columns="paymentColumns" :show-search="false"
-                            :enable-column-toggle="false" :show-selection-summary="false" class="portfolio-table" />
+                    <CardContent class="p-6">
+                        <DataTable
+                            :data="payments"
+                            :columns="paymentColumns"
+                            :show-search="false"
+                            :enable-column-toggle="false"
+                            :show-selection-summary="false"
+                            class="portfolio-table"
+                        />
                     </CardContent>
                 </Card>
             </div>

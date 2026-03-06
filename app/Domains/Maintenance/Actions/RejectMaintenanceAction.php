@@ -5,6 +5,8 @@ namespace App\Domains\Maintenance\Actions;
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
+use App\Domains\Notifications\Actions\SendUserNotificationAction;
+use App\Domains\Notifications\DTOs\UserNotificationData;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use DomainException;
@@ -14,7 +16,8 @@ class RejectMaintenanceAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected SendUserNotificationAction $sendUserNotificationAction
     ) {}
 
     public function execute(MaintenanceRequest $request): MaintenanceRequest
@@ -24,15 +27,21 @@ class RejectMaintenanceAction
             throw new DomainException('Authenticated user is required.');
         }
 
-        $isFinalApprover = $actor->can('maintenance.manage_all');
+        $isFinalApprover = $actor->can('maintenance.manage_all')
+            || $actor->can('users.manage');
 
-        if ($isFinalApprover) {
-            if (! in_array($request->status, [
+        $finalApproverStatuses = array_merge(
+            MaintenanceStatus::approvalQueue(),
+            [
                 MaintenanceStatus::Approved->value,
                 MaintenanceStatus::Assigned->value,
                 MaintenanceStatus::WorkOrderCreated->value,
-            ], true)) {
-                throw new DomainException('Only manager-approved requests can be rejected by admin.');
+            ]
+        );
+
+        if ($isFinalApprover) {
+            if (! in_array($request->status, $finalApproverStatuses, true)) {
+                throw new DomainException('Only submitted or manager-approved requests can be rejected.');
             }
         } elseif (! in_array($request->status, MaintenanceStatus::approvalQueue(), true)) {
             throw new DomainException('Only submitted requests can be rejected by maintenance managers.');
@@ -55,6 +64,20 @@ class RejectMaintenanceAction
             auditable_id: $request->id,
             before: $before,
             after: $request->getAttributes(),
+        ));
+
+        $this->sendUserNotificationAction->execute(new UserNotificationData(
+            user_id: (int) $request->requested_by,
+            event: $isFinalApprover
+                ? 'maintenance_request.final_rejected'
+                : 'maintenance_request.rejected',
+            title: 'Maintenance request rejected',
+            body: 'Request #'.$request->id.' was rejected.',
+            action_url: route('maintenance.show', $request),
+            meta: [
+                'maintenance_request_id' => $request->id,
+                'status' => $request->status,
+            ],
         ));
 
         return $request;
