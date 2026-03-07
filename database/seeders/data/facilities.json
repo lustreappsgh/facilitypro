@@ -8924,20 +8924,20 @@
         "name": "CATS",
         "facility_type_id": 5,
         "parent_id": 14,
-        "condition": "good",
+        "condition": "Good",
         "managed_by": 18,
         "created_at": "2023-03-28 05:05:01",
-        "updated_at": "2023-03-28 05:05:01"
+        "updated_at": "2026-03-06 20:57:14"
     },
     {
         "id": 896,
         "name": "POULTRY FARM",
         "facility_type_id": 5,
         "parent_id": 1150,
-        "condition": "good",
+        "condition": "Good",
         "managed_by": 18,
         "created_at": "2023-03-28 05:05:01",
-        "updated_at": "2023-03-28 05:05:01"
+        "updated_at": "2026-03-07 10:13:31"
     },
     {
         "id": 897,
@@ -9994,10 +9994,10 @@
         "name": "ECCLESIASTES GARDENS",
         "facility_type_id": 19,
         "parent_id": 31,
-        "condition": "good",
+        "condition": "Good",
         "managed_by": 4,
         "created_at": "2023-03-28 05:05:01",
-        "updated_at": "2023-03-28 05:05:01"
+        "updated_at": "2026-03-06 21:10:42"
     },
     {
         "id": 1003,
@@ -10034,10 +10034,10 @@
         "name": "BLOCK 7&8",
         "facility_type_id": 19,
         "parent_id": 31,
-        "condition": "good",
+        "condition": "Good",
         "managed_by": 4,
         "created_at": "2023-03-28 05:05:01",
-        "updated_at": "2023-03-28 05:05:01"
+        "updated_at": "2026-03-06 21:10:42"
     },
     {
         "id": 1007,
@@ -11611,13 +11611,13 @@
     },
     {
         "id": 1189,
-        "name": "Legon Plantations",
+        "name": "Lemon Plantations",
         "facility_type_id": 23,
         "parent_id": 35,
-        "condition": "good",
+        "condition": "Good",
         "managed_by": 18,
         "created_at": "2023-03-28 05:05:01",
-        "updated_at": "2023-03-28 05:05:01"
+        "updated_at": "2026-03-07 12:18:40"
     },
     {
         "id": 1190,
@@ -11788,5 +11788,75 @@
         "managed_by": 23,
         "created_at": "2026-03-05 09:38:27",
         "updated_at": "2026-03-05 09:38:27"
+    },
+    {
+        "id": 1207,
+        "name": "Golf Course Boreholes",
+        "facility_type_id": 8,
+        "parent_id": 20,
+        "condition": "Good",
+        "managed_by": 6,
+        "created_at": "2026-03-07 13:30:24",
+        "updated_at": "2026-03-07 13:30:24"
+    },
+    {
+        "id": 1208,
+        "name": "Elizabeth Garden Borehole",
+        "facility_type_id": 8,
+        "parent_id": 20,
+        "condition": "Good",
+        "managed_by": 6,
+        "created_at": "2026-03-07 13:30:24",
+        "updated_at": "2026-03-07 13:30:24"
+    },
+    {
+        "id": 1209,
+        "name": "Kuriake Courtyard Borehole",
+        "facility_type_id": 8,
+        "parent_id": 20,
+        "condition": "Good",
+        "managed_by": 6,
+        "created_at": "2026-03-07 13:30:24",
+        "updated_at": "2026-03-07 13:30:24"
+    },
+    {
+        "id": 1210,
+        "name": "Honeymoon cottage",
+        "facility_type_id": 41,
+        "parent_id": null,
+        "condition": "Good",
+        "managed_by": 2,
+        "created_at": "2026-03-07 13:30:24",
+        "updated_at": "2026-03-07 13:30:24"
+    },
+    {
+        "id": 1211,
+        "name": "Campus Refreshments",
+        "facility_type_id": 41,
+        "parent_id": null,
+        "condition": "Good",
+        "managed_by": 2,
+        "created_at": "2026-03-07 13:30:24",
+        "updated_at": "2026-03-07 13:30:24"
+    },
+    {
+        "id": 1212,
+        "name": "Milk and Honey",
+        "facility_type_id": 41,
+        "parent_id": null,
+        "condition": "Good",
+        "managed_by": 11,
+        "created_at": "2026-03-07 13:30:24",
+        "updated_at": "2026-03-07 13:30:24"
+    },
+    {
+        "id": 1213,
+        "name": "Statues & Signs",
+        "facility_type_id": 41,
+        "parent_id": null,
+        "condition": "Good",
+        "managed_by": 12,
+        "created_at": "2026-03-07 13:30:24",
+        "updated_at": "2026-03-07 13:30:24"
     }
 ]

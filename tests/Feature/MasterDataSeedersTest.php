@@ -14,7 +14,7 @@ test('master data seeders load the current snapshots', function () {
 
     expect(DB::table('facility_types')->count())->toBe(44);
     expect(DB::table('request_types')->count())->toBe(25);
-    expect(DB::table('facilities')->count())->toBe(1179);
+    expect(DB::table('facilities')->count())->toBe(1186);
 
     expect(DB::table('facility_types')->where('id', 1)->value('name'))
         ->toBe('Academic block');
