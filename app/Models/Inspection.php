@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
-use App\Models\User;
 use App\Support\TextNormalizer;
 use App\Traits\ResolvesMaintenanceScope;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Inspection extends BaseModel
 {
@@ -28,7 +27,6 @@ class Inspection extends BaseModel
         'created_at' => 'date:M j, Y',
     ];
 
-
     protected $appends = [
         'month_week',
     ];
@@ -38,20 +36,16 @@ class Inspection extends BaseModel
         $this->attributes['comments'] = TextNormalizer::fixMojibake($value);
     }
 
-    public function getMonthWeekAttribute()
+    public function getMonthWeekAttribute(): string
     {
-
-        $startOfWeek = $this->created_at->copy()->startOfWeek(Carbon::SUNDAY);
-        $endOfWeek = $this->created_at->copy()->endOfWeek(Carbon::SATURDAY);
+        $startOfWeek = $this->created_at->copy()->startOfWeek(Carbon::MONDAY);
+        $endOfWeek = $this->created_at->copy()->endOfWeek(Carbon::SUNDAY);
 
         $weekNumber = $startOfWeek->weekOfMonth;
         $monthName = $startOfWeek->format('F');
 
-        return $monthName . ' wk ' . $weekNumber . ' (' . $startOfWeek->format('M d') . ' - ' . $endOfWeek->format('M d') . ')';
+        return $monthName.' wk '.$weekNumber.' ('.$startOfWeek->format('M d').' - '.$endOfWeek->format('M d').')';
     }
-
-
-
 
     public function addedBy(): BelongsTo
     {

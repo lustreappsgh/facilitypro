@@ -6,13 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as facilitiesIndex } from '@/routes/facilities';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import { ArrowLeft } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 interface FacilityType {
     id: number;
@@ -58,9 +59,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const selectClass =
-    'h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
-
 const conditions = ['Good', 'Bad', 'OutOfOrder'];
 
 const { can } = usePermissions();
@@ -89,6 +87,17 @@ const managerName = computed(
     () =>
         props.users.find((manager) => manager.id === props.facility.managed_by)
             ?.name ?? 'Unassigned',
+);
+
+const selectedFacilityTypeId = ref(
+    props.facility.facility_type_id ? String(props.facility.facility_type_id) : '',
+);
+const selectedCondition = ref(props.facility.condition ?? '');
+const selectedParentId = ref(
+    props.facility.parent_id ? String(props.facility.parent_id) : '',
+);
+const selectedManagerId = ref(
+    props.facility.managed_by ? String(props.facility.managed_by) : '',
 );
 </script>
 
@@ -162,15 +171,12 @@ const managerName = computed(
                     class="mt-8 space-y-6"
                     v-slot="{ errors, processing }"
                 >
+                    <input type="hidden" name="facility_type_id" :value="selectedFacilityTypeId" />
+                    <input type="hidden" name="condition" :value="selectedCondition" />
+                    <input type="hidden" name="parent_id" :value="selectedParentId === 'none' ? '' : selectedParentId" />
+                    <input type="hidden" name="managed_by" :value="selectedManagerId === 'none' ? '' : selectedManagerId" />
                     <div v-if="isFacilityManagerView" class="grid gap-6 md:grid-cols-2">
                         <input type="hidden" name="name" :value="facility.name" />
-                        <input
-                            type="hidden"
-                            name="facility_type_id"
-                            :value="facility.facility_type_id ?? ''"
-                        />
-                        <input type="hidden" name="parent_id" :value="facility.parent_id ?? ''" />
-                        <input type="hidden" name="managed_by" :value="facility.managed_by ?? ''" />
 
                         <div class="grid gap-2 md:col-span-2">
                             <Label for="name">Facility name</Label>
@@ -194,22 +200,20 @@ const managerName = computed(
 
                         <div class="grid gap-2">
                             <Label for="condition">Condition</Label>
-                            <select
-                                id="condition"
-                                name="condition"
-                                :class="selectClass"
-                                :value="facility.condition ?? ''"
-                                required
-                            >
-                                <option value="" disabled>Select condition</option>
-                                <option
-                                    v-for="condition in conditions"
-                                    :key="condition"
-                                    :value="condition"
-                                >
-                                    {{ condition }}
-                                </option>
-                            </select>
+                            <Select v-model="selectedCondition" required>
+                                <SelectTrigger id="condition" class="w-full">
+                                    <SelectValue placeholder="Select condition" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="condition in conditions"
+                                        :key="condition"
+                                        :value="condition"
+                                    >
+                                        {{ condition }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                             <InputError :message="errors.condition" />
                         </div>
                     </div>
@@ -228,83 +232,79 @@ const managerName = computed(
 
                         <div class="grid gap-2">
                             <Label for="facility_type_id">Facility type</Label>
-                            <select
-                                id="facility_type_id"
-                                name="facility_type_id"
-                                :class="selectClass"
-                                :value="facility.facility_type_id ?? ''"
-                                required
-                            >
-                                <option value="" disabled>Select a type</option>
-                                <option
-                                    v-for="type in facilityTypes"
-                                    :key="type.id"
-                                    :value="type.id"
-                                >
-                                    {{ type.name }}
-                                </option>
-                            </select>
+                            <Select v-model="selectedFacilityTypeId" required>
+                                <SelectTrigger id="facility_type_id" class="w-full">
+                                    <SelectValue placeholder="Select a type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="type in facilityTypes"
+                                        :key="type.id"
+                                        :value="String(type.id)"
+                                    >
+                                        {{ type.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                             <InputError :message="errors.facility_type_id" />
                         </div>
 
                         <div class="grid gap-2">
                             <Label for="condition">Condition</Label>
-                            <select
-                                id="condition"
-                                name="condition"
-                                :class="selectClass"
-                                :value="facility.condition ?? ''"
-                                required
-                            >
-                                <option value="" disabled>Select condition</option>
-                                <option
-                                    v-for="condition in conditions"
-                                    :key="condition"
-                                    :value="condition"
-                                >
-                                    {{ condition }}
-                                </option>
-                            </select>
+                            <Select v-model="selectedCondition" required>
+                                <SelectTrigger id="condition" class="w-full">
+                                    <SelectValue placeholder="Select condition" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="condition in conditions"
+                                        :key="condition"
+                                        :value="condition"
+                                    >
+                                        {{ condition }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                             <InputError :message="errors.condition" />
                         </div>
 
                         <div class="grid gap-2">
                             <Label for="parent_id">Parent facility</Label>
-                            <select
-                                id="parent_id"
-                                name="parent_id"
-                                :class="selectClass"
-                                :value="facility.parent_id ?? ''"
-                            >
-                                <option value="">No parent</option>
-                                <option
-                                    v-for="parent in parents"
-                                    :key="parent.id"
-                                    :value="parent.id"
-                                >
-                                    {{ parent.name }}
-                                </option>
-                            </select>
+                            <Select v-model="selectedParentId">
+                                <SelectTrigger id="parent_id" class="w-full">
+                                    <SelectValue placeholder="No parent" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">No parent</SelectItem>
+                                    <SelectItem
+                                        v-for="parent in parents"
+                                        :key="parent.id"
+                                        :value="String(parent.id)"
+                                    >
+                                        {{ parent.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                             <InputError :message="errors.parent_id" />
                         </div>
 
                         <div class="grid gap-2">
                             <Label for="managed_by">Facility manager</Label>
-                            <select
-                                id="managed_by"
-                                name="managed_by"
-                                :class="selectClass"
-                                :value="facility.managed_by ?? ''"
-                            >
-                                <option value="">Unassigned</option>
-                                <option
-                                    v-for="manager in users"
-                                    :key="manager.id"
-                                    :value="manager.id"
-                                >
-                                    {{ manager.name }}
-                                </option>
-                            </select>
+                            <Select v-model="selectedManagerId">
+                                <SelectTrigger id="managed_by" class="w-full">
+                                    <SelectValue placeholder="Unassigned" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Unassigned</SelectItem>
+                                    <SelectItem
+                                        v-for="manager in users"
+                                        :key="manager.id"
+                                        :value="String(manager.id)"
+                                    >
+                                        {{ manager.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                             <InputError :message="errors.managed_by" />
                         </div>
                     </div>

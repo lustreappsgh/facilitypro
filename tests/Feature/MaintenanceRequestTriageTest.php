@@ -274,3 +274,160 @@ test('manager with maintenance manage all can approve a submitted request throug
     expect($maintenance->refresh()->status)->toBe('work_order_created');
     expect($maintenance->workOrders()->count())->toBe(1);
 });
+
+test('admin can fast-track a submitted request through single work order creation', function () {
+    $admin = User::factory()->create();
+
+    Permission::findOrCreate('maintenance.manage_all');
+    Permission::findOrCreate('maintenance_requests.view');
+    Permission::findOrCreate('users.manage');
+    Permission::findOrCreate('work_orders.create');
+    $admin->givePermissionTo(['maintenance.manage_all', 'maintenance_requests.view', 'users.manage', 'work_orders.create']);
+
+    $facilityType = FacilityType::create(['name' => 'Campus']);
+    $facility = Facility::create([
+        'name' => 'Fast Track Campus',
+        'facility_type_id' => $facilityType->id,
+        'parent_id' => null,
+        'condition' => 'Good',
+        'managed_by' => $admin->id,
+    ]);
+
+    $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
+    $maintenance = MaintenanceRequest::create([
+        'facility_id' => $facility->id,
+        'request_type_id' => $requestType->id,
+        'description' => 'Replace breaker panel',
+        'cost' => 1200,
+        'status' => 'submitted',
+        'requested_by' => $admin->id,
+    ]);
+
+    $vendor = Vendor::create([
+        'name' => 'Power Restore',
+        'email' => 'power.restore@example.test',
+        'phone' => '555-0140',
+        'service_type' => 'Electrical',
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($admin);
+
+    $response = $this->post(route('work-orders.store'), [
+        'maintenance_request_id' => $maintenance->id,
+        'vendor_id' => $vendor->id,
+        'estimated_cost' => 1300,
+        'scheduled_date' => now()->addDay()->toDateString(),
+    ]);
+
+    $response->assertRedirect(route('work-orders.index'));
+    expect($maintenance->refresh()->status)->toBe('in_progress');
+    expect($maintenance->workOrders()->count())->toBe(1);
+    expect($maintenance->workOrders()->latest('id')->first()?->status)->toBe('in_progress');
+});
+
+test('admin can fast-track submitted requests through bulk work order creation', function () {
+    $admin = User::factory()->create();
+
+    Permission::findOrCreate('maintenance.manage_all');
+    Permission::findOrCreate('maintenance_requests.view');
+    Permission::findOrCreate('users.manage');
+    Permission::findOrCreate('work_orders.create');
+    $admin->givePermissionTo(['maintenance.manage_all', 'maintenance_requests.view', 'users.manage', 'work_orders.create']);
+
+    $facilityType = FacilityType::create(['name' => 'Campus']);
+    $facility = Facility::create([
+        'name' => 'Bulk Fast Track Campus',
+        'facility_type_id' => $facilityType->id,
+        'parent_id' => null,
+        'condition' => 'Good',
+        'managed_by' => $admin->id,
+    ]);
+
+    $requestType = RequestType::firstOrCreate(['name' => 'General']);
+    $maintenance = MaintenanceRequest::create([
+        'facility_id' => $facility->id,
+        'request_type_id' => $requestType->id,
+        'description' => 'Bulk fast-track maintenance',
+        'cost' => 450,
+        'status' => 'pending',
+        'requested_by' => $admin->id,
+    ]);
+
+    $vendor = Vendor::create([
+        'name' => 'Rapid Bulk Repairs',
+        'email' => 'rapid.bulk.repairs@example.test',
+        'phone' => '555-0150',
+        'service_type' => 'General',
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($admin);
+
+    $response = $this->post(route('work-orders.bulk-store'), [
+        'bulk_orders' => [
+            [
+                'maintenance_request_id' => $maintenance->id,
+                'vendor_id' => $vendor->id,
+                'estimated_cost' => 500,
+                'review_action' => 'approve',
+            ],
+        ],
+    ]);
+
+    $response->assertRedirect(route('work-orders.index'));
+    expect($maintenance->refresh()->status)->toBe('in_progress');
+    expect($maintenance->workOrders()->count())->toBe(1);
+    expect($maintenance->workOrders()->latest('id')->first()?->status)->toBe('in_progress');
+});
+
+test('manager can review a direct report maintenance request from the request index', function () {
+    $manager = User::factory()->create();
+    $directReport = User::factory()->create([
+        'manager_id' => $manager->id,
+    ]);
+    $facilityManager = User::factory()->create();
+
+    Permission::findOrCreate('maintenance.manage_all');
+    Permission::findOrCreate('maintenance_requests.view');
+    Permission::findOrCreate('work_orders.create');
+    $manager->givePermissionTo(['maintenance.manage_all', 'maintenance_requests.view', 'work_orders.create']);
+    $manager->assignRole(Role::findOrCreate('Manager'));
+    $directReport->assignRole(Role::findOrCreate('Maintenance Manager'));
+
+    $facilityType = FacilityType::create(['name' => 'Campus']);
+    $facility = Facility::create([
+        'name' => 'Direct Report Facility',
+        'facility_type_id' => $facilityType->id,
+        'parent_id' => null,
+        'condition' => 'Good',
+        'managed_by' => $facilityManager->id,
+    ]);
+
+    $requestType = RequestType::firstOrCreate(['name' => 'HVAC']);
+    $maintenance = MaintenanceRequest::create([
+        'facility_id' => $facility->id,
+        'request_type_id' => $requestType->id,
+        'description' => 'Direct report request',
+        'cost' => 640,
+        'status' => 'submitted',
+        'requested_by' => $directReport->id,
+        'week_start' => now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString(),
+    ]);
+
+    $this->actingAs($manager);
+
+    $indexResponse = $this->get(route('maintenance.index'));
+
+    $indexResponse->assertSuccessful();
+    $indexResponse->assertInertia(
+        fn (Assert $page) => $page
+            ->where('data.groups.0.requests.0.id', $maintenance->id)
+            ->where('data.groups.0.requests.0.requested_by_name', $directReport->name)
+    );
+
+    $reviewResponse = $this->post(route('maintenance.reject', $maintenance));
+
+    $reviewResponse->assertRedirect();
+    expect($maintenance->refresh()->status)->toBe('rejected');
+});

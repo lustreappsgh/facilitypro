@@ -6,6 +6,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as workOrdersIndex } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
@@ -54,9 +55,6 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '#',
     },
 ];
-
-const selectClass =
-    'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
 
 const statusMode = ref<'assigned'>('assigned');
 const selectedRequestId = ref<string | number | null>(
@@ -109,31 +107,37 @@ watch(
                 v-slot="{ errors, processing }"
             >
                 <input type="hidden" name="status" :value="statusMode" />
+                <input
+                    v-if="selectedRequestId !== null && selectedRequestId !== ''"
+                    type="hidden"
+                    name="maintenance_request_id"
+                    :value="selectedRequestId"
+                />
+                <input
+                    v-if="selectedVendorId !== null && selectedVendorId !== ''"
+                    type="hidden"
+                    name="vendor_id"
+                    :value="selectedVendorId"
+                />
 
                 <div class="grid gap-2">
                     <Label for="maintenance_request_id">
                         Maintenance request
                     </Label>
-                    <select
-                        id="maintenance_request_id"
-                        name="maintenance_request_id"
-                        :class="selectClass"
-                        v-model="selectedRequestId"
-                        required
-                    >
-                        <option value="" disabled>
-                            Select a request
-                        </option>
-                        <option
-                            v-for="request in maintenanceRequests"
-                            :key="request.id"
-                            :value="request.id"
-                        >
-                            Request #{{ request.id }}{{
-                                request.facility ? ` — ${request.facility.name}` : ''
-                            }}
-                        </option>
-                    </select>
+                    <Select v-model="selectedRequestId" required>
+                        <SelectTrigger id="maintenance_request_id" class="w-full">
+                            <SelectValue placeholder="Select a request" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="request in maintenanceRequests"
+                                :key="request.id"
+                                :value="String(request.id)"
+                            >
+                                Request #{{ request.id }}{{ request.facility ? ` - ${request.facility.name}` : '' }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.maintenance_request_id" />
                 </div>
 
@@ -168,20 +172,20 @@ watch(
 
                 <div class="grid gap-2">
                     <Label for="vendor_id">Vendor</Label>
-                    <select
-                        id="vendor_id"
-                        name="vendor_id"
-                        :class="selectClass"
-                        v-model="selectedVendorId"
-                        required
-                    >
-                        <option value="" disabled>
-                            Select a vendor
-                        </option>
-                        <option v-for="vendor in vendors" :key="vendor.id" :value="vendor.id">
-                            {{ vendor.name }}
-                        </option>
-                    </select>
+                    <Select v-model="selectedVendorId" required>
+                        <SelectTrigger id="vendor_id" class="w-full">
+                            <SelectValue placeholder="Select a vendor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="vendor in vendors"
+                                :key="vendor.id"
+                                :value="String(vendor.id)"
+                            >
+                                {{ vendor.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.vendor_id" />
                 </div>
 

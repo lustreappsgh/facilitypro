@@ -5,10 +5,12 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as vendorsIndex } from '@/routes/vendors';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -21,8 +23,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const selectClass =
-    'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
+const selectedStatus = ref('active');
+
 </script>
 
 <template>
@@ -37,6 +39,7 @@ const selectClass =
                 class="max-w-3xl space-y-6"
                 v-slot="{ errors, processing }"
             >
+                <input type="hidden" name="status" :value="selectedStatus" />
                 <div class="grid gap-2">
                     <Label for="name">Vendor name</Label>
                     <Input
@@ -81,11 +84,15 @@ const selectClass =
 
                 <div class="grid gap-2">
                     <Label for="status">Status</Label>
-                    <select id="status" name="status" :class="selectClass">
-                        <option value="">Select status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                    </select>
+                    <Select v-model="selectedStatus" name="status">
+                        <SelectTrigger id="status" class="w-full">
+                            <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.status" />
                 </div>
 

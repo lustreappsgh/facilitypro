@@ -13,6 +13,7 @@ import {
     AccordionTrigger
 } from '@/components/ui/accordion';
 import DataTable from '@/components/data-table/DataTable.vue';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePermissions } from '@/composables/usePermissions';
 import {
@@ -105,7 +106,7 @@ const openBulkInspectionModal = () => {
     }).url);
 };
 
-const openBulkTodoModal = () => {
+const openBulkTodoPage = () => {
     if (!selectionCount.value || !canCreateTodo.value) {
         return;
     }
@@ -176,10 +177,10 @@ const columns: ColumnDef<Facility>[] = [
         id: 'actions',
         header: '',
         cell: ({ row }) => h('div', { class: 'text-right' }, [
-            h('div', { class: 'flex items-center justify-end gap-1' }, [
+            h(ButtonGroup, { class: 'border-border/60 bg-background/80 dark:bg-muted/30' }, () => [
                 h(Tooltip, {}, () => [
                     h(TooltipTrigger, { asChild: true }, () =>
-                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8 rounded-none text-foreground dark:text-foreground', asChild: true }, {
                             default: () => h(Link, { href: facilitiesShow(row.original.id).url, 'aria-label': 'View facility' }, () =>
                                 h(Eye, { class: 'h-4 w-4' }),
                             )
@@ -189,7 +190,7 @@ const columns: ColumnDef<Facility>[] = [
                 ]),
                 h(Tooltip, {}, () => [
                     h(TooltipTrigger, { asChild: true }, () =>
-                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8 rounded-none text-foreground dark:text-foreground', asChild: true }, {
                             default: () => h(Link, { href: inspectionsCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Add inspection' }, () =>
                                 h(ClipboardCheck, { class: 'h-4 w-4' }),
                             )
@@ -199,7 +200,7 @@ const columns: ColumnDef<Facility>[] = [
                 ]),
                 h(Tooltip, {}, () => [
                     h(TooltipTrigger, { asChild: true }, () =>
-                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8 rounded-none text-foreground dark:text-foreground', asChild: true }, {
                             default: () => h(Link, { href: maintenanceCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Add request' }, () =>
                                 h(Wrench, { class: 'h-4 w-4' }),
                             )
@@ -263,7 +264,7 @@ const columns: ColumnDef<Facility>[] = [
                         size="sm"
                         class="h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
                         :disabled="!selectionCount"
-                        @click="openBulkTodoModal"
+                        @click="openBulkTodoPage"
                     >
                         Bulk Todos
                     </Button>
@@ -377,25 +378,35 @@ const columns: ColumnDef<Facility>[] = [
                                                 </div>
                                             </div>
                                             <Button size="sm"
-                                                class="w-full h-10 rounded-xl bg-muted/30 border border-border group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all text-[10px] font-black uppercase tracking-widest shadow-none"
+                                                class="h-10 w-full rounded-xl border border-border/70 bg-muted/40 text-foreground transition-all text-[10px] font-black uppercase tracking-widest shadow-none group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground dark:bg-muted/30 dark:text-foreground"
                                                 as-child>
                                                 <Link :href="facilitiesShow(facility.id).url">Inspect Details
                                                 </Link>
                                             </Button>
-                                            <div class="grid grid-cols-2 gap-2">
-                                                <Button size="sm" variant="outline" class="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest" as-child>
+                                            <ButtonGroup orientation="vertical" class="grid grid-cols-2 gap-2 border-0 bg-transparent shadow-none">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    class="h-9 rounded-xl border-border/70 bg-background/80 text-foreground shadow-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground dark:bg-muted/30 dark:text-foreground"
+                                                    as-child
+                                                >
                                                     <Link :href="inspectionsCreate({ query: { facility_id: facility.id } }).url" aria-label="Add inspection">
                                                         <ClipboardCheck class="mr-2 h-4 w-4" />
                                                         Add inspection
                                                     </Link>
                                                 </Button>
-                                                <Button size="sm" variant="outline" class="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest" as-child>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    class="h-9 rounded-xl border-border/70 bg-background/80 text-foreground shadow-none transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground dark:bg-muted/30 dark:text-foreground"
+                                                    as-child
+                                                >
                                                     <Link :href="maintenanceCreate({ query: { facility_id: facility.id } }).url" aria-label="Add request">
                                                         <Wrench class="mr-2 h-4 w-4" />
                                                         Add request
                                                     </Link>
                                                 </Button>
-                                            </div>
+                                            </ButtonGroup>
                                         </div>
                                     </div>
                                 </div>

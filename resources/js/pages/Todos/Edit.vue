@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { DatePicker } from '@/components/ui/date-picker';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as todosIndex, update } from '@/routes/todos';
 import type { BreadcrumbItem } from '@/types';
@@ -35,6 +43,17 @@ interface Props {
 const props = defineProps<Props>();
 
 const description = ref(props.data.todo.description);
+const facilityId = ref(String(props.data.todo.facility_id));
+
+const getUpcomingMonday = () => {
+    const date = new Date();
+    const day = date.getDay();
+    const diffToNextMonday = (8 - day) % 7 || 7;
+    date.setDate(date.getDate() + diffToNextMonday);
+    return date.toISOString().slice(0, 10);
+};
+
+const upcomingMonday = getUpcomingMonday();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -47,9 +66,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const selectClass =
-    'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
-
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[120px] w-full rounded-md border px-3 py-2';
 </script>
@@ -59,7 +75,7 @@ const textAreaClass =
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Edit todo" subtitle="Update the weekly task details." />
+            <PageHeader title="Edit todo" subtitle="Update the task for the upcoming Monday-start week." />
 
             <Form
                 v-bind="update.form(data.todo)"
@@ -68,33 +84,38 @@ const textAreaClass =
             >
                 <div class="grid gap-2">
                     <Label for="facility_id">Facility</Label>
-                    <select
-                        id="facility_id"
-                        name="facility_id"
-                        :class="selectClass"
-                        :value="data.todo.facility_id"
-                        required
-                    >
-                        <option value="" disabled>Select a facility</option>
-                        <option
-                            v-for="facility in data.facilities"
-                            :key="facility.id"
-                            :value="facility.id"
-                        >
-                            {{ facility.name }}
-                        </option>
-                    </select>
+                    <input type="hidden" name="facility_id" :value="facilityId" />
+                    <Select v-model="facilityId">
+                        <SelectTrigger id="facility_id" class="w-full">
+                            <SelectValue placeholder="Select a facility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="facility in data.facilities"
+                                :key="facility.id"
+                                :value="String(facility.id)"
+                            >
+                                {{ facility.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.facility_id" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="week">Week start</Label>
-                    <DatePicker
+                    <Label for="week">Week starting Monday</Label>
+                    <Input
                         id="week"
                         name="week"
-                        :default-value="data.todo.week_start ?? ''"
+                        type="date"
+                        :value="data.todo.week_start ?? upcomingMonday"
+                        :min="upcomingMonday"
+                        :max="upcomingMonday"
                         required
-                     />
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        Weekly todos are scheduled for the next Monday-start week only.
+                    </p>
                     <InputError :message="errors.week" />
                 </div>
 
@@ -110,12 +131,12 @@ const textAreaClass =
                     <InputError :message="errors.description" />
                 </div>
 
-                <div class="flex items-center gap-4">
-                    <Button :disabled="processing">Save changes</Button>
-                    <Button variant="ghost" as-child>
+                <ButtonGroup class="border-border/60 bg-background/80 dark:bg-muted/30">
+                    <Button class="rounded-none" :disabled="processing">Save changes</Button>
+                    <Button variant="ghost" class="rounded-none" as-child>
                         <Link :href="todosIndex().url">Cancel</Link>
                     </Button>
-                </div>
+                </ButtonGroup>
             </Form>
         </div>
     </AppLayout>

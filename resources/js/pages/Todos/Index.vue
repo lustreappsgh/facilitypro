@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import StatsCard from '@/components/StatsCard.vue';
 import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { complete, edit, index as todosIndex } from '@/routes/todos';
+import { complete, create as todosCreate, edit, index as todosIndex } from '@/routes/todos';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
@@ -17,7 +18,7 @@ import { AlertTriangle, Check, CheckCircle2, ClipboardCheck, ClipboardList, Penc
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import TodoModal from '@/components/TodoModal.vue';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Facility {
     id: number;
@@ -90,7 +91,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const { can } = usePermissions();
 
-const todoModalOpen = ref(false);
 const filterStartDate = ref(props.data.filters.start_date || '');
 const filterEndDate = ref(props.data.filters.end_date || '');
 const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
@@ -290,23 +290,40 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
     base.push({
         id: 'actions',
         header: '',
-        cell: ({ row }) =>
-            h('div', { class: 'flex items-center justify-end gap-1' }, [
+        cell: ({ row }) => {
+            const actions = [
                 can('todos.update') && ['pending'].includes(row.original.status)
-                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                        h(Link, { href: edit(row.original.id).url, 'aria-label': 'Edit todo' }, () =>
-                            h(Pencil, { class: 'h-4 w-4' }),
+                    ? h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8 rounded-none text-foreground dark:text-foreground', asChild: true }, () =>
+                                h(Link, { href: edit(row.original.id).url, 'aria-label': 'Edit todo' }, () =>
+                                    h(Pencil, { class: 'h-4 w-4' }),
+                                ),
+                            ),
                         ),
-                    )
+                        h(TooltipContent, { side: 'top' }, () => 'Edit todo'),
+                    ])
                     : null,
                 can('todos.complete') && ['pending', 'overdue'].includes(row.original.status)
-                    ? h(Button, { variant: 'secondary', size: 'icon', class: 'h-8 w-8 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20', asChild: true }, () =>
-                        h(Link, { href: complete(row.original.id).url, method: 'post', as: 'button', 'aria-label': 'Complete todo' }, () =>
-                            h(Check, { class: 'h-4 w-4' }),
+                    ? h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            h(Button, { variant: 'secondary', size: 'icon', class: 'h-8 w-8 rounded-none bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-200', asChild: true }, () =>
+                                h(Link, { href: complete(row.original.id).url, method: 'post', as: 'button', 'aria-label': 'Complete todo' }, () =>
+                                    h(Check, { class: 'h-4 w-4' }),
+                                ),
+                            ),
                         ),
-                    )
+                        h(TooltipContent, { side: 'top' }, () => 'Complete todo'),
+                    ])
                     : null,
-            ]),
+            ].filter(Boolean);
+
+            if (!actions.length) {
+                return null;
+            }
+
+            return h(ButtonGroup, { class: 'border-border/60 bg-background/80 dark:bg-muted/30' }, () => actions);
+        },
         enableSorting: false,
         enableHiding: false,
     });
@@ -323,16 +340,18 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h1 class="font-display text-3xl font-semibold tracking-tight text-foreground">Weekly todos</h1>
-                    <p class="text-sm text-muted-foreground">Plan and manage to-do items by week.</p>
+                    <p class="text-sm text-muted-foreground">Plan and manage todos by Monday-start week.</p>
                 </div>
                 <Button
                     v-if="can('todos.create')"
                     size="sm"
                     class="h-9 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wide"
-                    @click="todoModalOpen = true"
+                    as-child
                 >
-                    <Plus class="mr-1.5 h-3.5 w-3.5" />
-                    New todo
+                    <Link :href="todosCreate().url">
+                        <Plus class="mr-1.5 h-3.5 w-3.5" />
+                        New todo
+                    </Link>
                 </Button>
             </div>
 
@@ -376,13 +395,13 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
                             </SelectItem>
                         </SelectContent>
                     </Select>
-                    <div class="flex items-center gap-2">
-                        <Button size="sm" class="h-9 px-4" @click="applyFilters">Apply filters</Button>
-                        <Button size="sm" variant="ghost" class="h-9 px-3" @click="clearFilters">Reset</Button>
-                    </div>
+                    <ButtonGroup class="border-border/60 bg-background/80 dark:bg-muted/30">
+                        <Button size="sm" class="h-9 rounded-none px-4" @click="applyFilters">Apply filters</Button>
+                        <Button size="sm" variant="ghost" class="h-9 rounded-none px-3" @click="clearFilters">Reset</Button>
+                    </ButtonGroup>
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Default range shows the current and upcoming week: {{ dateRangeLabel }}.
+                    Default range shows the current and upcoming Monday-start weeks: {{ dateRangeLabel }}.
                 </p>
             </div>
 
@@ -460,7 +479,5 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
                 </Card>
             </div>
         </div>
-
-        <TodoModal v-model:open="todoModalOpen" :facilities="data.facilities" @success="router.reload()" />
     </AppLayout>
 </template>

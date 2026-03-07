@@ -2,10 +2,9 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
-use App\Models\User;
 use App\Support\TextNormalizer;
 use App\Traits\ResolvesMaintenanceScope;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -40,8 +39,8 @@ class Todo extends BaseModel
     public function getMonthWeekAttribute(): string
     {
         $reference = $this->week_start ?? $this->created_at;
-        $startOfWeek = $reference->copy()->startOfWeek(Carbon::SUNDAY);
-        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SATURDAY);
+        $startOfWeek = $reference->copy()->startOfWeek(Carbon::MONDAY);
+        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SUNDAY);
 
         $weekNumber = $startOfWeek->weekOfMonth;
         $monthName = $startOfWeek->format('F');
@@ -58,8 +57,6 @@ class Todo extends BaseModel
     {
         return $this->belongsTo(Facility::class);
     }
-
-
 
     public function scopeUserVisible($query, ?User $user = null)
     {

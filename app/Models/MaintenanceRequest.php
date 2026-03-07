@@ -31,11 +31,11 @@ class MaintenanceRequest extends BaseModel
         $this->attributes['description'] = TextNormalizer::fixMojibake($value);
     }
 
-    public function getMonthWeekAttribute()
+    public function getMonthWeekAttribute(): string
     {
         $reference = $this->week_start ?? $this->created_at;
-        $startOfWeek = $reference->copy()->startOfWeek(Carbon::SUNDAY);
-        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SATURDAY);
+        $startOfWeek = $reference->copy()->startOfWeek(Carbon::MONDAY);
+        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SUNDAY);
 
         $weekNumber = $startOfWeek->weekOfMonth;
         $monthName = $startOfWeek->format('F');
@@ -80,10 +80,12 @@ class MaintenanceRequest extends BaseModel
         }
 
         if ($user->can('maintenance.manage_all')) {
-            $scopedQuery = $query->whereHas('facility', fn ($q) => $q->whereIn(
-                'managed_by',
-                $this->maintenanceScopeManagerIds($user)
-            ));
+            $scopedQuery = $query->where(function ($builder) use ($user) {
+                $builder->whereHas('facility', fn ($q) => $q->whereIn(
+                    'managed_by',
+                    $this->maintenanceScopeManagerIds($user)
+                ))->orWhereIn('requested_by', $this->maintenanceScopeManagerIds($user));
+            });
 
             if ($this->shouldRestrictRequestTypes($user)) {
                 $allowedIds = $this->allowedRequestTypeIds($user);
@@ -103,11 +105,12 @@ class MaintenanceRequest extends BaseModel
             || $user->can('maintenance.complete')
             || $user->can('maintenance.close')
         ) {
-            $scopedQuery = $query
-                ->whereHas('facility', fn ($q) => $q->whereIn(
+            $scopedQuery = $query->where(function ($builder) use ($user) {
+                $builder->whereHas('facility', fn ($q) => $q->whereIn(
                     'managed_by',
                     $this->maintenanceScopeManagerIds($user)
-                ));
+                ))->orWhereIn('requested_by', $this->maintenanceScopeManagerIds($user));
+            });
 
             if ($this->shouldRestrictRequestTypes($user)) {
                 $allowedIds = $this->allowedRequestTypeIds($user);

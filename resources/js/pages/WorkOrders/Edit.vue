@@ -6,11 +6,12 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as workOrdersIndex, show as workOrdersShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 interface Facility {
     id: number;
@@ -70,13 +71,17 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const selectClass =
-    'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
-
 const paymentStatus = computed(() => props.workOrder.payment?.status ?? 'pending');
 const executionUnlocked = computed(() =>
     ['approved', 'paid'].includes(paymentStatus.value),
 );
+const selectedMaintenanceRequestId = ref(
+    props.workOrder.maintenance_request_id ? String(props.workOrder.maintenance_request_id) : '',
+);
+const selectedVendorId = ref(
+    props.workOrder.vendor_id ? String(props.workOrder.vendor_id) : '',
+);
+const selectedStatus = ref(props.workOrder.status ?? '');
 </script>
 
 <template>
@@ -91,50 +96,50 @@ const executionUnlocked = computed(() =>
                 class="max-w-3xl space-y-6"
                 v-slot="{ errors, processing }"
             >
+                <input
+                    type="hidden"
+                    name="maintenance_request_id"
+                    :value="selectedMaintenanceRequestId"
+                />
+                <input type="hidden" name="vendor_id" :value="selectedVendorId" />
+                <input type="hidden" name="status" :value="selectedStatus" />
                 <div class="grid gap-2">
                     <Label for="maintenance_request_id">
                         Maintenance request
                     </Label>
-                    <select
-                        id="maintenance_request_id"
-                        name="maintenance_request_id"
-                        :class="selectClass"
-                    >
-                        <option value="" disabled>
-                            Select a request
-                        </option>
-                        <option
-                            v-for="request in maintenanceRequests"
-                            :key="request.id"
-                            :value="request.id"
-                            :selected="request.id === workOrder.maintenance_request_id"
-                        >
-                            Request #{{ request.id }}
-                        </option>
-                    </select>
+                    <Select v-model="selectedMaintenanceRequestId">
+                        <SelectTrigger id="maintenance_request_id" class="w-full">
+                            <SelectValue placeholder="Select a request" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="request in maintenanceRequests"
+                                :key="request.id"
+                                :value="String(request.id)"
+                            >
+                                Request #{{ request.id }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.maintenance_request_id" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="vendor_id">Vendor</Label>
-                    <select
-                        id="vendor_id"
-                        name="vendor_id"
-                        :class="selectClass"
-                        :disabled="!executionUnlocked"
-                    >
-                        <option value="" disabled>
-                            Select a vendor
-                        </option>
-                        <option
-                            v-for="vendor in vendors"
-                            :key="vendor.id"
-                            :value="vendor.id"
-                            :selected="vendor.id === workOrder.vendor_id"
-                        >
-                            {{ vendor.name }}
-                        </option>
-                    </select>
+                    <Select v-model="selectedVendorId" :disabled="!executionUnlocked">
+                        <SelectTrigger id="vendor_id" class="w-full">
+                            <SelectValue placeholder="Select a vendor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="vendor in vendors"
+                                :key="vendor.id"
+                                :value="String(vendor.id)"
+                            >
+                                {{ vendor.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.vendor_id" />
                     <p
                         v-if="!executionUnlocked"
@@ -182,32 +187,16 @@ const executionUnlocked = computed(() =>
 
                 <div class="grid gap-2">
                     <Label for="status">Status</Label>
-                    <select
-                        id="status"
-                        name="status"
-                        :class="selectClass"
-                        :disabled="!executionUnlocked"
-                    >
-                        <option value="" disabled>Select status</option>
-                        <option
-                            value="in_progress"
-                            :selected="workOrder.status === 'in_progress'"
-                        >
-                            In progress
-                        </option>
-                        <option
-                            value="completed"
-                            :selected="workOrder.status === 'completed'"
-                        >
-                            Completed
-                        </option>
-                        <option
-                            value="cancelled"
-                            :selected="workOrder.status === 'cancelled'"
-                        >
-                            Cancelled
-                        </option>
-                    </select>
+                    <Select v-model="selectedStatus" :disabled="!executionUnlocked">
+                        <SelectTrigger id="status" class="w-full">
+                            <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="in_progress">In progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.status" />
                     <p
                         v-if="!executionUnlocked"

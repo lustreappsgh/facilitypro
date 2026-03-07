@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { create as inspectionsCreate } from '@/routes/inspections';
 import { create as maintenanceCreate } from '@/routes/maintenance';
 import { show as facilitiesShow } from '@/routes/facilities';
@@ -87,22 +89,60 @@ const lastInspectionDate = computed(() => {
             </div>
         </CardContent>
 
-        <CardFooter class="mt-auto flex flex-wrap gap-1">
-            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
-                <Link :href="facilitiesShow(facility.id).url" aria-label="View facility">
-                    <Eye class="h-4 w-4" />
-                </Link>
-            </Button>
-            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
-                <Link :href="inspectionsCreate().url" aria-label="New inspection">
-                    <ClipboardCheck class="h-4 w-4" />
-                </Link>
-            </Button>
-            <Button size="icon" variant="ghost" class="h-8 w-8" as-child>
-                <Link :href="maintenanceCreate().url" aria-label="New request">
-                    <Wrench class="h-4 w-4" />
-                </Link>
-            </Button>
+        <CardFooter class="mt-auto">
+            <ButtonGroup class="w-full border-border/60 bg-background/80 dark:bg-muted/30">
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            class="h-9 flex-1 rounded-none text-foreground hover:bg-accent/80 dark:text-foreground"
+                            as-child
+                        >
+                            <Link :href="facilitiesShow(facility.id).url" aria-label="View facility">
+                                <Eye class="h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">View facility</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            class="h-9 flex-1 rounded-none text-foreground hover:bg-accent/80 dark:text-foreground"
+                            as-child
+                        >
+                            <Link
+                                :href="inspectionsCreate({ query: { facility_id: facility.id } }).url"
+                                aria-label="New inspection"
+                            >
+                                <ClipboardCheck class="h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Add inspection</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            class="h-9 flex-1 rounded-none text-foreground hover:bg-accent/80 dark:text-foreground"
+                            as-child
+                        >
+                            <Link
+                                :href="maintenanceCreate({ query: { facility_id: facility.id } }).url"
+                                aria-label="New request"
+                            >
+                                <Wrench class="h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Add request</TooltipContent>
+                </Tooltip>
+            </ButtonGroup>
         </CardFooter>
     </Card>
 </template>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
@@ -97,6 +97,16 @@ const facilitySelections = ref<string[]>(
 );
 const requestTypeSelection = ref<string | null>(null);
 
+const toggleFacilitySelection = (facilityId: string, checked: boolean) => {
+    if (checked) {
+        facilitySelections.value = [...new Set([...facilitySelections.value, facilityId])];
+
+        return;
+    }
+
+    facilitySelections.value = facilitySelections.value.filter((id) => id !== facilityId);
+};
+
 watch(
     () => [props.selectedFacilityId, props.selectedFacilityIds] as const,
     ([single, list]) => {
@@ -156,24 +166,23 @@ watch(
             </div>
             <template v-else>
                 <div v-if="isMultiple" class="space-y-2">
-                    <NativeSelect
-                        id="facility_ids"
-                        v-model="facilitySelections"
-                        name="facility_ids[]"
-                        multiple
-                        size="5"
-                        required
-                        class="w-full"
-                    >
-                        <NativeSelectOption
+                    <div class="grid max-h-56 gap-2 overflow-y-auto rounded-lg border border-border/60 bg-muted/20 p-3">
+                        <label
                             v-for="facility in facilities"
                             :key="facility.id"
-                            :value="String(facility.id)"
+                            class="flex items-center gap-3 rounded-md border border-transparent bg-background/80 px-3 py-2 text-sm transition-colors hover:border-border/60 dark:bg-background/40"
                         >
-                            {{ facility.name }}
-                        </NativeSelectOption>
-                    </NativeSelect>
-                    <p class="text-[10px] text-muted-foreground">Hold Ctrl/Cmd to select multiple facilities</p>
+                            <Checkbox
+                                :model-value="facilitySelections.includes(String(facility.id))"
+                                @update:model-value="(checked) => toggleFacilitySelection(String(facility.id), checked === true)"
+                            />
+                            <span>{{ facility.name }}</span>
+                        </label>
+                    </div>
+                    <div v-for="facilityId in facilitySelections" :key="facilityId">
+                        <input type="hidden" name="facility_ids[]" :value="facilityId" />
+                    </div>
+                    <p class="text-[10px] text-muted-foreground">Select one or more facilities</p>
                 </div>
                 <Select v-else v-model="facilitySelection" name="facility_id" required>
                     <SelectTrigger id="facility_id" class="w-full">

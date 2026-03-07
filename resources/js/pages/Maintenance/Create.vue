@@ -58,8 +58,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const inputClass =
-    'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
@@ -171,20 +169,20 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 
                     <div class="grid gap-2">
                         <Label for="default_request_type">Default request type</Label>
-                        <select
-                            id="default_request_type"
-                            v-model="defaultRequestTypeId"
-                            :class="inputClass"
-                        >
-                            <option value="" disabled>Select a type</option>
-                            <option
-                                v-for="type in requestTypes"
-                                :key="type.id"
-                                :value="String(type.id)"
-                            >
-                                {{ type.name }}
-                            </option>
-                        </select>
+                        <Select v-model="defaultRequestTypeId">
+                            <SelectTrigger id="default_request_type" class="w-full">
+                                <SelectValue placeholder="Select a type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="type in requestTypes"
+                                    :key="type.id"
+                                    :value="String(type.id)"
+                                >
+                                    {{ type.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                 </div>
@@ -223,19 +221,20 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     {{ row.facility_name }}
                                 </td>
                                 <td class="px-3 py-2">
-                                    <select
-                                        v-model="row.request_type_id"
-                                        :class="inputClass"
-                                    >
-                                        <option value="" disabled>Select type</option>
-                                        <option
-                                            v-for="type in requestTypes"
-                                            :key="type.id"
-                                            :value="String(type.id)"
-                                        >
-                                            {{ type.name }}
-                                        </option>
-                                    </select>
+                                    <Select v-model="row.request_type_id">
+                                        <SelectTrigger class="w-full">
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem
+                                                v-for="type in requestTypes"
+                                                :key="type.id"
+                                                :value="String(type.id)"
+                                            >
+                                                {{ type.name }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <InputError :message="errors[`bulk_requests.${index}.request_type_id`]" />
                                 </td>
                                 <td class="px-3 py-2">

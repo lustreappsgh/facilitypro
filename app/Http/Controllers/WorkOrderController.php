@@ -258,7 +258,9 @@ class WorkOrderController extends Controller
         $maintenanceRequest = MaintenanceRequest::query()->findOrFail($data->maintenance_request_id);
         $this->authorize('review', $maintenanceRequest);
         try {
-            $this->createWorkOrderAction->execute($data);
+            DB::transaction(function () use ($request, $maintenanceRequest, $data): void {
+                $this->createApprovedWorkOrderForRequest($request->user(), $maintenanceRequest, $data);
+            });
         } catch (DomainException $exception) {
             return back()->withErrors([
                 'maintenance_request_id' => $exception->getMessage(),
@@ -315,7 +317,7 @@ class WorkOrderController extends Controller
             try {
                 $this->authorize('review', $maintenanceRequest);
 
-                DB::transaction(function () use ($reviewAction, $maintenanceRequest, $maintenanceRequestId, $item) {
+                DB::transaction(function () use ($request, $reviewAction, $maintenanceRequest, $maintenanceRequestId, $item): void {
                     if ($reviewAction === 'reject') {
                         $this->maintenanceService->reject($maintenanceRequest);
 
@@ -330,9 +332,7 @@ class WorkOrderController extends Controller
                         throw new DomainException('Estimated cost is required for approval.');
                     }
 
-                    $this->maintenanceService->review($maintenanceRequest);
-
-                    $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
+                    $this->createApprovedWorkOrderForRequest($request->user(), $maintenanceRequest, WorkOrderData::fromRequest([
                         'maintenance_request_id' => $maintenanceRequestId,
                         'vendor_id' => $item['vendor_id'],
                         'estimated_cost' => $item['estimated_cost'] ?? $maintenanceRequest->cost,
@@ -513,5 +513,27 @@ class WorkOrderController extends Controller
                 'end_date' => $endDate ?: null,
             ],
         ]);
+    }
+
+    protected function createApprovedWorkOrderForRequest(User $user, MaintenanceRequest $maintenanceRequest, WorkOrderData $data): void
+    {
+        $isFinalApprover = $user->can('users.manage');
+        $requiresFastTrack = $isFinalApprover && in_array($maintenanceRequest->status, [
+            MaintenanceStatus::Submitted->value,
+            MaintenanceStatus::Pending->value,
+        ], true);
+
+        if (! $isFinalApprover) {
+            $this->maintenanceService->review($maintenanceRequest);
+            $this->createWorkOrderAction->execute($data);
+
+            return;
+        }
+
+        $this->createWorkOrderAction->execute($data);
+
+        if ($requiresFastTrack || $maintenanceRequest->refresh()->status === MaintenanceStatus::WorkOrderCreated->value) {
+            $this->maintenanceService->review($maintenanceRequest->refresh());
+        }
     }
 }

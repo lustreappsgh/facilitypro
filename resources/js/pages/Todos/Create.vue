@@ -2,6 +2,7 @@
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -73,6 +74,7 @@ const getUpcomingMonday = () => {
 };
 
 const minimumWeekStart = getUpcomingMonday();
+const maximumWeekStart = minimumWeekStart;
 
 const hasPrefilledFacilities = computed(
     () =>
@@ -157,7 +159,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <PageHeader
                 title="Create todo"
-                subtitle="Create todos in bulk by facility type."
+                subtitle="Create todos for the upcoming Monday-start week."
             />
 
             <Form
@@ -191,14 +193,18 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 
                     <div class="grid gap-2">
                         <Label for="default_week_start"
-                            >Default week start</Label
+                            >Week starting Monday</Label
                         >
                         <Input
                             id="default_week_start"
                             v-model="defaultWeekStart"
                             type="date"
                             :min="minimumWeekStart"
+                            :max="maximumWeekStart"
                         />
+                        <p class="text-xs text-muted-foreground">
+                            Todo weeks always start on Monday. The next available week starts on {{ minimumWeekStart }}.
+                        </p>
                     </div>
                 </div>
 
@@ -246,6 +252,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         v-model="row.week"
                                         type="date"
                                         :min="minimumWeekStart"
+                                        :max="maximumWeekStart"
                                     />
                                     <InputError
                                         :message="
@@ -324,8 +331,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     "
                 />
 
-                <div class="flex items-center gap-4">
+                <ButtonGroup class="border-border/60 bg-background/80 dark:bg-muted/30">
                     <Button
+                        class="rounded-none"
                         :disabled="
                             processing ||
                             selectedRows.length === 0 ||
@@ -334,10 +342,10 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     >
                         Create bulk todos
                     </Button>
-                    <Button variant="ghost" as-child>
+                    <Button variant="ghost" class="rounded-none" as-child>
                         <Link :href="todosIndex().url">Cancel</Link>
                     </Button>
-                </div>
+                </ButtonGroup>
             </Form>
         </div>
     </AppLayout>

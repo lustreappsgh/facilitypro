@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { complete, edit } from '@/routes/todos';
 import { Link } from '@inertiajs/vue3';
 import { Check, Pencil } from 'lucide-vue-next';
@@ -88,30 +90,41 @@ const getStatusColor = (status: string) => {
                                 </Badge>
                             </td>
                             <td class="px-4 py-3">
-                                <div class="flex items-center gap-1">
-                                    <Button
-                                        v-if="canUpdate && todo.status === 'pending'"
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-8 w-8"
-                                        as-child
-                                    >
-                                        <Link :href="edit(todo).url" aria-label="Edit todo">
-                                            <Pencil class="h-4 w-4" />
-                                        </Link>
-                                    </Button>
-                                    <Button
-                                        v-if="canComplete && ['pending', 'overdue'].includes(todo.status)"
-                                        variant="secondary"
-                                        size="icon"
-                                        class="h-8 w-8 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-                                        as-child
-                                    >
-                                        <Link :href="complete(todo).url" method="post" as="button" aria-label="Complete todo">
-                                            <Check class="h-4 w-4" />
-                                        </Link>
-                                    </Button>
-                                </div>
+                                <ButtonGroup
+                                    v-if="(canUpdate && todo.status === 'pending') || (canComplete && ['pending', 'overdue'].includes(todo.status))"
+                                    class="border-border/60 bg-background/80 dark:bg-muted/30"
+                                >
+                                    <Tooltip v-if="canUpdate && todo.status === 'pending'">
+                                        <TooltipTrigger as-child>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-8 w-8 rounded-none text-foreground dark:text-foreground"
+                                                as-child
+                                            >
+                                                <Link :href="edit(todo).url" aria-label="Edit todo">
+                                                    <Pencil class="h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">Edit todo</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip v-if="canComplete && ['pending', 'overdue'].includes(todo.status)">
+                                        <TooltipTrigger as-child>
+                                            <Button
+                                                variant="secondary"
+                                                size="icon"
+                                                class="h-8 w-8 rounded-none bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-200"
+                                                as-child
+                                            >
+                                                <Link :href="complete(todo).url" method="post" as="button" aria-label="Complete todo">
+                                                    <Check class="h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">Complete todo</TooltipContent>
+                                    </Tooltip>
+                                </ButtonGroup>
                             </td>
                         </tr>
                         <tr v-if="!group.todos.length">

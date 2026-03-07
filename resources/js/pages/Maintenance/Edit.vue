@@ -5,10 +5,12 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as maintenanceIndex, show as maintenanceShow } from '@/routes/maintenance';
 import type { BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 interface Facility {
     id: number;
@@ -52,11 +54,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const selectClass =
-    'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
-
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[120px] w-full rounded-md border px-3 py-2';
+
+const selectedFacilityId = ref(
+    props.request.facility_id ? String(props.request.facility_id) : '',
+);
+const selectedRequestTypeId = ref(
+    props.request.request_type_id ? String(props.request.request_type_id) : '',
+);
 </script>
 
 <template>
@@ -71,49 +77,43 @@ const textAreaClass =
                 class="max-w-3xl space-y-6"
                 v-slot="{ errors, processing }"
             >
+                <input type="hidden" name="facility_id" :value="selectedFacilityId" />
+                <input type="hidden" name="request_type_id" :value="selectedRequestTypeId" />
                 <div class="grid gap-2">
                     <Label for="facility_id">Facility</Label>
-                    <select
-                        id="facility_id"
-                        name="facility_id"
-                        :class="selectClass"
-                        required
-                    >
-                        <option value="" disabled>
-                            Select a facility
-                        </option>
-                        <option
-                            v-for="facility in facilities"
-                            :key="facility.id"
-                            :value="facility.id"
-                            :selected="facility.id === request.facility_id"
-                        >
-                            {{ facility.name }}
-                        </option>
-                    </select>
+                    <Select v-model="selectedFacilityId" required>
+                        <SelectTrigger id="facility_id" class="w-full">
+                            <SelectValue placeholder="Select a facility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="facility in facilities"
+                                :key="facility.id"
+                                :value="String(facility.id)"
+                            >
+                                {{ facility.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.facility_id" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="request_type_id">Request type</Label>
-                    <select
-                        id="request_type_id"
-                        name="request_type_id"
-                        :class="selectClass"
-                        required
-                    >
-                        <option value="" disabled>
-                            Select a type
-                        </option>
-                        <option
-                            v-for="type in requestTypes"
-                            :key="type.id"
-                            :value="type.id"
-                            :selected="type.id === request.request_type_id"
-                        >
-                            {{ type.name }}
-                        </option>
-                    </select>
+                    <Select v-model="selectedRequestTypeId" required>
+                        <SelectTrigger id="request_type_id" class="w-full">
+                            <SelectValue placeholder="Select a type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="type in requestTypes"
+                                :key="type.id"
+                                :value="String(type.id)"
+                            >
+                                {{ type.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <InputError :message="errors.request_type_id" />
                 </div>
 
