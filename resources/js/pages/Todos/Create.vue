@@ -4,7 +4,13 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as todosIndex } from '@/routes/todos';
 import type { BreadcrumbItem } from '@/types';
@@ -61,16 +67,20 @@ const textAreaClass =
 const getUpcomingMonday = () => {
     const date = new Date();
     const day = date.getDay();
-    const diffToNextMonday = ((8 - day) % 7) || 7;
+    const diffToNextMonday = (8 - day) % 7 || 7;
     date.setDate(date.getDate() + diffToNextMonday);
     return date.toISOString().slice(0, 10);
 };
 
 const hasPrefilledFacilities = computed(
-    () => (props.data.selectedFacilityIds?.length ?? 0) > 0 || Boolean(props.data.selectedFacilityId),
+    () =>
+        (props.data.selectedFacilityIds?.length ?? 0) > 0 ||
+        Boolean(props.data.selectedFacilityId),
 );
 const prefilledFacilityIds = computed(() => {
-    const selected = new Set<number>((props.data.selectedFacilityIds ?? []).map((id) => Number(id)));
+    const selected = new Set<number>(
+        (props.data.selectedFacilityIds ?? []).map((id) => Number(id)),
+    );
     if (props.data.selectedFacilityId) {
         selected.add(props.data.selectedFacilityId);
     }
@@ -86,7 +96,9 @@ const selectedFacilityTypeId = ref<string | null>(
             return String(selectedType);
         }
 
-        return props.data.facilityTypes[0] ? String(props.data.facilityTypes[0].id) : null;
+        return props.data.facilityTypes[0]
+            ? String(props.data.facilityTypes[0].id)
+            : null;
     })(),
 );
 const defaultWeekStart = ref(getUpcomingMonday());
@@ -98,7 +110,9 @@ const filteredFacilities = computed(() => {
     }
 
     return props.data.facilities.filter(
-        (facility) => String(facility.facility_type_id ?? '') === selectedFacilityTypeId.value,
+        (facility) =>
+            String(facility.facility_type_id ?? '') ===
+            selectedFacilityTypeId.value,
     );
 });
 const selectedRows = computed(() => rows.value.filter((row) => row.selected));
@@ -139,7 +153,10 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Create todo" subtitle="Create todos in bulk by facility type." />
+            <PageHeader
+                title="Create todo"
+                subtitle="Create todos in bulk by facility type."
+            />
 
             <Form
                 action="/todos"
@@ -147,12 +164,16 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                 class="space-y-6"
                 v-slot="{ errors, processing }"
             >
-                <div class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-2">
+                <div
+                    class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-2"
+                >
                     <div class="grid gap-2">
                         <Label for="facility_type_id">Facility type</Label>
                         <Select v-model="selectedFacilityTypeId">
                             <SelectTrigger id="facility_type_id" class="w-full">
-                                <SelectValue placeholder="Select facility type" />
+                                <SelectValue
+                                    placeholder="Select facility type"
+                                />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem
@@ -167,7 +188,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="default_week_start">Default week start</Label>
+                        <Label for="default_week_start"
+                            >Default week start</Label
+                        >
                         <Input
                             id="default_week_start"
                             v-model="defaultWeekStart"
@@ -176,7 +199,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     </div>
                 </div>
 
-                <div class="overflow-x-auto rounded-xl border border-border/50 bg-card/50">
+                <div
+                    class="overflow-x-auto rounded-xl border border-border/50 bg-card/50"
+                >
                     <table class="min-w-full divide-y divide-border/60 text-sm">
                         <thead class="bg-muted/30">
                             <tr>
@@ -187,19 +212,28 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         :disabled="rows.length === 0"
                                     />
                                 </th>
-                                <th class="px-3 py-2 text-left font-semibold">Facility</th>
-                                <th class="px-3 py-2 text-left font-semibold">Week start</th>
-                                <th class="px-3 py-2 text-left font-semibold">Description</th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Facility
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Week start
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Description
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/50">
                             <tr
-                                v-for="(row, index) in rows"
+                                v-for="row in rows"
                                 :key="row.facility_id"
                                 class="align-top"
                             >
                                 <td class="px-3 py-2">
-                                    <input type="checkbox" v-model="row.selected" />
+                                    <input
+                                        type="checkbox"
+                                        v-model="row.selected"
+                                    />
                                 </td>
                                 <td class="px-3 py-2 font-medium">
                                     {{ row.facility_name }}
@@ -209,7 +243,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     <InputError
                                         :message="
                                             row.selected &&
-                                            selectedRowIndexById[row.facility_id] !== undefined
+                                            selectedRowIndexById[
+                                                row.facility_id
+                                            ] !== undefined
                                                 ? errors[
                                                       `bulk_todos.${selectedRowIndexById[row.facility_id]}.week`
                                                   ]
@@ -222,11 +258,13 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         v-model="row.description"
                                         :class="textAreaClass"
                                         placeholder="Describe the weekly action item"
-                                    />
+                                    ></textarea>
                                     <InputError
                                         :message="
                                             row.selected &&
-                                            selectedRowIndexById[row.facility_id] !== undefined
+                                            selectedRowIndexById[
+                                                row.facility_id
+                                            ] !== undefined
                                                 ? errors[
                                                       `bulk_todos.${selectedRowIndexById[row.facility_id]}.description`
                                                   ]
@@ -236,7 +274,10 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 </td>
                             </tr>
                             <tr v-if="rows.length === 0">
-                                <td colspan="4" class="px-3 py-8 text-center text-sm text-muted-foreground">
+                                <td
+                                    colspan="4"
+                                    class="px-3 py-8 text-center text-sm text-muted-foreground"
+                                >
                                     Select a facility type to load facilities.
                                 </td>
                             </tr>
@@ -248,9 +289,21 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     v-for="(row, index) in selectedRows"
                     :key="`payload-${row.facility_id}`"
                 >
-                    <input type="hidden" :name="`bulk_todos[${index}][facility_id]`" :value="row.facility_id" />
-                    <input type="hidden" :name="`bulk_todos[${index}][description]`" :value="row.description" />
-                    <input type="hidden" :name="`bulk_todos[${index}][week]`" :value="row.week" />
+                    <input
+                        type="hidden"
+                        :name="`bulk_todos[${index}][facility_id]`"
+                        :value="row.facility_id"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_todos[${index}][description]`"
+                        :value="row.description"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_todos[${index}][week]`"
+                        :value="row.week"
+                    />
                 </div>
 
                 <InputError
@@ -258,12 +311,20 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                         errors.bulk_todos ||
                         errors.facility_id ||
                         errors.facility_ids ||
-                        (selectedRows.length === 0 ? 'Select at least one facility row.' : '')
+                        (selectedRows.length === 0
+                            ? 'Select at least one facility row.'
+                            : '')
                     "
                 />
 
                 <div class="flex items-center gap-4">
-                    <Button :disabled="processing || selectedRows.length === 0 || hasInvalidSelectedRows">
+                    <Button
+                        :disabled="
+                            processing ||
+                            selectedRows.length === 0 ||
+                            hasInvalidSelectedRows
+                        "
+                    >
                         Create bulk todos
                     </Button>
                     <Button variant="ghost" as-child>

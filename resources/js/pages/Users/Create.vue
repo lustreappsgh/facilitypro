@@ -10,7 +10,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { index as usersIndex, store as usersStore } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 interface Role {
     id: number;
@@ -52,7 +52,9 @@ const initials = computed(() => {
     }
 
     const parts = trimmed.split(' ').filter(Boolean);
-    const letters = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '');
+    const letters = parts
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '');
 
     return letters.join('') || 'U';
 });
@@ -65,10 +67,13 @@ const updateProfilePreview = (file: File | null) => {
     profilePreviewUrl.value = file ? URL.createObjectURL(file) : null;
 };
 
-watch(
-    () => form.profile_photo,
-    (file) => updateProfilePreview(file),
-);
+const handleProfilePhotoChange = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const [file] = input.files ?? [];
+
+    form.profile_photo = file ?? null;
+    updateProfilePreview(file ?? null);
+};
 
 const toggleRole = (roleName: string, checked: boolean) => {
     if (checked) {
@@ -91,7 +96,10 @@ const submit = () => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Create user" subtitle="Add a new user and assign roles." />
+            <PageHeader
+                title="Create user"
+                subtitle="Add a new user and assign roles."
+            />
 
             <form class="max-w-3xl space-y-6" @submit.prevent="submit">
                 <div class="grid gap-2">
@@ -102,13 +110,22 @@ const submit = () => {
 
                 <div class="grid gap-2">
                     <Label for="email">Email</Label>
-                    <Input id="email" v-model="form.email" type="email" required />
+                    <Input
+                        id="email"
+                        v-model="form.email"
+                        type="email"
+                        required
+                    />
                     <InputError :message="form.errors.email" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password">Temporary password (optional)</Label>
-                    <Input id="password" v-model="form.password" type="password" />
+                    <Input
+                        id="password"
+                        v-model="form.password"
+                        type="password"
+                    />
                     <p class="text-xs text-muted-foreground">
                         Leave blank to auto-generate and force reset at login.
                     </p>
@@ -117,7 +134,9 @@ const submit = () => {
 
                 <div class="grid gap-3">
                     <Label for="profile_photo">Profile photo</Label>
-                    <div class="flex flex-wrap items-center gap-4 rounded-lg border border-border/60 p-4">
+                    <div
+                        class="flex flex-wrap items-center gap-4 rounded-lg border border-border/60 p-4"
+                    >
                         <Avatar class="h-16 w-16">
                             <AvatarImage
                                 v-if="profilePreviewUrl"
@@ -133,7 +152,7 @@ const submit = () => {
                                 id="profile_photo"
                                 type="file"
                                 accept="image/*"
-                                v-model="form.profile_photo"
+                                @change="handleProfilePhotoChange"
                             />
                             <p class="text-xs text-muted-foreground">
                                 PNG, JPG, or WEBP up to 2MB.
@@ -145,7 +164,9 @@ const submit = () => {
 
                 <div class="grid gap-2">
                     <Label>Roles</Label>
-                    <div class="grid gap-2 rounded-lg border border-border/60 p-4">
+                    <div
+                        class="grid gap-2 rounded-lg border border-border/60 p-4"
+                    >
                         <label
                             v-for="role in props.roles"
                             :key="role.id"
@@ -153,7 +174,9 @@ const submit = () => {
                         >
                             <Checkbox
                                 :model-value="form.roles.includes(role.name)"
-                                @update:model-value="(value) => toggleRole(role.name, !!value)"
+                                @update:model-value="
+                                    (value) => toggleRole(role.name, !!value)
+                                "
                             />
                             <span>{{ role.name }}</span>
                         </label>
@@ -165,7 +188,9 @@ const submit = () => {
                     <Checkbox
                         id="is_active"
                         :model-value="form.is_active"
-                        @update:model-value="(value) => (form.is_active = !!value)"
+                        @update:model-value="
+                            (value) => (form.is_active = !!value)
+                        "
                     />
                     <Label for="is_active">Active account</Label>
                 </div>

@@ -94,9 +94,16 @@ const roleDescriptions: Record<string, string> = {
     'Facility Manager': 'Facility-level inspections, requests, and todos.',
     'Maintenance Manager': 'Work-order execution and vendor coordination.',
 };
-const roleDisplayOrder = ['Admin', 'Manager', 'Facility Manager', 'Maintenance Manager'];
+const roleDisplayOrder = [
+    'Admin',
+    'Manager',
+    'Facility Manager',
+    'Maintenance Manager',
+];
 const orderedRoles = computed(() => {
-    const orderMap = new Map(roleDisplayOrder.map((name, index) => [name, index]));
+    const orderMap = new Map(
+        roleDisplayOrder.map((name, index) => [name, index]),
+    );
 
     return [...props.roles].sort((a, b) => {
         const indexA = orderMap.get(a.name) ?? Number.MAX_SAFE_INTEGER;
@@ -115,13 +122,15 @@ const initials = computed(() => {
     }
 
     const parts = trimmed.split(' ').filter(Boolean);
-    const letters = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '');
+    const letters = parts
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '');
 
     return letters.join('') || 'U';
 });
 
-const activeProfileUrl = computed(() =>
-    profilePreviewUrl.value || props.user.profile_photo_url || null,
+const activeProfileUrl = computed(
+    () => profilePreviewUrl.value || props.user.profile_photo_url || null,
 );
 
 const updateProfilePreview = (file: File | null) => {
@@ -130,6 +139,14 @@ const updateProfilePreview = (file: File | null) => {
     }
 
     profilePreviewUrl.value = file ? URL.createObjectURL(file) : null;
+};
+
+const handleProfilePhotoChange = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const [file] = input.files ?? [];
+
+    form.profile_photo = file ?? null;
+    updateProfilePreview(file ?? null);
 };
 
 const assignedManagerSelection = computed(() =>
@@ -163,11 +180,6 @@ watch(
     },
 );
 
-watch(
-    () => form.profile_photo,
-    (file) => updateProfilePreview(file),
-);
-
 const hasPendingManagerChange = computed(
     () => managerSelection.value !== assignedManagerSelection.value,
 );
@@ -178,7 +190,9 @@ const hasAssignedManager = computed(
 
 const hasAssignedReports = computed(() => props.directReportIds.length > 0);
 const isManagerRoleSelected = computed(() => form.roles.includes('Manager'));
-const isFacilityManagerRoleSelected = computed(() => form.roles.includes('Facility Manager'));
+const isFacilityManagerRoleSelected = computed(() =>
+    form.roles.includes('Facility Manager'),
+);
 const eligibleManagerCount = computed(
     () => props.managerOptions.filter((manager) => !manager.disabled).length,
 );
@@ -196,10 +210,14 @@ const canRevokeAccess = computed(
         props.managerAssignment.other_direct_reports === 0,
 );
 const canUpdateMaintenanceAccess = computed(() =>
-    props.managerAssignment.has_maintenance_access ? canRevokeAccess.value : canGrantAccess.value,
+    props.managerAssignment.has_maintenance_access
+        ? canRevokeAccess.value
+        : canGrantAccess.value,
 );
 const maintenanceAccessActionLabel = computed(() =>
-    props.managerAssignment.has_maintenance_access ? 'Disable maintenance access' : 'Enable maintenance access',
+    props.managerAssignment.has_maintenance_access
+        ? 'Disable maintenance access'
+        : 'Enable maintenance access',
 );
 
 const toggleRole = (roleName: string, checked: boolean) => {
@@ -214,12 +232,10 @@ const toggleRole = (roleName: string, checked: boolean) => {
 };
 
 const submit = () => {
-    form
-        .transform((data) => ({
-            ...data,
-            _method: 'put',
-        }))
-        .post(usersUpdate(props.user).url, { forceFormData: true });
+    form.transform((data) => ({
+        ...data,
+        _method: 'put',
+    })).post(usersUpdate(props.user).url, { forceFormData: true });
 };
 
 const grantAccess = () => {
@@ -265,7 +281,9 @@ const toggleReport = (userId: number, checked: boolean) => {
         return;
     }
 
-    reportsForm.report_ids = reportsForm.report_ids.filter((id) => id !== userId);
+    reportsForm.report_ids = reportsForm.report_ids.filter(
+        (id) => id !== userId,
+    );
 };
 
 const submitReports = () => {
@@ -273,7 +291,6 @@ const submitReports = () => {
         preserveScroll: true,
     });
 };
-
 </script>
 
 <template>
@@ -281,7 +298,10 @@ const submitReports = () => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Edit user" subtitle="Update profile details and access controls." />
+            <PageHeader
+                title="Edit user"
+                subtitle="Update profile details and access controls."
+            />
 
             <form class="max-w-3xl space-y-6" @submit.prevent="submit">
                 <div class="grid gap-2">
@@ -292,13 +312,22 @@ const submitReports = () => {
 
                 <div class="grid gap-2">
                     <Label for="email">Email</Label>
-                    <Input id="email" v-model="form.email" type="email" required />
+                    <Input
+                        id="email"
+                        v-model="form.email"
+                        type="email"
+                        required
+                    />
                     <InputError :message="form.errors.email" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password">Reset password (optional)</Label>
-                    <Input id="password" v-model="form.password" type="password" />
+                    <Input
+                        id="password"
+                        v-model="form.password"
+                        type="password"
+                    />
                     <p class="text-xs text-muted-foreground">
                         Leave blank to keep the existing password.
                     </p>
@@ -307,7 +336,9 @@ const submitReports = () => {
 
                 <div class="grid gap-3">
                     <Label for="profile_photo">Profile photo</Label>
-                    <div class="flex flex-wrap items-center gap-4 rounded-lg border border-border/60 p-4">
+                    <div
+                        class="flex flex-wrap items-center gap-4 rounded-lg border border-border/60 p-4"
+                    >
                         <Avatar class="h-16 w-16">
                             <AvatarImage
                                 v-if="activeProfileUrl"
@@ -323,7 +354,7 @@ const submitReports = () => {
                                 id="profile_photo"
                                 type="file"
                                 accept="image/*"
-                                v-model="form.profile_photo"
+                                @change="handleProfilePhotoChange"
                             />
                             <p class="text-xs text-muted-foreground">
                                 PNG, JPG, or WEBP up to 2MB.
@@ -335,7 +366,9 @@ const submitReports = () => {
 
                 <div class="grid gap-2">
                     <Label>Roles</Label>
-                    <div class="grid gap-2 rounded-lg border border-border/60 p-4">
+                    <div
+                        class="grid gap-2 rounded-lg border border-border/60 p-4"
+                    >
                         <label
                             v-for="role in orderedRoles"
                             :key="role.id"
@@ -343,12 +376,22 @@ const submitReports = () => {
                         >
                             <Checkbox
                                 :model-value="form.roles.includes(role.name)"
-                                @update:modelValue="(checked) => toggleRole(role.name, checked === true)"
+                                @update:modelValue="
+                                    (checked) =>
+                                        toggleRole(role.name, checked === true)
+                                "
                             />
                             <span class="space-y-0.5">
-                                <span class="block font-medium">{{ role.name }}</span>
-                                <span class="block text-xs text-muted-foreground">
-                                    {{ roleDescriptions[role.name] ?? 'Access role.' }}
+                                <span class="block font-medium">{{
+                                    role.name
+                                }}</span>
+                                <span
+                                    class="block text-xs text-muted-foreground"
+                                >
+                                    {{
+                                        roleDescriptions[role.name] ??
+                                        'Access role.'
+                                    }}
                                 </span>
                             </span>
                         </label>
@@ -361,20 +404,25 @@ const submitReports = () => {
                     class="grid gap-4 rounded-xl border border-border/60 bg-card/60 p-5"
                 >
                     <div class="space-y-1">
-                        <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        <h2
+                            class="text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             Direct Reports
                         </h2>
                         <p class="text-xs text-muted-foreground">
-                            Assign facility managers to report directly to this user.
+                            Assign facility managers to report directly to this
+                            user.
                         </p>
                         <p class="text-xs text-muted-foreground">
-                            Selected: {{ selectedReportCount }} of {{ reportOptionCount }}
+                            Selected: {{ selectedReportCount }} of
+                            {{ reportOptionCount }}
                         </p>
                         <p
                             v-if="hasAssignedManager"
                             class="text-xs text-amber-600"
                         >
-                            Remove the supervising manager before adding new direct reports.
+                            Remove the supervising manager before adding new
+                            direct reports.
                         </p>
                         <p
                             v-if="!isManagerRoleSelected"
@@ -393,7 +441,10 @@ const submitReports = () => {
                                     variant="ghost"
                                     size="sm"
                                     class="h-7 px-2 text-[11px]"
-                                    :disabled="!isManagerRoleSelected || reportOptionCount === 0"
+                                    :disabled="
+                                        !isManagerRoleSelected ||
+                                        reportOptionCount === 0
+                                    "
                                     @click="selectAllReports"
                                 >
                                     Select all
@@ -403,14 +454,19 @@ const submitReports = () => {
                                     variant="ghost"
                                     size="sm"
                                     class="h-7 px-2 text-[11px]"
-                                    :disabled="!isManagerRoleSelected || selectedReportCount === 0"
+                                    :disabled="
+                                        !isManagerRoleSelected ||
+                                        selectedReportCount === 0
+                                    "
                                     @click="clearReports"
                                 >
                                     Clear
                                 </Button>
                             </div>
                         </div>
-                        <div class="max-h-60 space-y-2 overflow-y-auto rounded-lg border border-border/60 p-4">
+                        <div
+                            class="max-h-60 space-y-2 overflow-y-auto rounded-lg border border-border/60 p-4"
+                        >
                             <div
                                 v-if="props.reportOptions.length === 0"
                                 class="text-xs text-muted-foreground"
@@ -423,15 +479,31 @@ const submitReports = () => {
                                 class="flex items-center gap-3 text-sm"
                             >
                                 <Checkbox
-                                    :model-value="reportsForm.report_ids.includes(report.id)"
+                                    :model-value="
+                                        reportsForm.report_ids.includes(
+                                            report.id,
+                                        )
+                                    "
                                     :disabled="
                                         !isManagerRoleSelected ||
-                                        hasAssignedManager &&
-                                        !reportsForm.report_ids.includes(report.id)
+                                        (hasAssignedManager &&
+                                            !reportsForm.report_ids.includes(
+                                                report.id,
+                                            ))
                                     "
-                                    @update:modelValue="(checked) => toggleReport(report.id, checked === true)"
+                                    @update:modelValue="
+                                        (checked) =>
+                                            toggleReport(
+                                                report.id,
+                                                checked === true,
+                                            )
+                                    "
                                 />
-                                <span>{{ report.name }} ({{ report.email }})</span>
+                                <span
+                                    >{{ report.name }} ({{
+                                        report.email
+                                    }})</span
+                                >
                             </label>
                         </div>
                         <InputError :message="reportsForm.errors.report_ids" />
@@ -441,7 +513,9 @@ const submitReports = () => {
                         <Button
                             type="button"
                             variant="secondary"
-                            :disabled="reportsForm.processing || !isManagerRoleSelected"
+                            :disabled="
+                                reportsForm.processing || !isManagerRoleSelected
+                            "
                             @click="submitReports"
                         >
                             Save direct reports
@@ -454,14 +528,21 @@ const submitReports = () => {
                     class="grid gap-4 rounded-xl border border-border/60 bg-card/60 p-5"
                 >
                     <div class="space-y-1">
-                        <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        <h2
+                            class="text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             Facility Manager Supervisor
                         </h2>
                         <p class="text-xs text-muted-foreground">
-                            Assign a supervising manager and explicitly grant or revoke maintenance access.
+                            Assign a supervising manager and explicitly grant or
+                            revoke maintenance access.
                         </p>
-                        <p v-if="hasAssignedReports" class="text-xs text-amber-600">
-                            Clear direct reports before assigning a supervising manager.
+                        <p
+                            v-if="hasAssignedReports"
+                            class="text-xs text-amber-600"
+                        >
+                            Clear direct reports before assigning a supervising
+                            manager.
                         </p>
                     </div>
 
@@ -477,44 +558,70 @@ const submitReports = () => {
                                     v-for="manager in props.managerOptions"
                                     :key="manager.id"
                                     :value="String(manager.id)"
-                                    :disabled="manager.disabled || hasAssignedReports"
+                                    :disabled="
+                                        manager.disabled || hasAssignedReports
+                                    "
                                 >
                                     {{ manager.name }} ({{ manager.email }})
-                                    <span v-if="manager.note" class="text-xs text-muted-foreground">
+                                    <span
+                                        v-if="manager.note"
+                                        class="text-xs text-muted-foreground"
+                                    >
                                         - {{ manager.note }}
                                     </span>
                                 </SelectItem>
                             </SelectContent>
                         </Select>
                         <p
-                            v-if="eligibleManagerCount === 0 && !hasAssignedReports"
+                            v-if="
+                                eligibleManagerCount === 0 &&
+                                !hasAssignedReports
+                            "
                             class="text-xs text-muted-foreground"
                         >
                             No eligible supervisors available.
                         </p>
-                        <p v-if="hasAssignedReports" class="text-xs text-amber-600">
-                            Supervisors are disabled while direct reports are assigned.
+                        <p
+                            v-if="hasAssignedReports"
+                            class="text-xs text-amber-600"
+                        >
+                            Supervisors are disabled while direct reports are
+                            assigned.
                         </p>
-                        <InputError :message="form.errors.manager_id || accessForm.errors.manager_id" />
+                        <InputError
+                            :message="
+                                form.errors.manager_id ||
+                                accessForm.errors.manager_id
+                            "
+                        />
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <div
+                        class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground"
+                    >
                         <span>
                             Maintenance access:
                             <strong class="text-foreground">
                                 {{
-                                    props.managerAssignment.has_maintenance_access
+                                    props.managerAssignment
+                                        .has_maintenance_access
                                         ? 'Enabled'
                                         : 'Not granted'
                                 }}
                             </strong>
                         </span>
-                        <span v-if="props.managerAssignment.other_direct_reports">
-                            Other direct reports: {{ props.managerAssignment.other_direct_reports }}
+                        <span
+                            v-if="props.managerAssignment.other_direct_reports"
+                        >
+                            Other direct reports:
+                            {{ props.managerAssignment.other_direct_reports }}
                         </span>
                     </div>
 
-                    <p v-if="hasPendingManagerChange" class="text-xs text-amber-600">
+                    <p
+                        v-if="hasPendingManagerChange"
+                        class="text-xs text-amber-600"
+                    >
                         Save the manager assignment before updating access.
                     </p>
 
@@ -522,7 +629,10 @@ const submitReports = () => {
                         <Button
                             type="button"
                             variant="secondary"
-                            :disabled="accessForm.processing || !canUpdateMaintenanceAccess"
+                            :disabled="
+                                accessForm.processing ||
+                                !canUpdateMaintenanceAccess
+                            "
                             @click="toggleMaintenanceAccess"
                         >
                             {{ maintenanceAccessActionLabel }}
@@ -534,7 +644,9 @@ const submitReports = () => {
                     <Checkbox
                         id="is_active"
                         :model-value="form.is_active"
-                        @update:modelValue="(checked) => (form.is_active = checked === true)"
+                        @update:modelValue="
+                            (checked) => (form.is_active = checked === true)
+                        "
                     />
                     <Label for="is_active">Active account</Label>
                 </div>

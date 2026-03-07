@@ -4,7 +4,13 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as inspectionsIndex } from '@/routes/inspections';
 import type { BreadcrumbItem } from '@/types';
@@ -58,10 +64,14 @@ const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
 const hasPrefilledFacilities = computed(
-    () => (props.selectedFacilityIds?.length ?? 0) > 0 || Boolean(props.selectedFacilityId),
+    () =>
+        (props.selectedFacilityIds?.length ?? 0) > 0 ||
+        Boolean(props.selectedFacilityId),
 );
 const prefilledFacilityIds = computed(() => {
-    const selected = new Set<number>((props.selectedFacilityIds ?? []).map((id) => Number(id)));
+    const selected = new Set<number>(
+        (props.selectedFacilityIds ?? []).map((id) => Number(id)),
+    );
     if (props.selectedFacilityId) {
         selected.add(props.selectedFacilityId);
     }
@@ -77,7 +87,9 @@ const selectedFacilityTypeId = ref<string | null>(
             return String(selectedType);
         }
 
-        return props.facilityTypes[0] ? String(props.facilityTypes[0].id) : null;
+        return props.facilityTypes[0]
+            ? String(props.facilityTypes[0].id)
+            : null;
     })(),
 );
 const defaultCondition = ref<string | null>(props.conditions[0] ?? null);
@@ -90,7 +102,9 @@ const filteredFacilities = computed(() => {
     }
 
     return props.facilities.filter(
-        (facility) => String(facility.facility_type_id ?? '') === selectedFacilityTypeId.value,
+        (facility) =>
+            String(facility.facility_type_id ?? '') ===
+            selectedFacilityTypeId.value,
     );
 });
 const selectedRows = computed(() => rows.value.filter((row) => row.selected));
@@ -132,7 +146,10 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Create inspection" subtitle="Create inspections in bulk by facility type." />
+            <PageHeader
+                title="Create inspection"
+                subtitle="Create inspections in bulk by facility type."
+            />
 
             <Form
                 action="/inspections"
@@ -140,12 +157,16 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                 class="space-y-6"
                 v-slot="{ errors, processing }"
             >
-                <div class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-3">
+                <div
+                    class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-3"
+                >
                     <div class="grid gap-2">
                         <Label for="facility_type_id">Facility type</Label>
                         <Select v-model="selectedFacilityTypeId">
                             <SelectTrigger id="facility_type_id" class="w-full">
-                                <SelectValue placeholder="Select facility type" />
+                                <SelectValue
+                                    placeholder="Select facility type"
+                                />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem
@@ -178,7 +199,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="default_inspection_date">Default inspection date</Label>
+                        <Label for="default_inspection_date"
+                            >Default inspection date</Label
+                        >
                         <Input
                             id="default_inspection_date"
                             v-model="defaultInspectionDate"
@@ -187,7 +210,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     </div>
                 </div>
 
-                <div class="overflow-x-auto rounded-xl border border-border/50 bg-card/50">
+                <div
+                    class="overflow-x-auto rounded-xl border border-border/50 bg-card/50"
+                >
                     <table class="min-w-full divide-y divide-border/60 text-sm">
                         <thead class="bg-muted/30">
                             <tr>
@@ -198,30 +223,46 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         :disabled="rows.length === 0"
                                     />
                                 </th>
-                                <th class="px-3 py-2 text-left font-semibold">Facility</th>
-                                <th class="px-3 py-2 text-left font-semibold">Inspection Date</th>
-                                <th class="px-3 py-2 text-left font-semibold">Condition</th>
-                                <th class="px-3 py-2 text-left font-semibold">Comments</th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Facility
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Inspection Date
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Condition
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Comments
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/50">
                             <tr
-                                v-for="(row, index) in rows"
+                                v-for="row in rows"
                                 :key="row.facility_id"
                                 class="align-top"
                             >
                                 <td class="px-3 py-2">
-                                    <input type="checkbox" v-model="row.selected" />
+                                    <input
+                                        type="checkbox"
+                                        v-model="row.selected"
+                                    />
                                 </td>
                                 <td class="px-3 py-2 font-medium">
                                     {{ row.facility_name }}
                                 </td>
                                 <td class="px-3 py-2">
-                                    <Input v-model="row.inspection_date" type="date" />
+                                    <Input
+                                        v-model="row.inspection_date"
+                                        type="date"
+                                    />
                                     <InputError
                                         :message="
                                             row.selected &&
-                                            selectedRowIndexById[row.facility_id] !== undefined
+                                            selectedRowIndexById[
+                                                row.facility_id
+                                            ] !== undefined
                                                 ? errors[
                                                       `bulk_inspections.${selectedRowIndexById[row.facility_id]}.inspection_date`
                                                   ]
@@ -230,8 +271,13 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     />
                                 </td>
                                 <td class="px-3 py-2">
-                                    <select v-model="row.condition" :class="inputClass">
-                                        <option value="" disabled>Select condition</option>
+                                    <select
+                                        v-model="row.condition"
+                                        :class="inputClass"
+                                    >
+                                        <option value="" disabled>
+                                            Select condition
+                                        </option>
                                         <option
                                             v-for="condition in conditions"
                                             :key="condition"
@@ -243,7 +289,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     <InputError
                                         :message="
                                             row.selected &&
-                                            selectedRowIndexById[row.facility_id] !== undefined
+                                            selectedRowIndexById[
+                                                row.facility_id
+                                            ] !== undefined
                                                 ? errors[
                                                       `bulk_inspections.${selectedRowIndexById[row.facility_id]}.condition`
                                                   ]
@@ -256,11 +304,14 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         v-model="row.comments"
                                         :class="textAreaClass"
                                         placeholder="Optional notes"
-                                    />
+                                    ></textarea>
                                 </td>
                             </tr>
                             <tr v-if="rows.length === 0">
-                                <td colspan="5" class="px-3 py-8 text-center text-sm text-muted-foreground">
+                                <td
+                                    colspan="5"
+                                    class="px-3 py-8 text-center text-sm text-muted-foreground"
+                                >
                                     Select a facility type to load facilities.
                                 </td>
                             </tr>
@@ -272,10 +323,26 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     v-for="(row, index) in selectedRows"
                     :key="`payload-${row.facility_id}`"
                 >
-                    <input type="hidden" :name="`bulk_inspections[${index}][facility_id]`" :value="row.facility_id" />
-                    <input type="hidden" :name="`bulk_inspections[${index}][inspection_date]`" :value="row.inspection_date" />
-                    <input type="hidden" :name="`bulk_inspections[${index}][condition]`" :value="row.condition" />
-                    <input type="hidden" :name="`bulk_inspections[${index}][comments]`" :value="row.comments" />
+                    <input
+                        type="hidden"
+                        :name="`bulk_inspections[${index}][facility_id]`"
+                        :value="row.facility_id"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_inspections[${index}][inspection_date]`"
+                        :value="row.inspection_date"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_inspections[${index}][condition]`"
+                        :value="row.condition"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_inspections[${index}][comments]`"
+                        :value="row.comments"
+                    />
                 </div>
 
                 <InputError
@@ -288,7 +355,13 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                 />
 
                 <div class="flex items-center gap-4">
-                    <Button :disabled="processing || selectedRows.length === 0 || hasInvalidSelectedRows">
+                    <Button
+                        :disabled="
+                            processing ||
+                            selectedRows.length === 0 ||
+                            hasInvalidSelectedRows
+                        "
+                    >
                         Submit bulk inspections
                     </Button>
                     <Button variant="ghost" as-child>
