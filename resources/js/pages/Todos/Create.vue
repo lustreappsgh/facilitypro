@@ -72,6 +72,8 @@ const getUpcomingMonday = () => {
     return date.toISOString().slice(0, 10);
 };
 
+const minimumWeekStart = getUpcomingMonday();
+
 const hasPrefilledFacilities = computed(
     () =>
         (props.data.selectedFacilityIds?.length ?? 0) > 0 ||
@@ -101,7 +103,7 @@ const selectedFacilityTypeId = ref<string | null>(
             : null;
     })(),
 );
-const defaultWeekStart = ref(getUpcomingMonday());
+const defaultWeekStart = ref(minimumWeekStart);
 const rows = ref<BulkRow[]>([]);
 
 const filteredFacilities = computed(() => {
@@ -195,6 +197,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             id="default_week_start"
                             v-model="defaultWeekStart"
                             type="date"
+                            :min="minimumWeekStart"
                         />
                     </div>
                 </div>
@@ -239,7 +242,11 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     {{ row.facility_name }}
                                 </td>
                                 <td class="px-3 py-2">
-                                    <Input v-model="row.week" type="date" />
+                                    <Input
+                                        v-model="row.week"
+                                        type="date"
+                                        :min="minimumWeekStart"
+                                    />
                                     <InputError
                                         :message="
                                             row.selected &&

@@ -13,6 +13,7 @@ import {
     AccordionTrigger
 } from '@/components/ui/accordion';
 import DataTable from '@/components/data-table/DataTable.vue';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePermissions } from '@/composables/usePermissions';
 import {
     Building2, ClipboardCheck, Eye, Wrench,
@@ -176,21 +177,36 @@ const columns: ColumnDef<Facility>[] = [
         header: '',
         cell: ({ row }) => h('div', { class: 'text-right' }, [
             h('div', { class: 'flex items-center justify-end gap-1' }, [
-                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
-                    default: () => h(Link, { href: facilitiesShow(row.original.id).url, 'aria-label': 'View facility' }, () =>
-                        h(Eye, { class: 'h-4 w-4' }),
-                    )
-                }),
-                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
-                    default: () => h(Link, { href: inspectionsCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Create inspection' }, () =>
-                        h(ClipboardCheck, { class: 'h-4 w-4' }),
-                    )
-                }),
-                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
-                    default: () => h(Link, { href: maintenanceCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Create maintenance request' }, () =>
-                        h(Wrench, { class: 'h-4 w-4' }),
-                    )
-                }),
+                h(Tooltip, {}, () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                            default: () => h(Link, { href: facilitiesShow(row.original.id).url, 'aria-label': 'View facility' }, () =>
+                                h(Eye, { class: 'h-4 w-4' }),
+                            )
+                        }),
+                    ),
+                    h(TooltipContent, { side: 'top' }, () => 'View facility'),
+                ]),
+                h(Tooltip, {}, () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                            default: () => h(Link, { href: inspectionsCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Add inspection' }, () =>
+                                h(ClipboardCheck, { class: 'h-4 w-4' }),
+                            )
+                        }),
+                    ),
+                    h(TooltipContent, { side: 'top' }, () => 'Add inspection'),
+                ]),
+                h(Tooltip, {}, () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, {
+                            default: () => h(Link, { href: maintenanceCreate({ query: { facility_id: row.original.id } }).url, 'aria-label': 'Add request' }, () =>
+                                h(Wrench, { class: 'h-4 w-4' }),
+                            )
+                        }),
+                    ),
+                    h(TooltipContent, { side: 'top' }, () => 'Add request'),
+                ]),
             ]),
         ])
     }
@@ -367,17 +383,19 @@ const columns: ColumnDef<Facility>[] = [
                                                 </Link>
                                             </Button>
                                             <div class="grid grid-cols-2 gap-2">
-                                            <Button size="icon" variant="outline" class="h-9 w-9 rounded-xl" as-child>
-                                                <Link :href="inspectionsCreate({ query: { facility_id: facility.id } }).url" aria-label="New inspection">
-                                                    <ClipboardCheck class="h-4 w-4" />
-                                                </Link>
-                                            </Button>
-                                            <Button size="icon" variant="outline" class="h-9 w-9 rounded-xl" as-child>
-                                                <Link :href="maintenanceCreate({ query: { facility_id: facility.id } }).url" aria-label="New request">
-                                                    <Wrench class="h-4 w-4" />
-                                                </Link>
-                                            </Button>
-                                        </div>
+                                                <Button size="sm" variant="outline" class="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest" as-child>
+                                                    <Link :href="inspectionsCreate({ query: { facility_id: facility.id } }).url" aria-label="Add inspection">
+                                                        <ClipboardCheck class="mr-2 h-4 w-4" />
+                                                        Add inspection
+                                                    </Link>
+                                                </Button>
+                                                <Button size="sm" variant="outline" class="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest" as-child>
+                                                    <Link :href="maintenanceCreate({ query: { facility_id: facility.id } }).url" aria-label="Add request">
+                                                        <Wrench class="mr-2 h-4 w-4" />
+                                                        Add request
+                                                    </Link>
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

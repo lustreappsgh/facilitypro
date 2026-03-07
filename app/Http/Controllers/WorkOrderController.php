@@ -186,6 +186,7 @@ class WorkOrderController extends Controller
         $this->authorize('create', WorkOrder::class);
 
         $requestedIds = collect($request->input('request_ids', []))
+            ->push($request->input('maintenance_request_id'))
             ->filter(fn ($id) => is_numeric($id))
             ->map(fn ($id) => (int) $id)
             ->unique()
@@ -194,10 +195,17 @@ class WorkOrderController extends Controller
         if (! in_array($intent, ['review', 'create'], true)) {
             $intent = null;
         }
+        $eligibleStatuses = $intent === 'create'
+            ? [
+                MaintenanceStatus::Submitted->value,
+                MaintenanceStatus::Pending->value,
+                MaintenanceStatus::Approved->value,
+            ]
+            : MaintenanceStatus::approvalQueue();
 
         $maintenanceRequests = MaintenanceRequest::reviewableBy($request->user())
             ->with(['facility.facilityType', 'requestType'])
-            ->whereIn('status', MaintenanceStatus::approvalQueue())
+            ->whereIn('status', $eligibleStatuses)
             ->whereDoesntHave('workOrders')
             ->when(
                 $requestedIds->isNotEmpty(),
@@ -294,11 +302,13 @@ class WorkOrderController extends Controller
 
             if (! $maintenanceRequest) {
                 $errors[] = "Request #{$maintenanceRequestId} is outside your scope.";
+
                 continue;
             }
 
             if (($maintenanceRequest->work_orders_count ?? 0) > 0) {
                 $errors[] = "Request #{$maintenanceRequestId} already has a work order.";
+
                 continue;
             }
 
@@ -308,6 +318,7 @@ class WorkOrderController extends Controller
                 DB::transaction(function () use ($reviewAction, $maintenanceRequest, $maintenanceRequestId, $item) {
                     if ($reviewAction === 'reject') {
                         $this->maintenanceService->reject($maintenanceRequest);
+
                         return;
                     }
 

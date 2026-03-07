@@ -9,6 +9,7 @@ use App\Domains\Notifications\Actions\SendUserNotificationAction;
 use App\Domains\Notifications\DTOs\UserNotificationData;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\WorkOrder;
 use DomainException;
 
 class ReviewMaintenanceAction
@@ -27,8 +28,7 @@ class ReviewMaintenanceAction
             throw new DomainException('Authenticated user is required.');
         }
 
-        $isFinalApprover = $actor->can('maintenance.manage_all')
-            || $actor->can('users.manage');
+        $isFinalApprover = $actor->can('users.manage');
 
         if ($isFinalApprover) {
             if (! in_array($request->status, [
@@ -51,6 +51,7 @@ class ReviewMaintenanceAction
         ]);
 
         $request = $request->refresh();
+        $this->syncWorkOrdersForFinalApproval($request, $isFinalApprover);
 
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),
@@ -80,5 +81,34 @@ class ReviewMaintenanceAction
         ));
 
         return $request;
+    }
+
+    protected function syncWorkOrdersForFinalApproval(MaintenanceRequest $request, bool $isFinalApprover): void
+    {
+        if (! $isFinalApprover) {
+            return;
+        }
+
+        $request->workOrders()
+            ->where('status', 'assigned')
+            ->get()
+            ->each(function (WorkOrder $workOrder): void {
+                $before = $workOrder->getOriginal();
+
+                $workOrder->update([
+                    'status' => 'in_progress',
+                ]);
+
+                $workOrder->refresh();
+
+                $this->recordAuditLogAction->execute(new AuditLogData(
+                    actor_id: $this->resolveActorId(),
+                    action: 'work_order.updated',
+                    auditable_type: $workOrder->getMorphClass(),
+                    auditable_id: $workOrder->id,
+                    before: $before,
+                    after: $workOrder->getAttributes(),
+                ));
+            });
     }
 }

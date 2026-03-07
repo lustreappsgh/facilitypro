@@ -13,9 +13,10 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { edit, index as maintenanceIndex } from '@/routes/maintenance';
-import { create as workOrderCreate, show as workOrderShow } from '@/routes/work-orders';
+import { bulkCreate as workOrdersBulkCreate, show as workOrderShow } from '@/routes/work-orders';
 import { index as vendorsIndex } from '@/routes/vendors';
 import { show as paymentShow } from '@/routes/payments';
 import type { BreadcrumbItem } from '@/types';
@@ -255,11 +256,16 @@ const paymentColumns: ColumnDef<Payment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
+            h(Tooltip, {}, () => [
+                h(TooltipTrigger, { asChild: true }, () =>
+                    h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                        h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
+                            h(Eye, { class: 'h-4 w-4' }),
+                        ),
+                    ),
                 ),
-            ),
+                h(TooltipContent, { side: 'top' }, () => 'View payment'),
+            ]),
         enableSorting: false,
         enableHiding: false,
     },
@@ -311,11 +317,16 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
+            h(Tooltip, {}, () => [
+                h(TooltipTrigger, { asChild: true }, () =>
+                    h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                        h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
+                            h(Eye, { class: 'h-4 w-4' }),
+                        ),
+                    ),
                 ),
-            ),
+                h(TooltipContent, { side: 'top' }, () => 'View work order'),
+            ]),
         enableSorting: false,
         enableHiding: false,
     },
@@ -334,11 +345,16 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
             >
                 <template #actions>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="maintenanceIndex().url" aria-label="Back to list">
-                                <ArrowLeft class="h-4 w-4" />
-                            </Link>
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button variant="outline" size="icon" class="h-9 w-9" as-child>
+                                    <Link :href="maintenanceIndex().url" aria-label="Back to list">
+                                        <ArrowLeft class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Back to list</TooltipContent>
+                        </Tooltip>
                         <form
                             v-if="canFirstApproval || canAdminFastTrack"
                             class="flex flex-wrap items-end gap-2"
@@ -379,87 +395,124 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     {{ approveForm.errors.estimated_cost }}
                                 </p>
                             </div>
-                            <Button :disabled="approveForm.processing" size="icon" class="h-9 w-9" aria-label="Approve request">
-                                <ClipboardCheck class="h-4 w-4" />
-                            </Button>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Button :disabled="approveForm.processing" size="icon" class="h-9 w-9" aria-label="Approve request">
+                                        <ClipboardCheck class="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">Approve request</TooltipContent>
+                            </Tooltip>
                             <p v-if="approveForm.errors.status" class="basis-full text-xs text-destructive">
                                 {{ approveForm.errors.status }}
                             </p>
                         </form>
-                        <Button
-                            v-if="canFinalApproval"
-                            :disabled="approveForm.processing"
-                            size="icon"
-                            class="h-9 w-9"
-                            as-child
-                        >
-                            <Link
-                                :href="`/maintenance/${request.id}/approve`"
-                                method="post"
-                                as="button"
-                                aria-label="Final approve request"
-                            >
-                                <ClipboardCheck class="h-4 w-4" />
-                            </Link>
-                        </Button>
-                        <Button
-                            v-if="canFirstApproval || canAdminFastTrack || canFinalApproval"
-                            variant="secondary"
-                            size="icon"
-                            class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
-                            as-child
-                        >
-                            <Link :href="`/maintenance/${request.id}/reject`" method="post" as="button" aria-label="Reject request">
-                                <X class="h-4 w-4" />
-                            </Link>
-                        </Button>
-                        <Button
+                        <Tooltip v-if="canFinalApproval">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    :disabled="approveForm.processing"
+                                    size="icon"
+                                    class="h-9 w-9"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="`/maintenance/${request.id}/approve`"
+                                        method="post"
+                                        as="button"
+                                        aria-label="Final approve request"
+                                    >
+                                        <ClipboardCheck class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Final approve request</TooltipContent>
+                        </Tooltip>
+                        <Tooltip v-if="canFirstApproval || canAdminFastTrack || canFinalApproval">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+                                    as-child
+                                >
+                                    <Link :href="`/maintenance/${request.id}/reject`" method="post" as="button" aria-label="Reject request">
+                                        <X class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Reject request</TooltipContent>
+                        </Tooltip>
+                        <Tooltip
                             v-if="can('work_orders.create') && workOrders.length === 0 && ['submitted', 'pending', 'rejected', 'approved'].includes(request.status)"
-                            size="icon"
-                            class="h-9 w-9"
-                            as-child
                         >
-                            <Link :href="workOrderCreate({
-                                query: {
-                                    maintenance_request_id: request.id,
-                                },
-                            }).url" aria-label="Create work order">
-                                <ClipboardList class="h-4 w-4" />
-                            </Link>
-                        </Button>
-                        <Button
+                            <TooltipTrigger as-child>
+                                <Button
+                                    size="icon"
+                                    class="h-9 w-9"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="workOrdersBulkCreate({
+                                            query: {
+                                                request_ids: [request.id],
+                                                intent: 'review',
+                                            },
+                                        }).url"
+                                        aria-label="Review request"
+                                    >
+                                        <ClipboardList class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Review request</TooltipContent>
+                        </Tooltip>
+                        <Tooltip
                             v-else-if="can('work_orders.view') && workOrders.length > 0"
-                            variant="outline"
-                            size="icon"
-                            class="h-9 w-9"
-                            as-child
                         >
-                            <Link :href="workOrderShow(workOrders[0].id).url" aria-label="View work order">
-                                <ClipboardList class="h-4 w-4" />
-                            </Link>
-                        </Button>
-                        <Button
-                            v-if="can('maintenance.update') && ['submitted', 'pending'].includes(request.status)"
-                            variant="secondary"
-                            size="icon"
-                            class="h-9 w-9"
-                            as-child
-                        >
-                            <Link :href="edit(request).url" aria-label="Edit request">
-                                <Pencil class="h-4 w-4" />
-                            </Link>
-                        </Button>
-                        <Button
-                            v-if="can('maintenance.close') && request.status === 'paid'"
-                            variant="secondary"
-                            size="icon"
-                            class="h-9 w-9"
-                            as-child
-                        >
-                            <Link :href="`/maintenance/${request.id}/close`" method="post" as="button" aria-label="Close request">
-                                <ClipboardCheck class="h-4 w-4" />
-                            </Link>
-                        </Button>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    class="h-9 w-9"
+                                    as-child
+                                >
+                                    <Link :href="workOrderShow(workOrders[0].id).url" aria-label="View work order">
+                                        <ClipboardList class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">View work order</TooltipContent>
+                        </Tooltip>
+                        <Tooltip v-if="can('maintenance.update') && ['submitted', 'pending'].includes(request.status)">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    class="h-9 w-9"
+                                    as-child
+                                >
+                                    <Link :href="edit(request).url" aria-label="Edit request">
+                                        <Pencil class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Edit request</TooltipContent>
+                        </Tooltip>
+                        <Tooltip v-if="can('maintenance.close') && request.status === 'paid'">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    class="h-9 w-9"
+                                    as-child
+                                >
+                                    <Link :href="`/maintenance/${request.id}/close`" method="post" as="button" aria-label="Close request">
+                                        <ClipboardCheck class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Close request</TooltipContent>
+                        </Tooltip>
                     </div>
                 </template>
             </PageHeader>

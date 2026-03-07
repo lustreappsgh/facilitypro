@@ -6,10 +6,10 @@ import { ButtonGroup } from '@/components/ui/button-group';
 import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { close, create, edit, index as maintenanceIndex, show } from '@/routes/maintenance';
 import { show as workOrderShow } from '@/routes/work-orders';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
@@ -97,7 +97,6 @@ const { can } = usePermissions();
 
 const filterStartDate = ref(props.data.filters.start_date || '');
 const filterEndDate = ref(props.data.filters.end_date || '');
-const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
 const filterUserId = ref(props.data.filters.user_id ? String(props.data.filters.user_id) : 'all');
 
 const currencyFormat = new Intl.NumberFormat(undefined, {
@@ -128,7 +127,6 @@ const applyFilters = () => {
         {
             start_date: filterStartDate.value || undefined,
             end_date: filterEndDate.value || undefined,
-            facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
             user_id: filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
         { preserveState: true, preserveScroll: true },
@@ -172,7 +170,6 @@ const applyNeedsActionNow = () => {
         {
             start_date: range.start,
             end_date: range.end,
-            facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
             user_id: filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
         { preserveState: true, preserveScroll: true },
@@ -370,9 +367,9 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                                     class: 'rounded-none border-0 shadow-none',
                                     asChild: true,
                                 },
-                                () => h(Link, { href: show(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                                    () => h(Link, { href: show(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                                ),
                             ),
-                        ),
                         h(TooltipContent, { side: 'top' }, () => 'View'),
                     ]),
                     (can('maintenance.update') || can('maintenance_requests.update')) && ['submitted', 'pending'].includes(row.original.status)
@@ -403,7 +400,19 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                                         class: 'rounded-none border-l border-border/60 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 shadow-none',
                                         asChild: true,
                                     },
-                                    () => h(Link, { href: show(row.original.id).url }, () => h(ClipboardCheck, { class: 'h-3.5 w-3.5' })),
+                                    () =>
+                                        h(
+                                            Link,
+                                            {
+                                                href: workOrdersBulkCreate({
+                                                    query: {
+                                                        request_ids: [row.original.id],
+                                                        intent: 'review',
+                                                    },
+                                                }).url,
+                                            },
+                                            () => h(ClipboardCheck, { class: 'h-3.5 w-3.5' }),
+                                        ),
                                 ),
                             ),
                             h(TooltipContent, { side: 'top' }, () => 'Review'),
@@ -466,34 +475,24 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                 <div class="flex items-center gap-2">
                     <Button
                         v-if="can('maintenance.create') || can('maintenance_requests.create')"
-                        size="icon"
+                        size="sm"
                         as-child
-                        class="h-9 w-9 rounded-lg"
+                        class="h-9 rounded-lg px-4"
                     >
                         <Link :href="create().url" aria-label="New request">
-                            <Plus class="h-4 w-4" />
+                            <Plus class="mr-2 h-4 w-4" />
+                            Add request
                         </Link>
                     </Button>
                 </div>
             </div>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-end">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
                     <div class="grid gap-2 sm:grid-cols-2">
                         <DatePicker v-model="filterStartDate" class="h-9 w-full" placeholder="Start date" />
                         <DatePicker v-model="filterEndDate" class="h-9 w-full" placeholder="End date" />
                     </div>
-                    <Select v-model="filterFacilityId">
-                        <SelectTrigger class="h-9 w-full">
-                            <SelectValue placeholder="All facilities" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All facilities</SelectItem>
-                            <SelectItem v-for="facility in data.facilities" :key="facility.id" :value="String(facility.id)">
-                                {{ facility.name }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
                     <Select v-if="data.users && data.users.length" v-model="filterUserId">
                         <SelectTrigger class="h-9 w-full">
                             <SelectValue placeholder="All users" />

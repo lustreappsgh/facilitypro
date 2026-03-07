@@ -4,15 +4,9 @@ import PageHeader from '@/components/PageHeader.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DataTable from '@/components/data-table/DataTable.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show as maintenanceShow } from '@/routes/maintenance';
@@ -23,7 +17,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { Eye, Search, Send } from 'lucide-vue-next';
-import { computed, h, ref } from 'vue';
+import { h, ref } from 'vue';
 
 const filtersVisible = ref(false);
 
@@ -106,25 +100,11 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
 });
 
 const searchFilter = ref(props.filters.search ?? '');
-const statusFilter = ref(props.filters.status ?? '');
-const facilityFilter = ref(props.filters.facility ?? '');
-const vendorFilter = ref(props.filters.vendor ?? '');
+const statusFilter = ref(props.filters.status ?? 'all');
+const facilityFilter = ref(props.filters.facility ?? 'all');
+const vendorFilter = ref(props.filters.vendor ?? 'all');
 const startDateFilter = ref(props.filters.start_date ?? '');
 const endDateFilter = ref(props.filters.end_date ?? '');
-
-const selectedFacilityLabel = computed(() => {
-    const match = props.facilities.find(
-        (facility) => String(facility.id) === facilityFilter.value,
-    );
-    return match?.name ?? 'All facilities';
-});
-
-const selectedVendorLabel = computed(() => {
-    const match = props.vendors.find(
-        (vendor) => String(vendor.id) === vendorFilter.value,
-    );
-    return match?.name ?? 'All vendors';
-});
 
 const statusBadgeClass = (status: string) => {
     if (status === 'paid') {
@@ -144,24 +124,37 @@ const statusBadgeClass = (status: string) => {
 
 const columns: ColumnDef<Payment>[] = [
     {
-        id: 'maintenanceRequest',
+        id: 'requestDetails',
         accessorFn: (row) => row.maintenanceRequest?.id ?? '',
-        header: 'Maintenance request',
+        header: 'Request details',
         cell: ({ row }) => {
-            const requestId = row.original.maintenanceRequest?.id;
-            if (!requestId) {
+            const maintenanceRequest = row.original.maintenanceRequest;
+            if (!maintenanceRequest?.id) {
                 return '-';
             }
-            return h(
-                Button,
-                { variant: 'link', class: 'px-0', asChild: true },
-                () =>
-                    h(
-                        Link,
-                        { href: maintenanceShow(row.original.maintenanceRequest!).url },
-                        () => `Request #${requestId}`,
-                    ),
-            );
+
+            return h('div', { class: 'space-y-1' }, [
+                h(
+                    Button,
+                    { variant: 'link', class: 'h-auto px-0 py-0', asChild: true },
+                    () =>
+                        h(
+                            Link,
+                            { href: maintenanceShow(maintenanceRequest).url },
+                            () => `Request #${maintenanceRequest.id}`,
+                        ),
+                ),
+                h(
+                    'div',
+                    { class: 'text-xs text-muted-foreground' },
+                    maintenanceRequest.requestType?.name ?? 'General request',
+                ),
+                h(
+                    'div',
+                    { class: 'text-xs text-muted-foreground' },
+                    maintenanceRequest.facility?.name ?? 'No facility linked',
+                ),
+            ]);
         },
         enableHiding: false,
     },
@@ -220,17 +213,27 @@ const columns: ColumnDef<Payment>[] = [
         header: 'Actions',
         cell: ({ row }) =>
             h('div', { class: 'flex items-center justify-end gap-1' }, [
-                h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                    h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
-                        h(Eye, { class: 'h-4 w-4' }),
+                h(Tooltip, {}, () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                        h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                            h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
+                                h(Eye, { class: 'h-4 w-4' }),
+                            ),
+                        ),
                     ),
-                ),
+                    h(TooltipContent, { side: 'top' }, () => 'View payment'),
+                ]),
                 row.original.status === 'pending' &&
                     can('payments.submit') &&
                     !can('payments.approve')
-                    ? h(Button, { size: 'icon', variant: 'secondary', class: 'h-8 w-8', 'aria-label': 'Submit for approval' }, () =>
-                        h(Send, { class: 'h-4 w-4' }),
-                    )
+                    ? h(Tooltip, {}, () => [
+                        h(TooltipTrigger, { asChild: true }, () =>
+                            h(Button, { size: 'icon', variant: 'secondary', class: 'h-8 w-8', 'aria-label': 'Submit for approval' }, () =>
+                                h(Send, { class: 'h-4 w-4' }),
+                            ),
+                        ),
+                        h(TooltipContent, { side: 'top' }, () => 'Submit for approval'),
+                    ])
                     : null,
             ]),
         enableSorting: false,
@@ -260,73 +263,47 @@ const columns: ColumnDef<Payment>[] = [
                                 placeholder="Search facility or request" />
                         </div>
 
-                        <input type="hidden" name="status" :value="statusFilter" />
-                        <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                                <Button variant="outline" class="min-w-[150px] justify-between">
-                                    {{ statusFilter || 'All statuses' }}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-56">
-                                <DropdownMenuLabel>Status</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem @click="statusFilter = ''">
-                                    All statuses
-                                </DropdownMenuItem>
-                                <DropdownMenuItem @click="statusFilter = 'pending'">
-                                    Pending
-                                </DropdownMenuItem>
-                                <DropdownMenuItem @click="statusFilter = 'approved'">
-                                    Approved
-                                </DropdownMenuItem>
-                                <DropdownMenuItem @click="statusFilter = 'rejected'">
-                                    Rejected
-                                </DropdownMenuItem>
-                                <DropdownMenuItem @click="statusFilter = 'paid'">
-                                    Paid
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <input type="hidden" name="status" :value="statusFilter === 'all' ? '' : statusFilter" />
+                        <Select v-model="statusFilter">
+                            <SelectTrigger class="min-w-[150px]">
+                                <SelectValue placeholder="All statuses" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All statuses</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                        <input type="hidden" name="facility" :value="facilityFilter" />
-                        <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                                <Button variant="outline" class="min-w-[170px] justify-between">
-                                    {{ selectedFacilityLabel }}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-64">
-                                <DropdownMenuLabel>Facility</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem @click="facilityFilter = ''">
-                                    All facilities
-                                </DropdownMenuItem>
-                                <DropdownMenuItem v-for="facility in facilities" :key="facility.id"
-                                    @click="facilityFilter = String(facility.id)">
+                        <input type="hidden" name="facility" :value="facilityFilter === 'all' ? '' : facilityFilter" />
+                        <Select v-model="facilityFilter">
+                            <SelectTrigger class="min-w-[170px]">
+                                <SelectValue placeholder="All facilities" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All facilities</SelectItem>
+                                <SelectItem v-for="facility in facilities" :key="facility.id"
+                                    :value="String(facility.id)">
                                     {{ facility.name }}
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                        <input type="hidden" name="vendor" :value="vendorFilter" />
-                        <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                                <Button variant="outline" class="min-w-[160px] justify-between">
-                                    {{ selectedVendorLabel }}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-64">
-                                <DropdownMenuLabel>Vendor</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem @click="vendorFilter = ''">
-                                    All vendors
-                                </DropdownMenuItem>
-                                <DropdownMenuItem v-for="vendor in vendors" :key="vendor.id"
-                                    @click="vendorFilter = String(vendor.id)">
+                        <input type="hidden" name="vendor" :value="vendorFilter === 'all' ? '' : vendorFilter" />
+                        <Select v-model="vendorFilter">
+                            <SelectTrigger class="min-w-[160px]">
+                                <SelectValue placeholder="All vendors" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All vendors</SelectItem>
+                                <SelectItem v-for="vendor in vendors" :key="vendor.id"
+                                    :value="String(vendor.id)">
                                     {{ vendor.name }}
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
 
                         <DatePicker v-model="startDateFilter" name="start_date" class="min-w-[150px]"  />
                         <DatePicker v-model="endDateFilter" name="end_date" class="min-w-[150px]"  />

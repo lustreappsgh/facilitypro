@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Domains\Maintenance\Actions\CreateWorkOrderAction;
 use App\Domains\Maintenance\DTOs\MaintenanceRequestData;
 use App\Domains\Maintenance\DTOs\WorkOrderData;
 use App\Domains\Maintenance\Requests\MaintenanceRequestRequest;
-use App\Domains\Maintenance\Actions\CreateWorkOrderAction;
 use App\Domains\Maintenance\Services\MaintenanceService;
 use App\Domains\Payments\Services\PaymentService;
 use App\Enums\MaintenanceStatus;
@@ -20,7 +20,6 @@ use App\Models\WorkOrder;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -48,7 +47,6 @@ class MaintenanceRequestController extends Controller
 
         $startDateInput = $request->input('start_date');
         $endDateInput = $request->input('end_date');
-        $facilityId = $request->input('facility_id');
         $userId = $request->input('user_id');
 
         $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
@@ -60,7 +58,6 @@ class MaintenanceRequestController extends Controller
             [$startDate, $endDate] = [$endDate, $startDate];
         }
 
-        $facilitiesQuery = Facility::maintenanceFacilities($user);
         $users = collect();
         if ($canViewAllRequests) {
             $usersQuery = User::query()
@@ -112,7 +109,6 @@ class MaintenanceRequestController extends Controller
 
         $filteredRequests = (clone $baseQuery)
             ->whereBetween('week_start', [$startDate, $endDate])
-            ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllRequests && $userId, fn ($query) => $query->where('requested_by', $userId))
             ->orderByRaw(
                 "CASE
@@ -170,7 +166,7 @@ class MaintenanceRequestController extends Controller
             'data' => [
                 'groups' => $groups,
                 'weeks_by_year_month' => $weeksByYearMonth,
-                'facilities' => $facilitiesQuery->orderBy('name')->get(),
+                'facilities' => [],
                 'show_requester_name' => $showRequesterName,
                 'show_facility_manager_name' => $showFacilityManagerName,
                 'is_facility_manager' => $isFacilityManager,
@@ -178,7 +174,7 @@ class MaintenanceRequestController extends Controller
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
-                    'facility_id' => $facilityId,
+                    'facility_id' => null,
                     'user_id' => $canViewAllRequests ? $userId : null,
                 ],
             ],
@@ -201,7 +197,7 @@ class MaintenanceRequestController extends Controller
 
         $query = MaintenanceRequest::userRequests($request->user())
             ->with([
-                'workOrders' => fn($builder) => $builder->latest()->limit(1),
+                'workOrders' => fn ($builder) => $builder->latest()->limit(1),
             ]);
 
         $search = $request->string('search')->trim()->toString();
@@ -242,7 +238,7 @@ class MaintenanceRequestController extends Controller
 
         return Inertia::render('MaintenanceRequests/Oversight', [
             'requests' => $query->latest()->paginate(10)->withQueryString(),
-            'statuses' => collect(MaintenanceStatus::cases())->map(fn(MaintenanceStatus $status) => [
+            'statuses' => collect(MaintenanceStatus::cases())->map(fn (MaintenanceStatus $status) => [
                 'value' => $status->value,
                 'label' => $status->label(),
             ]),
@@ -392,7 +388,7 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('review', $maintenance);
 
-        $isFinalApproval = request()->user()?->can('maintenance.manage_all') === true;
+        $isFinalApproval = request()->user()?->can('users.manage') === true;
         $isAdminFastTrack = $isFinalApproval && in_array($maintenance->status, [
             MaintenanceStatus::Submitted->value,
             MaintenanceStatus::Pending->value,
@@ -540,7 +536,6 @@ class MaintenanceRequestController extends Controller
         $query = [
             'start_date' => $request->string('start_date')->trim()->toString() ?: null,
             'end_date' => $request->string('end_date')->trim()->toString() ?: null,
-            'facility_id' => $request->string('facility')->trim()->toString() ?: null,
         ];
 
         return redirect()->route('maintenance.index', array_filter($query));
@@ -555,7 +550,7 @@ class MaintenanceRequestController extends Controller
                 'facility',
                 'requestedBy',
                 'requestType',
-                'workOrders' => fn($builder) => $builder->latest()->limit(1),
+                'workOrders' => fn ($builder) => $builder->latest()->limit(1),
             ]);
 
         $search = $request->string('search')->trim()->toString();
@@ -596,7 +591,7 @@ class MaintenanceRequestController extends Controller
 
         return Inertia::render('MaintenanceRequests/AdminIndex', [
             'requests' => $query->latest()->paginate(10)->withQueryString(),
-            'statuses' => collect(MaintenanceStatus::cases())->map(fn(MaintenanceStatus $status) => [
+            'statuses' => collect(MaintenanceStatus::cases())->map(fn (MaintenanceStatus $status) => [
                 'value' => $status->value,
                 'label' => $status->label(),
             ]),

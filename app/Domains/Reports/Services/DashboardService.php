@@ -2,6 +2,8 @@
 
 namespace App\Domains\Reports\Services;
 
+use App\Enums\MaintenanceStatus;
+use App\Enums\TodoStatus;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Inspection;
@@ -13,8 +15,6 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
-use App\Enums\MaintenanceStatus;
-use App\Enums\TodoStatus;
 
 class DashboardService
 {
@@ -56,7 +56,7 @@ class DashboardService
 
             $data['maintenanceManager'] = [
                 'openRequests' => MaintenanceRequest::userRequests($user)
-                ->whereIn('status', MaintenanceStatus::active())
+                    ->whereIn('status', MaintenanceStatus::active())
                     ->count(),
                 'pendingRequests' => MaintenanceRequest::userRequests($user)
                     ->whereIn('status', MaintenanceStatus::approvalQueue())
@@ -74,7 +74,7 @@ class DashboardService
                     ->whereHas('maintenanceRequest', fn ($q) => $q->maintenanceScope($user))
                     ->where('status', 'pending')
                     ->count(),
-                'users' => $user->can('users.manage') ? [] : $this->userCardsForMaintenanceManager(),
+                'users' => $user->can('users.manage') ? [] : $this->maintenanceManagerUserCards(),
             ];
         }
 
@@ -290,28 +290,13 @@ class DashboardService
             ->all();
     }
 
-    protected function userCardsForMaintenanceManager(): array
+    protected function maintenanceManagerUserCards(): array
     {
-        $lastWeekStart = Carbon::now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $lastWeekEnd = Carbon::now()->subWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
-        $today = Carbon::today()->toDateString();
-
         return User::query()
             ->active()
             ->role('Facility Manager')
             ->with(['roles'])
             ->withCount(['facilities', 'maintenanceRequestsRequested'])
-            ->addSelect([
-                'inspections_last_week' => Inspection::query()
-                    ->selectRaw('count(*)')
-                    ->whereColumn('added_by', 'users.id')
-                    ->whereBetween('inspection_date', [$lastWeekStart, $lastWeekEnd]),
-                'upcoming_todos' => Todo::query()
-                    ->selectRaw('count(*)')
-                    ->whereColumn('user_id', 'users.id')
-                    ->whereDate('week_start', '>=', $today)
-                    ->where('status', '!=', TodoStatus::Completed->value),
-            ])
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'profile_photo_path', 'is_active'])
             ->map(fn (User $user) => [
@@ -321,8 +306,6 @@ class DashboardService
                 'profile_photo_url' => $user->profile_photo_url,
                 'is_active' => $user->is_active,
                 'facilities_managed' => $user->facilities_count ?? 0,
-                'inspections_last_week' => (int) ($user->inspections_last_week ?? 0),
-                'upcoming_todos' => (int) ($user->upcoming_todos ?? 0),
                 'requests_submitted' => (int) ($user->maintenance_requests_requested_count ?? 0),
                 'roles' => $user->roles->pluck('name')->values()->all(),
             ])

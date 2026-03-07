@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { create, index as inspectionsIndex, show } from '@/routes/inspections';
 import type { BreadcrumbItem } from '@/types';
@@ -12,7 +13,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import { useDateFormat } from '@/composables/useDateFormat';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { computed, h, ref } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 import { AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList, Eye, Plus, TrendingUp } from 'lucide-vue-next';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -88,8 +89,36 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const { can } = usePermissions();
 
-const filterStartDate = ref(props.data.filters.start_date || '');
-const filterEndDate = ref(props.data.filters.end_date || '');
+const toDateString = (value: Date) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+const getPreviousAndCurrentWeekRange = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const mondayOffset = (dayOfWeek + 6) % 7;
+
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - mondayOffset - 7);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 13);
+
+    return {
+        start: toDateString(start),
+        end: toDateString(end),
+    };
+};
+
+const defaultRange = getPreviousAndCurrentWeekRange();
+
+const filterStartDate = ref(props.data.filters.start_date || defaultRange.start);
+const filterEndDate = ref(props.data.filters.end_date || defaultRange.end);
 const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
 const filterUserId = ref(props.data.filters.user_id ? String(props.data.filters.user_id) : 'all');
 
@@ -127,7 +156,14 @@ const applyFilters = () => {
 };
 
 const clearFilters = () => {
-    router.get(inspectionsIndex().url, {}, { preserveState: true, preserveScroll: true });
+    router.get(
+        inspectionsIndex().url,
+        {
+            start_date: defaultRange.start,
+            end_date: defaultRange.end,
+        },
+        { preserveState: true, preserveScroll: true },
+    );
 };
 
 const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDate.value}`);
@@ -183,16 +219,36 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
         id: 'actions',
         header: '',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: show(row.original.id).url, 'aria-label': 'View inspection' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
+            h(Tooltip, {}, () => [
+                h(TooltipTrigger, { asChild: true }, () =>
+                    h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
+                        h(Link, { href: show(row.original.id).url, 'aria-label': 'View inspection' }, () =>
+                            h(Eye, { class: 'h-4 w-4' }),
+                        ),
+                    ),
                 ),
-            ),
+                h(TooltipContent, { side: 'top' }, () => 'View inspection'),
+            ]),
         enableSorting: false,
         enableHiding: false,
     });
 
     return base;
+});
+
+onMounted(() => {
+    if (props.data.filters.start_date || props.data.filters.end_date) {
+        return;
+    }
+
+    router.get(
+        inspectionsIndex().url,
+        {
+            start_date: defaultRange.start,
+            end_date: defaultRange.end,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
 });
 </script>
 
@@ -208,12 +264,13 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
                 </div>
                 <Button
                     v-if="can('inspections.create')"
-                    size="icon"
+                    size="sm"
                     as-child
-                    class="h-9 w-9 rounded-lg"
+                    class="h-9 rounded-lg px-4"
                 >
                     <Link :href="create().url" aria-label="New inspection">
-                        <Plus class="h-4 w-4" />
+                        <Plus class="mr-2 h-4 w-4" />
+                        Add inspection
                     </Link>
                 </Button>
             </div>
@@ -252,7 +309,7 @@ const columns = computed<ColumnDef<Inspection>[]>(() => {
                     </div>
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Default range shows the previous week: {{ dateRangeLabel }}.
+                    Default range shows the previous and current week: {{ dateRangeLabel }}.
                 </p>
             </div>
 

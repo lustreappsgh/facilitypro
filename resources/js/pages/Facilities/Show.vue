@@ -108,6 +108,24 @@ const managerName = computed(
     () => props.facility.manager?.name ?? 'Unassigned',
 );
 
+const conditionBadgeClass = computed(() => {
+    const condition = props.facility.condition?.toLowerCase();
+
+    if (condition === 'good') {
+        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    }
+
+    if (condition === 'warning' || condition === 'bad') {
+        return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
+    }
+
+    if (condition === 'critical') {
+        return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
+    }
+
+    return 'bg-muted text-muted-foreground';
+});
+
 const tabs = ['inspections', 'maintenance', 'children'] as const;
 const activeTab = ref<(typeof tabs)[number]>('inspections');
 
@@ -261,32 +279,47 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <PageHeader
                 :title="facility.name"
-                :subtitle="`${facilityTypeName} · Managed by ${managerName}`"
+                :subtitle="`${facilityTypeName} - Managed by ${managerName}`"
             >
                 <template #actions>
                     <div class="flex flex-wrap items-center gap-3">
-                        <Badge class="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase text-emerald-700">
+                        <Badge
+                            class="rounded-full px-3 py-1 text-[11px] font-semibold uppercase"
+                            :class="conditionBadgeClass"
+                        >
                             {{ facility.condition ?? 'unknown' }}
                         </Badge>
-                        <Button variant="ghost" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="facilitiesIndex().url" aria-label="Back to list">
-                                <ArrowLeft class="h-4 w-4" />
-                            </Link>
-                        </Button>
-                        <Button v-if="can('facilities.update') && !isFacilityManagerView" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="facilitiesEdit(facility.id).url" aria-label="Edit facility">
-                                <Pencil class="h-4 w-4" />
-                            </Link>
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button variant="ghost" size="icon" class="h-9 w-9" as-child>
+                                    <Link :href="facilitiesIndex().url" aria-label="Back to list">
+                                        <ArrowLeft class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Back to list</TooltipContent>
+                        </Tooltip>
+                        <Tooltip
+                            v-if="can('facilities.update') && !isFacilityManagerView"
+                        >
+                            <TooltipTrigger as-child>
+                                <Button size="icon" class="h-9 w-9" as-child>
+                                    <Link :href="facilitiesEdit(facility.id).url" aria-label="Edit facility">
+                                        <Pencil class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">Edit facility</TooltipContent>
+                        </Tooltip>
                     </div>
                 </template>
             </PageHeader>
 
             <div class="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
-                <div class="rounded-2xl border border-emerald-100/70 bg-white shadow-sm">
-                    <div class="flex items-center justify-between gap-3 border-b border-emerald-100/70 px-6 py-4">
-                        <h2 class="text-base font-semibold text-slate-900">Facility Overview</h2>
-                        <div class="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-100 text-emerald-700 text-xs font-semibold">
+                <div class="rounded-2xl border border-border/60 bg-card/80 shadow-sm backdrop-blur">
+                    <div class="flex items-center justify-between gap-3 border-b border-border/60 px-6 py-4">
+                        <h2 class="text-base font-semibold text-foreground">Facility Overview</h2>
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-muted/40 text-xs font-semibold text-muted-foreground">
                             i
                         </div>
                     </div>
@@ -294,19 +327,19 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
                     <div class="grid gap-4 px-6 py-5 text-sm">
                         <div class="grid gap-2 sm:grid-cols-2">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800/70">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Facility type
                                 </p>
-                                <p class="mt-2 font-medium text-slate-900">
+                                <p class="mt-2 font-medium text-foreground">
                                     {{ facilityTypeName }}
                                 </p>
                             </div>
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800/70">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Condition
                                 </p>
-                                <div class="mt-2 flex items-center gap-2 text-slate-900">
-                                    <span class="h-2 w-16 rounded-full bg-emerald-100">
+                                <div class="mt-2 flex items-center gap-2 text-foreground">
+                                    <span class="h-2 w-16 rounded-full bg-muted">
                                         <span class="block h-2 w-10 rounded-full bg-emerald-500"></span>
                                     </span>
                                     <span class="text-xs font-semibold uppercase">
@@ -318,28 +351,28 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
 
                         <div class="grid gap-2 sm:grid-cols-2">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800/70">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Manager
                                 </p>
-                                <p class="mt-2 font-medium text-slate-900">
+                                <p class="mt-2 font-medium text-foreground">
                                     {{ managerName }}
                                 </p>
                             </div>
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800/70">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Parent facility
                                 </p>
-                                <p class="mt-2 font-medium text-slate-900">
+                                <p class="mt-2 font-medium text-foreground">
                                     {{ parentName }}
                                 </p>
                             </div>
                         </div>
 
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800/70">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 Last inspected
                             </p>
-                            <p class="mt-2 font-medium text-slate-900">
+                            <p class="mt-2 font-medium text-foreground">
                                 {{ lastInspection?.date ?? 'Not yet' }}
                             </p>
                             <p class="text-xs text-muted-foreground">
@@ -348,10 +381,10 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
                         </div>
 
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800/70">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 Last maintenance
                             </p>
-                            <p class="mt-2 font-medium text-slate-900">
+                            <p class="mt-2 font-medium text-foreground">
                                 {{ lastMaintenance?.date ?? 'Not yet' }}
                             </p>
                             <p class="text-xs text-muted-foreground capitalize">
@@ -363,15 +396,15 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
 
                 <Tabs
                     v-model="activeTab"
-                    class="rounded-2xl border border-emerald-100/70 bg-white shadow-sm"
+                    class="rounded-2xl border border-border/60 bg-card/80 shadow-sm backdrop-blur"
                 >
-                    <div class="border-b border-emerald-100/70 px-6 pt-5">
+                    <div class="border-b border-border/60 px-6 pt-5">
                         <TabsList class="flex flex-wrap items-center gap-6 bg-transparent p-0">
                             <TabsTrigger
                                 v-for="tab in tabs"
                                 :key="tab"
                                 :value="tab"
-                                class="rounded-none border-b-2 border-transparent px-0 pb-3 text-xs font-semibold uppercase tracking-wide text-emerald-900/60 hover:text-emerald-800 data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-700"
+                                class="rounded-none border-b-2 border-transparent px-0 pb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary"
                             >
                                 <span>{{ tabTitle(tab) }}</span>
                                 <Badge variant="secondary" class="ml-2 px-2 text-[10px]">
@@ -384,7 +417,7 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
                     <TabsContent value="inspections" class="p-6">
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="text-sm font-semibold text-slate-900">Recent Inspections</h3>
+                                <h3 class="text-sm font-semibold text-foreground">Recent Inspections</h3>
                             </div>
                             <DataTable
                                 :data="inspections"
@@ -400,7 +433,7 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
                     <TabsContent value="maintenance" class="p-6">
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="text-sm font-semibold text-slate-900">Maintenance Requests</h3>
+                                <h3 class="text-sm font-semibold text-foreground">Maintenance Requests</h3>
                             </div>
                             <DataTable
                                 :data="maintenanceRequests"
@@ -416,7 +449,7 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
                     <TabsContent value="children" class="p-6">
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="text-sm font-semibold text-slate-900">Child Facilities</h3>
+                                <h3 class="text-sm font-semibold text-foreground">Child Facilities</h3>
                             </div>
                             <DataTable
                                 :data="children"
@@ -433,3 +466,4 @@ const childFacilityColumns: ColumnDef<ChildFacilityRow>[] = [
         </div>
     </AppLayout>
 </template>
+

@@ -10,13 +10,13 @@ class InspectionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; 
+        return true;
     }
 
     public function rules(): array
     {
         return [
-            'inspection_date' => ['required_without:bulk_inspections', 'date'],
+            'inspection_date' => ['required_without:bulk_inspections', Rule::date()->todayOrBefore()],
             'facility_id' => ['required_without_all:facility_ids,bulk_inspections', 'nullable', 'exists:facilities,id'],
             'facility_ids' => ['required_without_all:facility_id,bulk_inspections', 'array', 'min:1'],
             'facility_ids.*' => ['exists:facilities,id'],
@@ -29,7 +29,7 @@ class InspectionRequest extends FormRequest
             'maintenance_request_type_id' => ['nullable', 'exists:request_types,id'],
             'bulk_inspections' => ['sometimes', 'array', 'min:1'],
             'bulk_inspections.*.facility_id' => ['required', 'exists:facilities,id'],
-            'bulk_inspections.*.inspection_date' => ['required', 'date'],
+            'bulk_inspections.*.inspection_date' => ['required', Rule::date()->todayOrBefore()],
             'bulk_inspections.*.condition' => [
                 'required',
                 Rule::in(array_map(fn (Condition $condition) => $condition->name, Condition::cases())),

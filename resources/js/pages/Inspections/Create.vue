@@ -62,6 +62,7 @@ const inputClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3';
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
+const todayDate = new Date().toISOString().slice(0, 10);
 
 const hasPrefilledFacilities = computed(
     () =>
@@ -93,7 +94,7 @@ const selectedFacilityTypeId = ref<string | null>(
     })(),
 );
 const defaultCondition = ref<string | null>(props.conditions[0] ?? null);
-const defaultInspectionDate = ref(new Date().toISOString().slice(0, 10));
+const defaultInspectionDate = ref(todayDate);
 const rows = ref<BulkRow[]>([]);
 
 const filteredFacilities = computed(() => {
@@ -182,20 +183,23 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 
                     <div class="grid gap-2">
                         <Label for="default_condition">Default condition</Label>
-                        <select
-                            id="default_condition"
-                            v-model="defaultCondition"
-                            :class="inputClass"
-                        >
-                            <option value="" disabled>Select condition</option>
-                            <option
-                                v-for="condition in conditions"
-                                :key="condition"
-                                :value="condition"
+                        <Select v-model="defaultCondition">
+                            <SelectTrigger
+                                id="default_condition"
+                                :class="inputClass"
                             >
-                                {{ condition }}
-                            </option>
-                        </select>
+                                <SelectValue placeholder="Select condition" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="condition in conditions"
+                                    :key="condition"
+                                    :value="condition"
+                                >
+                                    {{ condition }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div class="grid gap-2">
@@ -206,6 +210,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             id="default_inspection_date"
                             v-model="defaultInspectionDate"
                             type="date"
+                            :max="todayDate"
                         />
                     </div>
                 </div>
@@ -256,6 +261,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     <Input
                                         v-model="row.inspection_date"
                                         type="date"
+                                        :max="todayDate"
                                     />
                                     <InputError
                                         :message="
@@ -271,21 +277,22 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     />
                                 </td>
                                 <td class="px-3 py-2">
-                                    <select
-                                        v-model="row.condition"
-                                        :class="inputClass"
-                                    >
-                                        <option value="" disabled>
-                                            Select condition
-                                        </option>
-                                        <option
-                                            v-for="condition in conditions"
-                                            :key="condition"
-                                            :value="condition"
-                                        >
-                                            {{ condition }}
-                                        </option>
-                                    </select>
+                                    <Select v-model="row.condition">
+                                        <SelectTrigger :class="inputClass">
+                                            <SelectValue
+                                                placeholder="Select condition"
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem
+                                                v-for="condition in conditions"
+                                                :key="condition"
+                                                :value="condition"
+                                            >
+                                                {{ condition }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <InputError
                                         :message="
                                             row.selected &&

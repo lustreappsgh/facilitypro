@@ -11,15 +11,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -28,6 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
     approve as paymentApprove,
     bulkApprove as paymentBulkApprove,
@@ -97,27 +91,12 @@ const props = defineProps<Props>();
 const paymentApprovalsUrl = '/payment-approvals';
 
 const statusFilter = ref(props.filters.status ?? 'pending');
-const facilityFilter = ref(props.filters.facility ?? '');
+const facilityFilter = ref(props.filters.facility ?? 'all');
 const startDateFilter = ref(props.filters.start_date ?? '');
 const endDateFilter = ref(props.filters.end_date ?? '');
 const minAmountFilter = ref(props.filters.min_amount ?? '');
 const maxAmountFilter = ref(props.filters.max_amount ?? '');
 const searchFilter = ref(props.filters.search ?? '');
-
-const selectedFacilityLabel = computed(() => {
-    const match = props.facilities.find(
-        (facility) => String(facility.id) === facilityFilter.value,
-    );
-    return match?.name ?? 'All facilities';
-});
-
-const selectedStatusLabel = computed(() => {
-    if (!statusFilter.value || statusFilter.value === 'all') {
-        return 'All statuses';
-    }
-
-    return statusFilter.value;
-});
 
 const approveForm = useForm({
     comments: '',
@@ -320,56 +299,36 @@ watch(
                 />
             </div>
 
-            <input type="hidden" name="status" :value="statusFilter" />
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <Button variant="outline" class="min-w-[150px] justify-between">
-                        {{ selectedStatusLabel }}
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-56">
-                    <DropdownMenuLabel>Status</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem @click="statusFilter = 'pending'">
-                        Pending
-                    </DropdownMenuItem>
-                    <DropdownMenuItem @click="statusFilter = 'approved'">
-                        Approved
-                    </DropdownMenuItem>
-                    <DropdownMenuItem @click="statusFilter = 'paid'">
-                        Paid
-                    </DropdownMenuItem>
-                    <DropdownMenuItem @click="statusFilter = 'rejected'">
-                        Rejected
-                    </DropdownMenuItem>
-                    <DropdownMenuItem @click="statusFilter = 'all'">
-                        All statuses
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            <input type="hidden" name="status" :value="statusFilter === 'all' ? '' : statusFilter" />
+            <Select v-model="statusFilter">
+                <SelectTrigger class="min-w-[150px]">
+                    <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="all">All statuses</SelectItem>
+                </SelectContent>
+            </Select>
 
-            <input type="hidden" name="facility" :value="facilityFilter" />
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <Button variant="outline" class="min-w-[170px] justify-between">
-                        {{ selectedFacilityLabel }}
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-64">
-                    <DropdownMenuLabel>Facility</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem @click="facilityFilter = ''">
-                        All facilities
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
+            <input type="hidden" name="facility" :value="facilityFilter === 'all' ? '' : facilityFilter" />
+            <Select v-model="facilityFilter">
+                <SelectTrigger class="min-w-[170px]">
+                    <SelectValue placeholder="All facilities" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All facilities</SelectItem>
+                    <SelectItem
                         v-for="facility in facilities"
                         :key="facility.id"
-                        @click="facilityFilter = String(facility.id)"
+                        :value="String(facility.id)"
                     >
                         {{ facility.name }}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+                    </SelectItem>
+                </SelectContent>
+            </Select>
 
             <DatePicker
                 v-model="startDateFilter"
@@ -446,8 +405,7 @@ watch(
                 <TableHeader>
                     <TableRow>
                         <TableHead class="w-10" />
-                        <TableHead>Request</TableHead>
-                        <TableHead>Facility</TableHead>
+                        <TableHead>Request details</TableHead>
                         <TableHead>Cost</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Created</TableHead>
@@ -465,26 +423,37 @@ watch(
                             />
                         </TableCell>
                         <TableCell>
-                            <Button
+                            <div
                                 v-if="paymentRequest(payment)?.id"
-                                variant="link"
-                                class="px-0"
-                                as-child
+                                class="space-y-1"
                             >
-                                <Link
-                                    :href="
-                                        maintenanceShow(
-                                            paymentRequest(payment)!,
-                                        ).url
-                                    "
+                                <Button
+                                    variant="link"
+                                    class="h-auto px-0 py-0"
+                                    as-child
                                 >
-                                    Request #{{ paymentRequest(payment)?.id }}
-                                </Link>
-                            </Button>
+                                    <Link
+                                        :href="
+                                            maintenanceShow(
+                                                paymentRequest(payment)!,
+                                            ).url
+                                        "
+                                    >
+                                        Request #{{ paymentRequest(payment)?.id }}
+                                    </Link>
+                                </Button>
+                                <p class="text-xs text-muted-foreground">
+                                    {{
+                                        paymentRequest(payment)?.requestType?.name ??
+                                        paymentRequest(payment)?.request_type?.name ??
+                                        'General request'
+                                    }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ paymentRequest(payment)?.facility?.name ?? 'No facility linked' }}
+                                </p>
+                            </div>
                             <span v-else>--</span>
-                        </TableCell>
-                        <TableCell>
-                            {{ paymentRequest(payment)?.facility?.name ?? '--' }}
                         </TableCell>
                         <TableCell>
                             {{
@@ -506,36 +475,49 @@ watch(
                         </TableCell>
                         <TableCell>
                             <div class="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
-                                    <Link :href="paymentShow(payment.id).url" aria-label="View payment">
-                                        <Eye class="h-4 w-4" />
-                                    </Link>
-                                </Button>
-                                <Button
-                                    v-if="payment.status === 'pending'"
-                                    size="icon"
-                                    class="h-8 w-8"
-                                    aria-label="Approve payment"
-                                    @click="openApprove(payment)"
-                                >
-                                    <Check class="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    v-if="payment.status === 'pending'"
-                                    size="icon"
-                                    variant="secondary"
-                                    class="h-8 w-8 text-rose-600 hover:text-rose-700"
-                                    aria-label="Reject payment"
-                                    @click="openReject(payment)"
-                                >
-                                    <X class="h-4 w-4" />
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
+                                            <Link :href="paymentShow(payment.id).url" aria-label="View payment">
+                                                <Eye class="h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">View payment</TooltipContent>
+                                </Tooltip>
+                                <Tooltip v-if="payment.status === 'pending'">
+                                    <TooltipTrigger as-child>
+                                        <Button
+                                            size="icon"
+                                            class="h-8 w-8"
+                                            aria-label="Approve payment"
+                                            @click="openApprove(payment)"
+                                        >
+                                            <Check class="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Approve payment</TooltipContent>
+                                </Tooltip>
+                                <Tooltip v-if="payment.status === 'pending'">
+                                    <TooltipTrigger as-child>
+                                        <Button
+                                            size="icon"
+                                            variant="secondary"
+                                            class="h-8 w-8 text-rose-600 hover:text-rose-700"
+                                            aria-label="Reject payment"
+                                            @click="openReject(payment)"
+                                        >
+                                            <X class="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Reject payment</TooltipContent>
+                                </Tooltip>
                             </div>
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="!payments.data.length">
                         <TableCell
-                            colspan="7"
+                            colspan="6"
                             class="py-8 text-center text-sm text-muted-foreground"
                         >
                             No payments match these filters.

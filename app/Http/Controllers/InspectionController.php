@@ -38,7 +38,7 @@ class InspectionController extends Controller
         $userId = $request->input('user_id');
 
         $defaultStart = now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $defaultEnd = now()->subWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $defaultEnd = now()->endOfWeek(Carbon::SUNDAY)->toDateString();
 
         $startDate = $startDateInput ?: $defaultStart;
         $endDate = $endDateInput ?: $defaultEnd;
@@ -248,5 +248,4 @@ class InspectionController extends Controller
             'inspection' => $inspection->load(['facility', 'addedBy']),
         ]);
     }
-
 }

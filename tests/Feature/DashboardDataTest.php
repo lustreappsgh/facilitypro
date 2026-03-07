@@ -72,7 +72,7 @@ test('dashboard shows facility manager stats', function () {
 
     $response->assertSuccessful();
     $response->assertInertia(
-        fn(Assert $page) => $page
+        fn (Assert $page) => $page
             ->where('data.facilityManager.inspectionsSubmitted', 1)
             ->where('data.facilityManager.openMaintenanceRequests', 1)
             ->where('data.facilityManager.facilitiesManaged', 1)
@@ -122,8 +122,36 @@ test('dashboard shows manager approval stats', function () {
 
     $response->assertSuccessful();
     $response->assertInertia(
-        fn(Assert $page) => $page
+        fn (Assert $page) => $page
             ->where('data.manager.pendingApprovals', 1)
             ->where('data.manager.pendingApprovalCost', 1500)
+    );
+});
+
+test('maintenance manager dashboard data omits inspection and todo user card metrics', function () {
+    Role::findOrCreate('Facility Manager');
+
+    $maintenanceManager = dashboardUserWithPermissions([
+        'maintenance.start',
+        'maintenance_requests.view',
+        'work_orders.create',
+    ]);
+
+    $facilityManager = User::factory()->create([
+        'manager_id' => $maintenanceManager->id,
+    ]);
+    $facilityManager->assignRole(Role::findOrCreate('Facility Manager'));
+
+    $this->actingAs($maintenanceManager);
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertSuccessful();
+    $response->assertInertia(
+        fn (Assert $page) => $page
+            ->has('data.maintenanceManager.users', 1)
+            ->where('data.maintenanceManager.users.0.id', $facilityManager->id)
+            ->missing('data.maintenanceManager.users.0.inspections_last_week')
+            ->missing('data.maintenanceManager.users.0.upcoming_todos')
     );
 });
