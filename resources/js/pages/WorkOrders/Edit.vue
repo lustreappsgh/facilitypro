@@ -73,7 +73,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const paymentStatus = computed(() => props.workOrder.payment?.status ?? 'pending');
 const executionUnlocked = computed(() =>
-    ['approved', 'paid'].includes(paymentStatus.value),
+    ['approved', 'paid'].includes(paymentStatus.value)
+    || ['in_progress', 'completed', 'cancelled'].includes(props.workOrder.status ?? ''),
 );
 const selectedMaintenanceRequestId = ref(
     props.workOrder.maintenance_request_id ? String(props.workOrder.maintenance_request_id) : '',

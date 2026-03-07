@@ -7,12 +7,15 @@ use App\Domains\Notifications\Actions\MarkNotificationReadAction;
 use App\Domains\Notifications\DTOs\NotificationReadAllData;
 use App\Domains\Notifications\DTOs\NotificationReadData;
 use App\Models\Notification;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class NotificationController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(
         protected MarkNotificationReadAction $markNotificationReadAction,
         protected MarkAllNotificationsReadAction $markAllNotificationsReadAction

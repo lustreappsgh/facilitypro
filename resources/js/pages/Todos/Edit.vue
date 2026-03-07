@@ -54,6 +54,9 @@ const getUpcomingMonday = () => {
 };
 
 const upcomingMonday = getUpcomingMonday();
+const minimumWeekStart = props.data.todo.week_start && props.data.todo.week_start < upcomingMonday
+    ? props.data.todo.week_start
+    : upcomingMonday;
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -75,7 +78,7 @@ const textAreaClass =
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Edit todo" subtitle="Update the task for the upcoming Monday-start week." />
+            <PageHeader title="Edit todo" subtitle="Update the task while keeping it aligned to a Monday-start week." />
 
             <Form
                 v-bind="update.form(data.todo)"
@@ -109,12 +112,11 @@ const textAreaClass =
                         name="week"
                         type="date"
                         :value="data.todo.week_start ?? upcomingMonday"
-                        :min="upcomingMonday"
-                        :max="upcomingMonday"
+                        :min="minimumWeekStart"
                         required
                     />
                     <p class="text-xs text-muted-foreground">
-                        Weekly todos are scheduled for the next Monday-start week only.
+                        Keep the existing scheduled week or move it to a future Monday-start week.
                     </p>
                     <InputError :message="errors.week" />
                 </div>

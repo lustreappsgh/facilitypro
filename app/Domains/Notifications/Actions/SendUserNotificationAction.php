@@ -35,9 +35,10 @@ class SendUserNotificationAction
             actor_id: $this->resolveActorId(),
             action: 'notification.created',
             auditable_type: Notification::class,
-            auditable_id: $notification->id,
+            auditable_id: null,
             before: null,
             after: array_merge($data->toArray(), [
+                'notification_id' => $notification->id,
                 'user_id' => $user->id,
             ]),
         ));

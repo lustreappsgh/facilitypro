@@ -36,9 +36,13 @@ class MarkNotificationReadAction
             actor_id: $this->resolveActorId(),
             action: 'notification.read',
             auditable_type: $notification->getMorphClass(),
-            auditable_id: $notification->id,
-            before: $before,
-            after: $notification->getAttributes(),
+            auditable_id: null,
+            before: array_merge($before, [
+                'notification_id' => $notification->id,
+            ]),
+            after: array_merge($notification->getAttributes(), [
+                'notification_id' => $notification->id,
+            ]),
         ));
 
         return $notification;
