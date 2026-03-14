@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
+import { createCurrencyFormatter } from '@/lib/currency';
 import { computed } from 'vue';
 
 interface Props {
@@ -9,11 +10,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-});
+const currencyFormat = createCurrencyFormatter();
 
 const variance = computed(() => {
     if (props.estimated === null || props.estimated === undefined) {
@@ -61,7 +58,7 @@ const varianceLabel = computed(() => {
 <template>
     <div class="grid gap-3 sm:grid-cols-3">
         <div>
-            <p class="text-xs uppercase text-muted-foreground">Estimated</p>
+            <p class="text-xs text-muted-foreground uppercase">Estimated</p>
             <p class="text-sm font-medium">
                 {{
                     estimated !== null && estimated !== undefined
@@ -71,7 +68,7 @@ const varianceLabel = computed(() => {
             </p>
         </div>
         <div>
-            <p class="text-xs uppercase text-muted-foreground">Actual</p>
+            <p class="text-xs text-muted-foreground uppercase">Actual</p>
             <p class="text-sm font-medium">
                 {{
                     actual !== null && actual !== undefined
@@ -81,7 +78,7 @@ const varianceLabel = computed(() => {
             </p>
         </div>
         <div>
-            <p class="text-xs uppercase text-muted-foreground">Variance</p>
+            <p class="text-xs text-muted-foreground uppercase">Variance</p>
             <Badge variant="secondary" :class="varianceBadgeClass">
                 {{ varianceLabel }}
             </Badge>

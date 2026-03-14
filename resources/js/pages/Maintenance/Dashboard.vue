@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import DataTable from '@/components/data-table/DataTable.vue';
+import MaintenanceQueue from '@/components/MaintenanceQueue.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import TableTotalsBar from '@/components/TableTotalsBar.vue';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -9,14 +11,24 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { usePermissions } from '@/composables/usePermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
-import MaintenanceQueue from '@/components/MaintenanceQueue.vue';
-import { dashboard as maintenanceDashboardIndex, index as maintenanceIndex, show as maintenanceShow } from '@/routes/maintenance';
-import { create as workOrderCreate, index as workOrdersIndex, show as workOrderShow } from '@/routes/work-orders';
-import { index as paymentsIndex, show as paymentShow } from '@/routes/payments';
+import { createCurrencyFormatter } from '@/lib/currency';
+import { createNumberFormatter } from '@/lib/locale';
+import { sumByNumber } from '@/lib/totals';
+import {
+    dashboard as maintenanceDashboardIndex,
+    index as maintenanceIndex,
+    show as maintenanceShow,
+} from '@/routes/maintenance';
+import { show as paymentShow, index as paymentsIndex } from '@/routes/payments';
+import {
+    create as workOrderCreate,
+    show as workOrderShow,
+    index as workOrdersIndex,
+} from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { ClipboardList, CreditCard, Eye, Plus } from 'lucide-vue-next';
 import { h } from 'vue';
@@ -61,7 +73,7 @@ interface Props {
     };
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -72,12 +84,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const { can } = usePermissions();
 
-const numberFormat = new Intl.NumberFormat();
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-});
+const numberFormat = createNumberFormatter();
+const currencyFormat = createCurrencyFormatter();
+
+const pendingPaymentTotal = () =>
+    sumByNumber(props.queues.pendingPayments, (payment) => payment.cost);
 
 const overdueWorkOrderColumns: ColumnDef<QueueWorkOrder>[] = [
     {
@@ -102,10 +113,23 @@ const overdueWorkOrderColumns: ColumnDef<QueueWorkOrder>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
-                ),
+            h(
+                Button,
+                {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8',
+                    asChild: true,
+                },
+                () =>
+                    h(
+                        Link,
+                        {
+                            href: workOrderShow(row.original.id).url,
+                            'aria-label': 'View work order',
+                        },
+                        () => h(Eye, { class: 'h-4 w-4' }),
+                    ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -132,10 +156,23 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
-                ),
+            h(
+                Button,
+                {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8',
+                    asChild: true,
+                },
+                () =>
+                    h(
+                        Link,
+                        {
+                            href: paymentShow(row.original).url,
+                            'aria-label': 'View payment',
+                        },
+                        () => h(Eye, { class: 'h-4 w-4' }),
+                    ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -154,18 +191,42 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
             >
                 <template #actions>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Button v-if="can('work_orders.create')" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="workOrderCreate().url" aria-label="Create work order">
+                        <Button
+                            v-if="can('work_orders.create')"
+                            size="icon"
+                            class="h-9 w-9"
+                            as-child
+                        >
+                            <Link
+                                :href="workOrderCreate().url"
+                                aria-label="Create work order"
+                            >
                                 <Plus class="h-4 w-4" />
                             </Link>
                         </Button>
-                        <Button variant="secondary" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="paymentsIndex().url" aria-label="View payments">
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            class="h-9 w-9"
+                            as-child
+                        >
+                            <Link
+                                :href="paymentsIndex().url"
+                                aria-label="View payments"
+                            >
                                 <CreditCard class="h-4 w-4" />
                             </Link>
                         </Button>
-                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="maintenanceIndex().url" aria-label="View maintenance requests">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            class="h-9 w-9"
+                            as-child
+                        >
+                            <Link
+                                :href="maintenanceIndex().url"
+                                aria-label="View maintenance requests"
+                            >
                                 <ClipboardList class="h-4 w-4" />
                             </Link>
                         </Button>
@@ -176,7 +237,9 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
             <div class="grid gap-4 md:grid-cols-3">
                 <Card>
                     <CardHeader>
-                        <CardDescription>Open maintenance requests</CardDescription>
+                        <CardDescription
+                            >Open maintenance requests</CardDescription
+                        >
                         <CardTitle class="text-3xl font-semibold">
                             {{ numberFormat.format(metrics.open_requests) }}
                         </CardTitle>
@@ -186,7 +249,11 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                     <CardHeader>
                         <CardDescription>Work orders in flight</CardDescription>
                         <CardTitle class="text-3xl font-semibold">
-                            {{ numberFormat.format(metrics.work_orders_in_flight) }}
+                            {{
+                                numberFormat.format(
+                                    metrics.work_orders_in_flight,
+                                )
+                            }}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -214,8 +281,16 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                                 <h3 class="text-sm font-semibold">
                                     Pending maintenance requests
                                 </h3>
-                                <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
-                                    <Link :href="maintenanceIndex().url" aria-label="View all maintenance requests">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="maintenanceIndex().url"
+                                        aria-label="View all maintenance requests"
+                                    >
                                         <Eye class="h-4 w-4" />
                                     </Link>
                                 </Button>
@@ -231,8 +306,16 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                                 <h3 class="text-sm font-semibold">
                                     Overdue work orders
                                 </h3>
-                                <Button variant="ghost" size="icon" class="h-8 w-8" as-child>
-                                    <Link :href="workOrdersIndex().url" aria-label="View all work orders">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="workOrdersIndex().url"
+                                        aria-label="View all work orders"
+                                    >
                                         <Eye class="h-4 w-4" />
                                     </Link>
                                 </Button>
@@ -243,7 +326,6 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                                 :show-search="false"
                                 :enable-column-toggle="false"
                                 :show-selection-summary="false"
-
                             />
                         </div>
                     </CardContent>
@@ -263,8 +345,20 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                             :show-search="false"
                             :enable-column-toggle="false"
                             :show-selection-summary="false"
-
-                        />
+                        >
+                            <template #footer>
+                                <TableTotalsBar
+                                    :items="[
+                                        {
+                                            label: 'Amount',
+                                            value: currencyFormat.format(
+                                                pendingPaymentTotal(),
+                                            ),
+                                        },
+                                    ]"
+                                />
+                            </template>
+                        </DataTable>
                     </CardContent>
                 </Card>
             </div>

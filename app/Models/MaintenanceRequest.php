@@ -15,12 +15,25 @@ class MaintenanceRequest extends BaseModel
     use HasFactory;
     use ResolvesMaintenanceScope;
 
+    public const SubmissionRouteMaintenanceManager = 'maintenance_manager';
+
+    public const SubmissionRouteAdmin = 'admin';
+
     protected $casts = [
         'created_at' => 'date:M j, Y',
         'week_start' => 'date:M j, Y',
     ];
 
-    protected $fillable = ['facility_id', 'request_type_id', 'description', 'cost', 'status', 'requested_by', 'week_start'];
+    protected $fillable = [
+        'facility_id',
+        'request_type_id',
+        'description',
+        'cost',
+        'status',
+        'submission_route',
+        'requested_by',
+        'week_start',
+    ];
 
     protected $appends = [
         'month_week',
@@ -41,6 +54,14 @@ class MaintenanceRequest extends BaseModel
         $monthName = $startOfWeek->format('F');
 
         return $monthName.' wk '.$weekNumber.' ('.$startOfWeek->format('M d').' - '.$endOfWeek->format('M d').')';
+    }
+
+    public static function submissionRoutes(): array
+    {
+        return [
+            self::SubmissionRouteMaintenanceManager,
+            self::SubmissionRouteAdmin,
+        ];
     }
 
     public function facility(): BelongsTo
@@ -87,6 +108,8 @@ class MaintenanceRequest extends BaseModel
                 ))->orWhereIn('requested_by', $this->maintenanceScopeManagerIds($user));
             });
 
+            $scopedQuery->where('submission_route', self::SubmissionRouteMaintenanceManager);
+
             if ($this->shouldRestrictRequestTypes($user)) {
                 $allowedIds = $this->allowedRequestTypeIds($user);
                 if ($allowedIds !== []) {
@@ -111,6 +134,8 @@ class MaintenanceRequest extends BaseModel
                     $this->maintenanceScopeManagerIds($user)
                 ))->orWhereIn('requested_by', $this->maintenanceScopeManagerIds($user));
             });
+
+            $scopedQuery->where('submission_route', self::SubmissionRouteMaintenanceManager);
 
             if ($this->shouldRestrictRequestTypes($user)) {
                 $allowedIds = $this->allowedRequestTypeIds($user);

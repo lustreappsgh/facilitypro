@@ -2,6 +2,7 @@
 import type { HTMLAttributes } from "vue"
 import type { ChartConfig } from "."
 import { computed } from "vue"
+import { createNumberFormatter } from "@/lib/locale"
 import { cn } from "@/lib/utils"
 
 const props = withDefaults(defineProps<{
@@ -44,6 +45,8 @@ const tooltipLabel = computed(() => {
   }
   return props.labelKey ? props.config[props.labelKey]?.label || props.payload[props.labelKey] : props.x
 })
+
+const numberFormat = createNumberFormatter()
 </script>
 
 <template>
@@ -95,7 +98,7 @@ const tooltipLabel = computed(() => {
               </span>
             </div>
             <span v-if="value" class="text-foreground font-mono font-medium tabular-nums">
-              {{ value.toLocaleString() }}
+              {{ typeof value === 'number' ? numberFormat.format(value) : value }}
             </span>
           </div>
         </div>

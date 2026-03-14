@@ -5,7 +5,13 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as maintenanceIndex } from '@/routes/maintenance';
 import type { BreadcrumbItem } from '@/types';
@@ -64,14 +70,16 @@ const textAreaClass =
 const getUpcomingMonday = () => {
     const date = new Date();
     const day = date.getDay();
-    const diffToNextMonday = ((8 - day) % 7) || 7;
+    const diffToNextMonday = (8 - day) % 7 || 7;
     date.setDate(date.getDate() + diffToNextMonday);
     return date.toISOString().slice(0, 10);
 };
 
 const hasPrefilledFacility = computed(() => Boolean(props.selectedFacilityId));
 const prefilledFacility = computed(() =>
-    props.facilities.find((facility) => facility.id === props.selectedFacilityId),
+    props.facilities.find(
+        (facility) => facility.id === props.selectedFacilityId,
+    ),
 );
 
 const selectedFacilityTypeId = ref<string | null>(
@@ -93,7 +101,9 @@ const filteredFacilities = computed(() => {
     }
 
     return props.facilities.filter(
-        (facility) => String(facility.facility_type_id ?? '') === selectedFacilityTypeId.value,
+        (facility) =>
+            String(facility.facility_type_id ?? '') ===
+            selectedFacilityTypeId.value,
     );
 });
 
@@ -134,13 +144,19 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Create maintenance request" subtitle="Create requests in bulk by facility type." />
+            <PageHeader
+                title="Create maintenance request"
+                subtitle="Create requests in bulk by facility type."
+            />
 
             <div
                 v-if="hasPrefilledFacility && prefilledFacility"
                 class="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground"
             >
-                Prefilled facility context: <span class="font-semibold text-foreground">{{ prefilledFacility.name }}</span>
+                Prefilled facility context:
+                <span class="font-semibold text-foreground">{{
+                    prefilledFacility.name
+                }}</span>
             </div>
 
             <Form
@@ -148,12 +164,16 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                 class="space-y-6"
                 v-slot="{ errors, processing }"
             >
-                <div class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-2">
+                <div
+                    class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-2"
+                >
                     <div class="grid gap-2">
                         <Label for="facility_type_id">Facility type</Label>
                         <Select v-model="selectedFacilityTypeId">
                             <SelectTrigger id="facility_type_id" class="w-full">
-                                <SelectValue placeholder="Select facility type" />
+                                <SelectValue
+                                    placeholder="Select facility type"
+                                />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem
@@ -168,9 +188,14 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="default_request_type">Default request type</Label>
+                        <Label for="default_request_type"
+                            >Default request type</Label
+                        >
                         <Select v-model="defaultRequestTypeId">
-                            <SelectTrigger id="default_request_type" class="w-full">
+                            <SelectTrigger
+                                id="default_request_type"
+                                class="w-full"
+                            >
                                 <SelectValue placeholder="Select a type" />
                             </SelectTrigger>
                             <SelectContent>
@@ -184,10 +209,11 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             </SelectContent>
                         </Select>
                     </div>
-
                 </div>
 
-                <div class="overflow-x-auto rounded-xl border border-border/50 bg-card/50">
+                <div
+                    class="overflow-x-auto rounded-xl border border-border/50 bg-card/50"
+                >
                     <table class="min-w-full divide-y divide-border/60 text-sm">
                         <thead class="bg-muted/30">
                             <tr>
@@ -198,11 +224,21 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         :disabled="rows.length === 0"
                                     />
                                 </th>
-                                <th class="px-3 py-2 text-left font-semibold">Facility</th>
-                                <th class="px-3 py-2 text-left font-semibold">Request type</th>
-                                <th class="px-3 py-2 text-left font-semibold">Description</th>
-                                <th class="px-3 py-2 text-left font-semibold">Estimated cost</th>
-                                <th class="px-3 py-2 text-left font-semibold">Week start</th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Facility
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Request type
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Description
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Estimated cost
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Week start
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/50">
@@ -223,7 +259,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 <td class="px-3 py-2">
                                     <Select v-model="row.request_type_id">
                                         <SelectTrigger class="w-full">
-                                            <SelectValue placeholder="Select type" />
+                                            <SelectValue
+                                                placeholder="Select type"
+                                            />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem
@@ -235,7 +273,13 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <InputError :message="errors[`bulk_requests.${index}.request_type_id`]" />
+                                    <InputError
+                                        :message="
+                                            errors[
+                                                `bulk_requests.${index}.request_type_id`
+                                            ]
+                                        "
+                                    />
                                 </td>
                                 <td class="px-3 py-2">
                                     <textarea
@@ -275,11 +319,31 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                     v-for="(row, index) in selectedRows"
                     :key="`payload-${row.facility_id}`"
                 >
-                    <input type="hidden" :name="`bulk_requests[${index}][facility_id]`" :value="row.facility_id" />
-                    <input type="hidden" :name="`bulk_requests[${index}][request_type_id]`" :value="row.request_type_id" />
-                    <input type="hidden" :name="`bulk_requests[${index}][description]`" :value="row.description" />
-                    <input type="hidden" :name="`bulk_requests[${index}][cost]`" :value="row.cost" />
-                    <input type="hidden" :name="`bulk_requests[${index}][week_start]`" :value="row.week_start" />
+                    <input
+                        type="hidden"
+                        :name="`bulk_requests[${index}][facility_id]`"
+                        :value="row.facility_id"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_requests[${index}][request_type_id]`"
+                        :value="row.request_type_id"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_requests[${index}][description]`"
+                        :value="row.description"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_requests[${index}][cost]`"
+                        :value="row.cost"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_requests[${index}][week_start]`"
+                        :value="row.week_start"
+                    />
                 </div>
 
                 <InputError
@@ -292,13 +356,36 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                 />
 
                 <div class="flex items-center gap-4">
-                    <Button :disabled="processing || selectedRows.length === 0 || hasInvalidSelectedRows">
-                        Submit bulk requests
+                    <Button
+                        type="submit"
+                        name="submission_route"
+                        value="maintenance_manager"
+                        :disabled="
+                            processing ||
+                            selectedRows.length === 0 ||
+                            hasInvalidSelectedRows
+                        "
+                    >
+                        Submit to Maintenance Manager
+                    </Button>
+                    <Button
+                        type="submit"
+                        variant="secondary"
+                        name="submission_route"
+                        value="admin"
+                        :disabled="
+                            processing ||
+                            selectedRows.length === 0 ||
+                            hasInvalidSelectedRows
+                        "
+                    >
+                        Submit to Administrator
                     </Button>
                     <Button variant="ghost" as-child>
                         <Link :href="maintenanceIndex().url">Cancel</Link>
                     </Button>
                 </div>
+                <InputError :message="errors.submission_route" />
             </Form>
         </div>
     </AppLayout>

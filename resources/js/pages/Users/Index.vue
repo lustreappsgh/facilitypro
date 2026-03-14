@@ -1,19 +1,30 @@
 <script setup lang="ts">
 import BulkActions from '@/components/Admin/BulkActions.vue';
+import DataTable from '@/components/data-table/DataTable.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import DataTable from '@/components/data-table/DataTable.vue';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { useInitials } from '@/composables/useInitials';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { create as usersCreate, destroy as usersDestroy, edit as usersEdit, index as usersIndex } from '@/routes/users';
+import {
+    create as usersCreate,
+    destroy as usersDestroy,
+    edit as usersEdit,
+    index as usersIndex,
+} from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { useInitials } from '@/composables/useInitials';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import type { ColumnDef } from '@tanstack/vue-table';
+import { KeyRound, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 interface Role {
@@ -72,7 +83,9 @@ const props = defineProps<Props>();
 
 const { getInitials } = useInitials();
 
-const canManageUsers = computed(() => props.permissions.includes('users.manage'));
+const canManageUsers = computed(() =>
+    props.permissions.includes('users.manage'),
+);
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -84,7 +97,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 const searchFilter = ref(props.filters.search ?? '');
 const roleFilter = ref(props.filters.role ?? 'all');
 const statusFilter = ref(props.filters.status ?? 'active');
-const perPage = ref(props.filters.per_page ?? props.data.pagination.per_page ?? 10);
+const perPage = ref(
+    props.filters.per_page ?? props.data.pagination.per_page ?? 10,
+);
 
 const selectedUserIds = ref<number[]>([]);
 
@@ -95,7 +110,9 @@ const bulkForm = useForm({
 
 const isAllSelected = computed(() => {
     const ids = props.data.users.data.map((user) => user.id);
-    return ids.length > 0 && ids.every((id) => selectedUserIds.value.includes(id));
+    return (
+        ids.length > 0 && ids.every((id) => selectedUserIds.value.includes(id))
+    );
 });
 
 const isSomeSelected = computed(
@@ -119,9 +136,7 @@ const toggleUserSelection = (userId: number, checked: boolean) => {
         return;
     }
 
-    selectedUserIds.value = selectedUserIds.value.filter(
-        (id) => id !== userId,
-    );
+    selectedUserIds.value = selectedUserIds.value.filter((id) => id !== userId);
 };
 
 const submitBulkAction = (action: 'activate' | 'deactivate') => {
@@ -143,9 +158,7 @@ const roleQueryValue = computed(() =>
     roleFilter.value === 'all' ? '' : roleFilter.value,
 );
 
-const statusQueryValue = computed(() =>
-    statusFilter.value,
-);
+const statusQueryValue = computed(() => statusFilter.value);
 
 const updatePageSize = (pageSize: number) => {
     perPage.value = pageSize;
@@ -189,10 +202,21 @@ const columns: ColumnDef<User>[] = [
         cell: ({ row }) =>
             h('div', { class: 'flex items-center gap-3' }, [
                 h(Avatar, { class: 'h-8 w-8' }, () => [
-                    h(AvatarImage, { src: row.original.profile_photo_url, alt: row.original.name }),
-                    h(AvatarFallback, { class: 'text-[10px] font-semibold' }, () => getInitials(row.original.name)),
+                    h(AvatarImage, {
+                        src: row.original.profile_photo_url,
+                        alt: row.original.name,
+                    }),
+                    h(
+                        AvatarFallback,
+                        { class: 'text-[10px] font-semibold' },
+                        () => getInitials(row.original.name),
+                    ),
                 ]),
-                h('span', { class: 'text-[11px] font-semibold text-foreground' }, row.original.name),
+                h(
+                    'span',
+                    { class: 'text-[11px] font-semibold text-foreground' },
+                    row.original.name,
+                ),
             ]),
         enableHiding: false,
     },
@@ -200,16 +224,26 @@ const columns: ColumnDef<User>[] = [
         id: 'email',
         accessorFn: (row) => row.email ?? '',
         header: 'Email',
-        cell: ({ row }) => h('span', { class: 'text-[11px] text-muted-foreground' }, row.original.email),
+        cell: ({ row }) =>
+            h(
+                'span',
+                { class: 'text-[11px] text-muted-foreground' },
+                row.original.email,
+            ),
     },
     {
         id: 'roles',
-        accessorFn: (row) => (row.roles ?? []).map((role) => role.name).join(', '),
+        accessorFn: (row) =>
+            (row.roles ?? []).map((role) => role.name).join(', '),
         header: 'Roles',
         cell: ({ row }) => {
             const roles = row.original.roles ?? [];
             if (!roles.length) {
-                return h('span', { class: 'text-[11px] text-muted-foreground' }, 'None');
+                return h(
+                    'span',
+                    { class: 'text-[11px] text-muted-foreground' },
+                    'None',
+                );
             }
             return h(
                 'div',
@@ -217,7 +251,10 @@ const columns: ColumnDef<User>[] = [
                 roles.map((role) =>
                     h(
                         Badge,
-                        { variant: 'outline', class: 'rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide' },
+                        {
+                            variant: 'outline',
+                            class: 'rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide',
+                        },
                         () => role.name,
                     ),
                 ),
@@ -264,7 +301,12 @@ const columns: ColumnDef<User>[] = [
         id: 'joined',
         accessorFn: (row) => row.created_at ?? '',
         header: 'Joined',
-        cell: ({ row }) => h('span', { class: 'text-[11px] text-muted-foreground' }, row.original.created_at),
+        cell: ({ row }) =>
+            h(
+                'span',
+                { class: 'text-[11px] text-muted-foreground' },
+                row.original.created_at,
+            ),
     },
     {
         id: 'actions',
@@ -272,21 +314,68 @@ const columns: ColumnDef<User>[] = [
         cell: ({ row }) =>
             h('div', { class: 'flex items-center justify-end gap-1' }, [
                 canManageUsers.value
-                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                        h(Link, { href: usersEdit(row.original).url, 'aria-label': 'Edit user' }, () =>
-                            h(Pencil, { class: 'h-4 w-4' }),
-                        ),
-                    )
+                    ? h(
+                          Button,
+                          {
+                              variant: 'ghost',
+                              size: 'icon',
+                              class: 'h-8 w-8',
+                              asChild: true,
+                          },
+                          () =>
+                              h(
+                                  Link,
+                                  {
+                                      href: `/users/${row.original.id}/reset-password`,
+                                      method: 'post',
+                                      as: 'button',
+                                      'aria-label': 'Reset password',
+                                  },
+                                  () => h(KeyRound, { class: 'h-4 w-4' }),
+                              ),
+                      )
                     : null,
                 canManageUsers.value
-                    ? h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8 text-destructive hover:text-destructive', asChild: true }, () =>
-                        h(Link, {
-                            href: usersDestroy(row.original.id).url,
-                            method: 'delete',
-                            as: 'button',
-                            'aria-label': 'Delete user',
-                        }, () => h(Trash2, { class: 'h-4 w-4' })),
-                    )
+                    ? h(
+                          Button,
+                          {
+                              variant: 'ghost',
+                              size: 'icon',
+                              class: 'h-8 w-8',
+                              asChild: true,
+                          },
+                          () =>
+                              h(
+                                  Link,
+                                  {
+                                      href: usersEdit(row.original).url,
+                                      'aria-label': 'Edit user',
+                                  },
+                                  () => h(Pencil, { class: 'h-4 w-4' }),
+                              ),
+                      )
+                    : null,
+                canManageUsers.value
+                    ? h(
+                          Button,
+                          {
+                              variant: 'ghost',
+                              size: 'icon',
+                              class: 'h-8 w-8 text-destructive hover:text-destructive',
+                              asChild: true,
+                          },
+                          () =>
+                              h(
+                                  Link,
+                                  {
+                                      href: usersDestroy(row.original.id).url,
+                                      method: 'delete',
+                                      as: 'button',
+                                      'aria-label': 'Delete user',
+                                  },
+                                  () => h(Trash2, { class: 'h-4 w-4' }),
+                              ),
+                      )
                     : null,
             ]),
         enableSorting: false,
@@ -302,29 +391,40 @@ const columns: ColumnDef<User>[] = [
         <div class="flex h-full flex-col gap-6 p-6 lg:p-8">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <h1 class="font-display text-3xl font-semibold tracking-tight text-foreground">Users</h1>
-                    <p class="text-sm text-muted-foreground">Manage user access, roles, and status.</p>
+                    <h1
+                        class="font-display text-3xl font-semibold tracking-tight text-foreground"
+                    >
+                        Users
+                    </h1>
+                    <p class="text-sm text-muted-foreground">
+                        Manage user access, roles, and status.
+                    </p>
                 </div>
-                <Button
-                    size="icon"
-                    as-child
-                    class="h-9 w-9 rounded-lg"
-                >
+                <Button size="icon" as-child class="h-9 w-9 rounded-lg">
                     <Link :href="usersCreate().url" aria-label="New user">
                         <Plus class="h-4 w-4" />
                     </Link>
                 </Button>
             </div>
 
-            <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
+            <div
+                class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur"
+            >
                 <form
                     :action="usersIndex().url"
                     method="get"
                     class="flex flex-wrap items-center gap-3"
                 >
                     <div class="relative min-w-[220px] flex-1">
-                        <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input v-model="searchFilter" name="search" class="pl-9" placeholder="Search by name or email" />
+                        <Search
+                            class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                            v-model="searchFilter"
+                            name="search"
+                            class="pl-9"
+                            placeholder="Search by name or email"
+                        />
                     </div>
 
                     <input type="hidden" name="role" :value="roleQueryValue" />
@@ -334,13 +434,21 @@ const columns: ColumnDef<User>[] = [
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All roles</SelectItem>
-                            <SelectItem v-for="role in roles" :key="role.id" :value="role.name">
+                            <SelectItem
+                                v-for="role in roles"
+                                :key="role.id"
+                                :value="role.name"
+                            >
                                 {{ role.name }}
                             </SelectItem>
                         </SelectContent>
                     </Select>
 
-                    <input type="hidden" name="status" :value="statusQueryValue" />
+                    <input
+                        type="hidden"
+                        name="status"
+                        :value="statusQueryValue"
+                    />
                     <Select v-model="statusFilter">
                         <SelectTrigger class="h-9 min-w-[150px]">
                             <SelectValue placeholder="All statuses" />
@@ -358,15 +466,24 @@ const columns: ColumnDef<User>[] = [
                         <Button type="submit" size="sm" class="h-9 px-4">
                             Apply filters
                         </Button>
-                        <Button size="sm" variant="ghost" class="h-9 px-3" as-child>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            class="h-9 px-3"
+                            as-child
+                        >
                             <Link :href="usersIndex().url">Reset</Link>
                         </Button>
                     </div>
                 </form>
             </div>
 
-            <BulkActions :selected-count="selectedUserIds.length" :processing="bulkForm.processing"
-                @activate="submitBulkAction('activate')" @deactivate="submitBulkAction('deactivate')" />
+            <BulkActions
+                :selected-count="selectedUserIds.length"
+                :processing="bulkForm.processing"
+                @activate="submitBulkAction('activate')"
+                @deactivate="submitBulkAction('deactivate')"
+            />
 
             <DataTable
                 :data="data.users.data"

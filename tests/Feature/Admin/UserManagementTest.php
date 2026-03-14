@@ -2,6 +2,7 @@
 
 use App\Models\AuditLog;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -133,6 +134,31 @@ test('admin can bulk deactivate users with audit log', function () {
     expect(
         AuditLog::query()
             ->where('action', 'user.status_updated')
+            ->where('auditable_id', $target->id)
+            ->exists()
+    )->toBeTrue();
+});
+
+test('admin can reset a user password to the default value', function () {
+    $admin = adminUserWithPermissions(['users.manage']);
+    $target = User::factory()->create([
+        'password' => 'StrongPass123',
+        'is_default_password' => false,
+    ]);
+
+    $this->actingAs($admin);
+
+    $response = $this->post(route('users.reset-password', $target));
+
+    $response->assertRedirect();
+
+    $target->refresh();
+
+    expect(Hash::check('password', $target->password))->toBeTrue();
+    expect($target->is_default_password)->toBeTrue();
+    expect(
+        AuditLog::query()
+            ->where('action', 'user.password_reset')
             ->where('auditable_id', $target->id)
             ->exists()
     )->toBeTrue();

@@ -2,13 +2,15 @@
 
 namespace App\Domains\Maintenance\Requests;
 
+use App\Models\MaintenanceRequest;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class MaintenanceRequestRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; 
+        return true;
     }
 
     public function rules(): array
@@ -27,7 +29,8 @@ class MaintenanceRequestRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'cost' => ['nullable', 'numeric'],
             'week_start' => ['nullable', 'date'],
-            'status' => ['nullable', 'string'], // Status changes should ideally go through dedicated actions
+            'submission_route' => ['nullable', 'string', Rule::in(MaintenanceRequest::submissionRoutes())],
+            'status' => ['nullable', 'string'],
         ];
     }
 }

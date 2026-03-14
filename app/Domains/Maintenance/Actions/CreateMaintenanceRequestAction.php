@@ -6,8 +6,8 @@ use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Domains\Maintenance\DTOs\MaintenanceRequestData;
-use App\Models\Facility;
 use App\Enums\MaintenanceStatus;
+use App\Models\Facility;
 use App\Models\MaintenanceRequest;
 use Illuminate\Auth\Access\AuthorizationException;
 
@@ -30,6 +30,7 @@ class CreateMaintenanceRequestAction
 
         $payload = $data->toArray();
         $payload['status'] = MaintenanceStatus::Submitted->value;
+        $payload['submission_route'] = $payload['submission_route'] ?? MaintenanceRequest::SubmissionRouteMaintenanceManager;
 
         $request = MaintenanceRequest::create($payload);
 

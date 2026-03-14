@@ -22,7 +22,7 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: string | null): void;
 }>();
 
-const df = new DateFormatter('en-US', {
+const df = new DateFormatter('en-GH', {
     dateStyle: 'long',
 });
 

@@ -375,6 +375,37 @@ class UsersController extends Controller
         return back()->with('success', sprintf('Users %s.', $label));
     }
 
+    public function resetPassword(Request $request, User $user)
+    {
+        $this->authorize('update', $user);
+
+        $actorId = auth()->id();
+        if (! is_int($actorId)) {
+            abort(500, 'Audit actor is required.');
+        }
+
+        $before = $user->getOriginal();
+
+        $user->forceFill([
+            'password' => 'password',
+            'is_default_password' => true,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        $user = $user->refresh();
+
+        $this->recordAuditLogAction->execute(new AuditLogData(
+            actor_id: $actorId,
+            action: 'user.password_reset',
+            auditable_type: $user->getMorphClass(),
+            auditable_id: $user->id,
+            before: $before,
+            after: $user->getAttributes(),
+        ));
+
+        return back()->with('success', 'Password reset to the default password.');
+    }
+
     public function grantManagerAccess(User $user)
     {
         $this->authorize('update', $user);

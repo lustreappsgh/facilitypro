@@ -14,11 +14,12 @@ use App\Models\FacilityType;
 use App\Models\RequestType;
 use App\Models\User;
 use DomainException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Database\QueryException;
 use Inertia\Inertia;
 
 class FacilityController extends Controller
@@ -73,8 +74,8 @@ class FacilityController extends Controller
         if ($search) {
             $facilitiesQuery->where(function ($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('manager', fn($q) => $q->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('facilityType', fn($q) => $q->where('name', 'like', "%{$search}%"));
+                    ->orWhereHas('manager', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('facilityType', fn ($q) => $q->where('name', 'like', "%{$search}%"));
             });
         }
         if ($condition) {
@@ -100,7 +101,7 @@ class FacilityController extends Controller
         // Fetch facility managers for the sidebar
         $managersQuery = User::permission('inspections.view')
             ->active()
-            ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
+            ->whereDoesntHave('permissions', fn ($query) => $query->where('name', 'users.manage'))
             ->orderBy('name')
             ->withCount('facilities');
 
@@ -109,7 +110,7 @@ class FacilityController extends Controller
         }
 
         $managers = $managersQuery->get()
-            ->map(fn($user) => [
+            ->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'facilities_count' => $user->facilities_count,
@@ -158,7 +159,7 @@ class FacilityController extends Controller
                     ->get(['id', 'name']),
                 'facilityTypes' => FacilityType::orderBy('name')->get(['id', 'name']),
                 'conditions' => collect(Condition::cases())
-                    ->map(fn(Condition $condition) => $condition->name)
+                    ->map(fn (Condition $condition) => $condition->name)
                     ->values(),
                 'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
             ],
@@ -171,8 +172,19 @@ class FacilityController extends Controller
             abort(403);
         }
 
-        $facilityIds = $request->validated('facility_ids');
+        $facilityIds = $request->boolean('select_all_filtered')
+            ? $this->managerAssignmentsFacilitiesQuery(
+                trim((string) $request->validated('search', '')),
+                $request->validated('current_manager_id', 'all')
+            )->pluck('id')->all()
+            : $request->validated('facility_ids');
         $managerId = $request->validated('manager_id');
+
+        if ($facilityIds === []) {
+            return back()->withErrors([
+                'facility_ids' => 'Select at least one facility to update.',
+            ]);
+        }
 
         $updated = Facility::query()
             ->whereIn('id', $facilityIds)
@@ -218,7 +230,7 @@ class FacilityController extends Controller
             ->get();
 
         if (array_key_exists('parent_id', $requestedChanges) && $requestedChanges['parent_id'] !== null) {
-            if ($updatableFacilities->contains(fn(Facility $facility) => $facility->id === (int) $requestedChanges['parent_id'])) {
+            if ($updatableFacilities->contains(fn (Facility $facility) => $facility->id === (int) $requestedChanges['parent_id'])) {
                 return back()->withErrors([
                     'parent_id' => 'A facility cannot be its own parent.',
                 ]);
@@ -262,35 +274,17 @@ class FacilityController extends Controller
 
         $search = trim((string) $request->query('search', ''));
         $currentManagerId = $request->query('current_manager_id', 'all');
-
-        $facilitiesQuery = Facility::query()
-            ->with(['facilityType', 'manager', 'parent'])
-            ->withCount('children')
-            ->orderBy('name');
-
-        if ($search !== '') {
-            $facilitiesQuery->where(function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('manager', fn($managerQuery) => $managerQuery->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('facilityType', fn($typeQuery) => $typeQuery->where('name', 'like', "%{$search}%"));
-            });
-        }
-
-        if ($currentManagerId === 'unassigned') {
-            $facilitiesQuery->whereNull('managed_by');
-        } elseif ($currentManagerId !== 'all' && $currentManagerId !== null && $currentManagerId !== '') {
-            $facilitiesQuery->where('managed_by', $currentManagerId);
-        }
+        $facilitiesQuery = $this->managerAssignmentsFacilitiesQuery($search, $currentManagerId);
 
         $facilities = $facilitiesQuery->paginate(20)->withQueryString();
 
         $managers = User::permission('inspections.view')
             ->active()
-            ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
+            ->whereDoesntHave('permissions', fn ($query) => $query->where('name', 'users.manage'))
             ->orderBy('name')
             ->withCount('facilities')
             ->get(['id', 'name'])
-            ->map(fn($manager) => [
+            ->map(fn ($manager) => [
                 'id' => $manager->id,
                 'name' => $manager->name,
                 'facilities_count' => $manager->facilities_count,
@@ -311,13 +305,37 @@ class FacilityController extends Controller
         ]);
     }
 
+    protected function managerAssignmentsFacilitiesQuery(string $search, mixed $currentManagerId): Builder
+    {
+        $facilitiesQuery = Facility::query()
+            ->with(['facilityType', 'manager', 'parent'])
+            ->withCount('children')
+            ->orderBy('name');
+
+        if ($search !== '') {
+            $facilitiesQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhereHas('manager', fn ($managerQuery) => $managerQuery->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('facilityType', fn ($typeQuery) => $typeQuery->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($currentManagerId === 'unassigned') {
+            $facilitiesQuery->whereNull('managed_by');
+        } elseif ($currentManagerId !== 'all' && $currentManagerId !== null && $currentManagerId !== '') {
+            $facilitiesQuery->where('managed_by', $currentManagerId);
+        }
+
+        return $facilitiesQuery;
+    }
+
     public function create(Request $request)
     {
         $this->authorize('create', Facility::class);
 
         $usersQuery = User::permission('inspections.view')
             ->active()
-            ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
+            ->whereDoesntHave('permissions', fn ($query) => $query->where('name', 'users.manage'))
             ->orderBy('name');
 
         if ($request->user()->can('maintenance_requests.view') && ! $request->user()->can('maintenance.manage_all')) {
@@ -374,7 +392,7 @@ class FacilityController extends Controller
                 ->latest('inspection_date')
                 ->take(5)
                 ->get()
-                ->map(fn($inspection) => [
+                ->map(fn ($inspection) => [
                     'id' => $inspection->id,
                     'inspection_date' => $inspection->inspection_date,
                     'added_by' => $inspection->addedBy?->name,
@@ -384,7 +402,7 @@ class FacilityController extends Controller
                 ->latest('created_at')
                 ->take(5)
                 ->get()
-                ->map(fn($request) => [
+                ->map(fn ($request) => [
                     'id' => $request->id,
                     'status' => $request->status,
                     'created_at' => $request->created_at,
@@ -394,7 +412,7 @@ class FacilityController extends Controller
                 ->with('facilityType')
                 ->orderBy('name')
                 ->get()
-                ->map(fn($child) => [
+                ->map(fn ($child) => [
                     'id' => $child->id,
                     'name' => $child->name,
                     'condition' => $child->condition,
@@ -421,7 +439,7 @@ class FacilityController extends Controller
 
         $usersQuery = User::permission('inspections.view')
             ->active()
-            ->whereDoesntHave('permissions', fn($query) => $query->where('name', 'users.manage'))
+            ->whereDoesntHave('permissions', fn ($query) => $query->where('name', 'users.manage'))
             ->orderBy('name');
 
         if ($request->user()->can('maintenance_requests.view') && ! $request->user()->can('maintenance.manage_all')) {
@@ -488,10 +506,10 @@ class FacilityController extends Controller
             ->with([
                 'facilityType',
                 'parent',
-                'inspections' => fn($query) => $query->latest('inspection_date')->limit(1),
+                'inspections' => fn ($query) => $query->latest('inspection_date')->limit(1),
             ])
             ->withCount([
-                'maintenanceRequests as open_maintenance_requests_count' => fn($query) => $query
+                'maintenanceRequests as open_maintenance_requests_count' => fn ($query) => $query
                     ->where('status', '!=', 'completed'),
             ])
             ->get();
@@ -513,7 +531,7 @@ class FacilityController extends Controller
                     'id' => $facilityType->id,
                     'name' => $facilityType->name,
                 ] : null,
-                'facilities' => $facilitiesInType->map(fn($f) => [
+                'facilities' => $facilitiesInType->map(fn ($f) => [
                     'id' => $f->id,
                     'name' => $f->name,
                     'condition' => $f->condition,
@@ -534,7 +552,7 @@ class FacilityController extends Controller
 
         if ($campusPayType) {
             $hasCampusPayGroup = collect($facilityGroups)->contains(
-                fn($group) => ($group['facility_type']['id'] ?? null) === $campusPayType->id
+                fn ($group) => ($group['facility_type']['id'] ?? null) === $campusPayType->id
             );
 
             if (! $hasCampusPayGroup) {
@@ -560,12 +578,12 @@ class FacilityController extends Controller
                 'openRequests' => $openRequests,
             ],
             'formOptions' => [
-                'facilities' => $facilities->map(fn($facility) => [
+                'facilities' => $facilities->map(fn ($facility) => [
                     'id' => $facility->id,
                     'name' => $facility->name,
                 ])->values(),
                 'conditions' => collect(Condition::cases())
-                    ->map(fn(Condition $condition) => $condition->name)
+                    ->map(fn (Condition $condition) => $condition->name)
                     ->values(),
                 'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
             ],

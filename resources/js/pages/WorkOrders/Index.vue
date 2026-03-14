@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { DatePicker } from '@/components/ui/date-picker';
+import DataTable from '@/components/data-table/DataTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import TableTotalsBar from '@/components/TableTotalsBar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,14 +16,26 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import DataTable from '@/components/data-table/DataTable.vue';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { usePermissions } from '@/composables/usePermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { bulkCreate as workOrdersBulkCreate, create, edit, index as workOrdersIndex, show } from '@/routes/work-orders';
+import { createCurrencyFormatter } from '@/lib/currency';
+import { APP_LOCALE } from '@/lib/locale';
+import { sumByNumber } from '@/lib/totals';
 import { show as maintenanceShow } from '@/routes/maintenance';
+import {
+    create,
+    edit,
+    show,
+    bulkCreate as workOrdersBulkCreate,
+    index as workOrdersIndex,
+} from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { Eye, Layers, Pencil, Plus, Search } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
@@ -94,10 +108,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const { can } = usePermissions();
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-});
+const currencyFormat = createCurrencyFormatter();
 
 const searchFilter = ref(props.filters.search ?? '');
 const statusFilter = ref(props.filters.status ?? '');
@@ -146,7 +157,7 @@ const formatDate = (value?: string | null) => {
         return value;
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(APP_LOCALE, {
         year: 'numeric',
         month: 'short',
         day: '2-digit',
@@ -155,6 +166,17 @@ const formatDate = (value?: string | null) => {
 
 const getMaintenanceRequest = (workOrder: WorkOrder) =>
     workOrder.maintenanceRequest ?? workOrder.maintenance_request ?? null;
+
+const workOrderTotals = computed(() => ({
+    estimated: sumByNumber(
+        props.workOrders.data,
+        (workOrder) => workOrder.estimated_cost,
+    ),
+    actual: sumByNumber(
+        props.workOrders.data,
+        (workOrder) => workOrder.actual_cost,
+    ),
+}));
 
 const columns: ColumnDef<WorkOrder>[] = [
     {
@@ -172,7 +194,11 @@ const columns: ColumnDef<WorkOrder>[] = [
                 () =>
                     h(
                         Link,
-                        { href: maintenanceShow(getMaintenanceRequest(row.original)!).url },
+                        {
+                            href: maintenanceShow(
+                                getMaintenanceRequest(row.original)!,
+                            ).url,
+                        },
                         () => `Request #${requestId}`,
                     ),
             );
@@ -217,7 +243,10 @@ const columns: ColumnDef<WorkOrder>[] = [
         cell: ({ row }) =>
             h(
                 Badge,
-                { variant: 'secondary', class: statusBadgeClass(row.original.status ?? '') },
+                {
+                    variant: 'secondary',
+                    class: statusBadgeClass(row.original.status ?? ''),
+                },
                 () =>
                     row.original.status
                         ? row.original.status.replace('_', ' ')
@@ -233,14 +262,14 @@ const columns: ColumnDef<WorkOrder>[] = [
                 h('div', {}, [
                     'Est: ',
                     row.original.estimated_cost !== null &&
-                        row.original.estimated_cost !== undefined
+                    row.original.estimated_cost !== undefined
                         ? currencyFormat.format(row.original.estimated_cost)
                         : '-',
                 ]),
                 h('div', {}, [
                     'Act: ',
                     row.original.actual_cost !== null &&
-                        row.original.actual_cost !== undefined
+                    row.original.actual_cost !== undefined
                         ? currencyFormat.format(row.original.actual_cost)
                         : '-',
                 ]),
@@ -251,7 +280,8 @@ const columns: ColumnDef<WorkOrder>[] = [
         header: 'Actions',
         cell: ({ row }) => {
             const canEdit =
-                can('work_orders.update') && row.original.status !== 'completed';
+                can('work_orders.update') &&
+                row.original.status !== 'completed';
             const isInProgress = row.original.status === 'in_progress';
 
             return h(ButtonGroup, {}, () => [
@@ -259,29 +289,63 @@ const columns: ColumnDef<WorkOrder>[] = [
                     h(TooltipTrigger, { asChild: true }, () =>
                         h(
                             Button,
-                            { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-0 shadow-none', asChild: true },
-                            () => h(Link, { href: show(row.original.id).url }, () => h(Eye, { class: 'h-3.5 w-3.5' })),
+                            {
+                                variant: 'ghost',
+                                size: 'icon-sm',
+                                class: 'rounded-none border-0 shadow-none',
+                                asChild: true,
+                            },
+                            () =>
+                                h(
+                                    Link,
+                                    { href: show(row.original.id).url },
+                                    () => h(Eye, { class: 'h-3.5 w-3.5' }),
+                                ),
                         ),
                     ),
                     h(TooltipContent, { side: 'top' }, () => 'View'),
                 ]),
                 canEdit
                     ? h(Tooltip, {}, () => [
-                        h(TooltipTrigger, { asChild: true }, () =>
-                            isInProgress
-                                ? h(
-                                    Button,
-                                    { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-l border-border/40 shadow-none', disabled: true },
-                                    () => h(Pencil, { class: 'h-3.5 w-3.5' }),
-                                )
-                                : h(
-                                    Button,
-                                    { variant: 'ghost', size: 'icon-sm', class: 'rounded-none border-l border-border/40 shadow-none', asChild: true },
-                                    () => h(Link, { href: edit(row.original.id).url }, () => h(Pencil, { class: 'h-3.5 w-3.5' })),
-                                ),
-                        ),
-                        h(TooltipContent, { side: 'top' }, () => (isInProgress ? 'Edit unavailable' : 'Edit')),
-                    ])
+                          h(TooltipTrigger, { asChild: true }, () =>
+                              isInProgress
+                                  ? h(
+                                        Button,
+                                        {
+                                            variant: 'ghost',
+                                            size: 'icon-sm',
+                                            class: 'rounded-none border-l border-border/40 shadow-none',
+                                            disabled: true,
+                                        },
+                                        () =>
+                                            h(Pencil, { class: 'h-3.5 w-3.5' }),
+                                    )
+                                  : h(
+                                        Button,
+                                        {
+                                            variant: 'ghost',
+                                            size: 'icon-sm',
+                                            class: 'rounded-none border-l border-border/40 shadow-none',
+                                            asChild: true,
+                                        },
+                                        () =>
+                                            h(
+                                                Link,
+                                                {
+                                                    href: edit(row.original.id)
+                                                        .url,
+                                                },
+                                                () =>
+                                                    h(Pencil, {
+                                                        class: 'h-3.5 w-3.5',
+                                                    }),
+                                            ),
+                                    ),
+                          ),
+                          h(TooltipContent, { side: 'top' }, () =>
+                              isInProgress ? 'Edit unavailable' : 'Edit',
+                          ),
+                      ])
                     : null,
             ]);
         },
@@ -292,44 +356,89 @@ const columns: ColumnDef<WorkOrder>[] = [
 </script>
 
 <template>
-
     <Head title="Work Orders" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-col gap-8 p-6 lg:p-10">
-            <PageHeader title="Work orders" subtitle="Coordinate vendor assignments and track completion."
-                :show-filters-toggle="true" :filters-visible="filtersVisible"
-                @toggle-filters="filtersVisible = !filtersVisible">
+            <PageHeader
+                title="Work orders"
+                subtitle="Coordinate vendor assignments and track completion."
+                :show-filters-toggle="true"
+                :filters-visible="filtersVisible"
+                @toggle-filters="filtersVisible = !filtersVisible"
+            >
                 <template #actions>
-                    <Button v-if="can('work_orders.create')" size="icon" variant="outline" class="h-10 w-10" as-child>
-                        <Link :href="workOrdersBulkCreate().url" aria-label="Bulk create work orders">
+                    <Button
+                        v-if="can('work_orders.create')"
+                        size="icon"
+                        variant="outline"
+                        class="h-10 w-10"
+                        as-child
+                    >
+                        <Link
+                            :href="workOrdersBulkCreate().url"
+                            aria-label="Bulk create work orders"
+                        >
                             <Layers class="h-4 w-4" />
                         </Link>
                     </Button>
-                    <Button v-if="can('work_orders.create')" size="icon" class="h-10 w-10" as-child>
-                        <Link :href="create().url" aria-label="Create work order">
+                    <Button
+                        v-if="can('work_orders.create')"
+                        size="icon"
+                        class="h-10 w-10"
+                        as-child
+                    >
+                        <Link
+                            :href="create().url"
+                            aria-label="Create work order"
+                        >
                             <Plus class="h-4 w-4" />
                         </Link>
                     </Button>
                 </template>
             </PageHeader>
 
-            <DataTable :data="workOrders.data" :columns="columns" :show-search="false" :show-selection-summary="false"
-                class="portfolio-table">
+            <DataTable
+                :data="workOrders.data"
+                :columns="columns"
+                :show-search="false"
+                :show-selection-summary="false"
+                class="portfolio-table"
+            >
                 <template v-if="filtersVisible" #filters>
-                    <form :action="workOrdersIndex().url" method="get"
-                        class="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card p-4">
+                    <form
+                        :action="workOrdersIndex().url"
+                        method="get"
+                        class="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card p-4"
+                    >
                         <div class="relative min-w-[220px] flex-1">
-                            <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input v-model="searchFilter" name="search" class="pl-9"
-                                placeholder="Search vendor, facility, request" />
+                            <Search
+                                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                v-model="searchFilter"
+                                name="search"
+                                class="pl-9"
+                                placeholder="Search vendor, facility, request"
+                            />
                         </div>
 
-                        <input type="hidden" name="status" :value="statusFilter" />
+                        <input
+                            type="hidden"
+                            name="status"
+                            :value="statusFilter"
+                        />
                         <DropdownMenu>
                             <DropdownMenuTrigger as-child>
-                                <Button variant="outline" class="min-w-[150px] justify-between">
-                                    {{ statusFilter ? statusFilter.replace('_', ' ') : 'All statuses' }}
+                                <Button
+                                    variant="outline"
+                                    class="min-w-[150px] justify-between"
+                                >
+                                    {{
+                                        statusFilter
+                                            ? statusFilter.replace('_', ' ')
+                                            : 'All statuses'
+                                    }}
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" class="w-56">
@@ -338,22 +447,35 @@ const columns: ColumnDef<WorkOrder>[] = [
                                 <DropdownMenuItem @click="statusFilter = ''">
                                     All statuses
                                 </DropdownMenuItem>
-                                <DropdownMenuItem @click="statusFilter = 'in_progress'">
+                                <DropdownMenuItem
+                                    @click="statusFilter = 'in_progress'"
+                                >
                                     In progress
                                 </DropdownMenuItem>
-                                <DropdownMenuItem @click="statusFilter = 'completed'">
+                                <DropdownMenuItem
+                                    @click="statusFilter = 'completed'"
+                                >
                                     Completed
                                 </DropdownMenuItem>
-                                <DropdownMenuItem @click="statusFilter = 'cancelled'">
+                                <DropdownMenuItem
+                                    @click="statusFilter = 'cancelled'"
+                                >
                                     Cancelled
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <input type="hidden" name="vendor" :value="vendorFilter" />
+                        <input
+                            type="hidden"
+                            name="vendor"
+                            :value="vendorFilter"
+                        />
                         <DropdownMenu>
                             <DropdownMenuTrigger as-child>
-                                <Button variant="outline" class="min-w-[160px] justify-between">
+                                <Button
+                                    variant="outline"
+                                    class="min-w-[160px] justify-between"
+                                >
                                     {{ selectedVendorLabel }}
                                 </Button>
                             </DropdownMenuTrigger>
@@ -363,17 +485,27 @@ const columns: ColumnDef<WorkOrder>[] = [
                                 <DropdownMenuItem @click="vendorFilter = ''">
                                     All vendors
                                 </DropdownMenuItem>
-                                <DropdownMenuItem v-for="vendor in vendors" :key="vendor.id"
-                                    @click="vendorFilter = String(vendor.id)">
+                                <DropdownMenuItem
+                                    v-for="vendor in vendors"
+                                    :key="vendor.id"
+                                    @click="vendorFilter = String(vendor.id)"
+                                >
                                     {{ vendor.name }}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <input type="hidden" name="facility" :value="facilityFilter" />
+                        <input
+                            type="hidden"
+                            name="facility"
+                            :value="facilityFilter"
+                        />
                         <DropdownMenu>
                             <DropdownMenuTrigger as-child>
-                                <Button variant="outline" class="min-w-[170px] justify-between">
+                                <Button
+                                    variant="outline"
+                                    class="min-w-[170px] justify-between"
+                                >
                                     {{ selectedFacilityLabel }}
                                 </Button>
                             </DropdownMenuTrigger>
@@ -383,15 +515,28 @@ const columns: ColumnDef<WorkOrder>[] = [
                                 <DropdownMenuItem @click="facilityFilter = ''">
                                     All facilities
                                 </DropdownMenuItem>
-                                <DropdownMenuItem v-for="facility in facilities" :key="facility.id"
-                                    @click="facilityFilter = String(facility.id)">
+                                <DropdownMenuItem
+                                    v-for="facility in facilities"
+                                    :key="facility.id"
+                                    @click="
+                                        facilityFilter = String(facility.id)
+                                    "
+                                >
                                     {{ facility.name }}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <DatePicker v-model="startDateFilter" name="start_date" class="min-w-[150px]"  />
-                        <DatePicker v-model="endDateFilter" name="end_date" class="min-w-[150px]"  />
+                        <DatePicker
+                            v-model="startDateFilter"
+                            name="start_date"
+                            class="min-w-[150px]"
+                        />
+                        <DatePicker
+                            v-model="endDateFilter"
+                            name="end_date"
+                            class="min-w-[150px]"
+                        />
 
                         <div class="flex items-center gap-2">
                             <Button type="submit">Apply filters</Button>
@@ -401,8 +546,25 @@ const columns: ColumnDef<WorkOrder>[] = [
                         </div>
                     </form>
                 </template>
+                <template #footer>
+                    <TableTotalsBar
+                        :items="[
+                            {
+                                label: 'Estimated',
+                                value: currencyFormat.format(
+                                    workOrderTotals.estimated,
+                                ),
+                            },
+                            {
+                                label: 'Actual',
+                                value: currencyFormat.format(
+                                    workOrderTotals.actual,
+                                ),
+                            },
+                        ]"
+                    />
+                </template>
             </DataTable>
-
 
             <PaginationLinks :links="workOrders.links" />
         </div>

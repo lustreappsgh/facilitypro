@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { Form } from '@inertiajs/vue3';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MaintenanceRequestForm from '@/components/MaintenanceRequestForm.vue';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Form } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 interface Facility {
     id: number;
@@ -37,7 +43,9 @@ const emit = defineEmits<Emits>();
 
 const activeTab = ref<'single' | 'bulk'>('single');
 const selectedSingleFacilityId = computed(() =>
-    props.selectedFacilityIds.length === 1 ? props.selectedFacilityIds[0] : null,
+    props.selectedFacilityIds.length === 1
+        ? props.selectedFacilityIds[0]
+        : null,
 );
 
 watch(
@@ -70,45 +78,84 @@ const formConfig = {
     <Dialog :open="open" @update:open="$emit('update:open', $event)">
         <DialogContent class="max-w-2xl">
             <DialogHeader>
-                <DialogTitle class="text-2xl font-black uppercase tracking-tight">
+                <DialogTitle
+                    class="text-2xl font-black tracking-tight uppercase"
+                >
                     New Maintenance Request
                 </DialogTitle>
-                <DialogDescription class="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+                <DialogDescription
+                    class="text-xs font-bold tracking-widest text-muted-foreground/60 uppercase"
+                >
                     Log maintenance issues and estimate impacts
                 </DialogDescription>
             </DialogHeader>
 
             <Tabs v-model="activeTab" class="w-full">
-                <TabsList class="grid w-full grid-cols-2 mb-6">
+                <TabsList class="mb-6 grid w-full grid-cols-2">
                     <TabsTrigger
                         value="single"
-                        class="text-xs font-bold uppercase tracking-widest"
+                        class="text-xs font-bold tracking-widest uppercase"
                         :disabled="selectedFacilityIds.length > 1"
                     >
                         Single Request
                     </TabsTrigger>
-                    <TabsTrigger value="bulk" class="text-xs font-bold uppercase tracking-widest">
+                    <TabsTrigger
+                        value="bulk"
+                        class="text-xs font-bold tracking-widest uppercase"
+                    >
                         Bulk Request
                     </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="single">
-                    <Form v-bind="formConfig" @success="handleSuccess" #default="{ errors, processing }">
-                        <input v-if="redirectTo" type="hidden" name="redirect_to" :value="redirectTo" />
-                        <MaintenanceRequestForm :facilities="facilities" :request-types="requestTypes" :errors="errors"
-                            :processing="processing" :selected-facility-id="selectedSingleFacilityId"
-                            :selected-facility-ids="selectedFacilityIds" :show-cancel="true" :on-cancel="handleClose"
-                            cancel-href="#" submit-label="Submit Request" />
+                    <Form
+                        v-bind="formConfig"
+                        @success="handleSuccess"
+                        #default="{ errors, processing }"
+                    >
+                        <input
+                            v-if="redirectTo"
+                            type="hidden"
+                            name="redirect_to"
+                            :value="redirectTo"
+                        />
+                        <MaintenanceRequestForm
+                            :facilities="facilities"
+                            :request-types="requestTypes"
+                            :errors="errors"
+                            :processing="processing"
+                            :selected-facility-id="selectedSingleFacilityId"
+                            :selected-facility-ids="selectedFacilityIds"
+                            :show-cancel="true"
+                            :on-cancel="handleClose"
+                            cancel-href="#"
+                        />
                     </Form>
                 </TabsContent>
 
                 <TabsContent value="bulk">
-                    <Form v-bind="formConfig" @success="handleSuccess" #default="{ errors, processing }">
-                        <input v-if="redirectTo" type="hidden" name="redirect_to" :value="redirectTo" />
-                        <MaintenanceRequestForm :facilities="facilities" :request-types="requestTypes" :errors="errors"
-                            :processing="processing" facility-selection-mode="multiple"
-                            :selected-facility-ids="selectedFacilityIds" :show-cancel="true" :on-cancel="handleClose"
-                            cancel-href="#" submit-label="Submit Bulk Request" />
+                    <Form
+                        v-bind="formConfig"
+                        @success="handleSuccess"
+                        #default="{ errors, processing }"
+                    >
+                        <input
+                            v-if="redirectTo"
+                            type="hidden"
+                            name="redirect_to"
+                            :value="redirectTo"
+                        />
+                        <MaintenanceRequestForm
+                            :facilities="facilities"
+                            :request-types="requestTypes"
+                            :errors="errors"
+                            :processing="processing"
+                            facility-selection-mode="multiple"
+                            :selected-facility-ids="selectedFacilityIds"
+                            :show-cancel="true"
+                            :on-cancel="handleClose"
+                            cancel-href="#"
+                        />
                     </Form>
                 </TabsContent>
             </Tabs>

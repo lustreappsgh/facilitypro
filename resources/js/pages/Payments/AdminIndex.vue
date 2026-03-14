@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { DatePicker } from '@/components/ui/date-picker';
+import DataTable from '@/components/data-table/DataTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import TableTotalsBar from '@/components/TableTotalsBar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,9 +15,13 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import DataTable from '@/components/data-table/DataTable.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { admin as paymentsAdmin, show as paymentsShow } from '@/routes/payments';
+import { createCurrencyFormatter } from '@/lib/currency';
+import { sumByNumber } from '@/lib/totals';
+import {
+    admin as paymentsAdmin,
+    show as paymentsShow,
+} from '@/routes/payments';
 import { show as workOrderShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
@@ -85,10 +91,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-});
+const currencyFormat = createCurrencyFormatter();
 
 const searchFilter = ref(props.filters.search ?? '');
 const statusFilter = ref(props.filters.status ?? '');
@@ -118,6 +121,14 @@ const selectedVendorLabel = computed(() => {
     return match?.name ?? 'All vendors';
 });
 
+const paymentTotals = computed(() => ({
+    cost: sumByNumber(props.data.payments.data, (payment) => payment.cost),
+    amountPaid: sumByNumber(
+        props.data.payments.data,
+        (payment) => payment.amount_payed,
+    ),
+}));
+
 const statusBadgeClass = (status: string) => {
     if (status === 'approved') {
         return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
@@ -140,7 +151,11 @@ const columns: ColumnDef<Payment>[] = [
         accessorFn: (row) => row.maintenanceRequest?.facility?.name ?? '',
         header: 'Facility',
         cell: ({ row }) =>
-            h('span', { class: 'font-medium' }, row.original.maintenanceRequest?.facility?.name ?? '-'),
+            h(
+                'span',
+                { class: 'font-medium' },
+                row.original.maintenanceRequest?.facility?.name ?? '-',
+            ),
         enableHiding: false,
     },
     {
@@ -150,7 +165,10 @@ const columns: ColumnDef<Payment>[] = [
         cell: ({ row }) =>
             h(
                 Badge,
-                { variant: 'secondary', class: statusBadgeClass(row.original.status) },
+                {
+                    variant: 'secondary',
+                    class: statusBadgeClass(row.original.status),
+                },
                 () =>
                     row.original.status
                         ? row.original.status.replace('_', ' ')
@@ -203,10 +221,23 @@ const columns: ColumnDef<Payment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: paymentsShow(row.original).url, 'aria-label': 'View payment' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
-                ),
+            h(
+                Button,
+                {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8',
+                    asChild: true,
+                },
+                () =>
+                    h(
+                        Link,
+                        {
+                            href: paymentsShow(row.original).url,
+                            'aria-label': 'View payment',
+                        },
+                        () => h(Eye, { class: 'h-4 w-4' }),
+                    ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -231,7 +262,6 @@ const columns: ColumnDef<Payment>[] = [
                 :data="data.payments.data"
                 :columns="columns"
                 :show-search="false"
-
                 :show-selection-summary="false"
             >
                 <template v-if="filtersVisible" #filters>
@@ -240,115 +270,163 @@ const columns: ColumnDef<Payment>[] = [
                         method="get"
                         class="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card p-4"
                     >
-                <div class="relative min-w-[220px] flex-1">
-                    <Search
-                        class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                        v-model="searchFilter"
-                        name="search"
-                        class="pl-9"
-                        placeholder="Search facility or description"
-                    />
-                </div>
+                        <div class="relative min-w-[220px] flex-1">
+                            <Search
+                                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                v-model="searchFilter"
+                                name="search"
+                                class="pl-9"
+                                placeholder="Search facility or description"
+                            />
+                        </div>
 
-                <input type="hidden" name="status" :value="statusFilter" />
-                <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                        <Button variant="outline" class="min-w-[160px] justify-between">
-                            {{ selectedStatusLabel }}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-56">
-                        <DropdownMenuLabel>Status</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem @click="statusFilter = ''">
-                            All statuses
-                        </DropdownMenuItem>
-                        <DropdownMenuItem @click="statusFilter = 'pending'">
-                            Pending
-                        </DropdownMenuItem>
-                        <DropdownMenuItem @click="statusFilter = 'approved'">
-                            Approved
-                        </DropdownMenuItem>
-                        <DropdownMenuItem @click="statusFilter = 'rejected'">
-                            Rejected
-                        </DropdownMenuItem>
-                        <DropdownMenuItem @click="statusFilter = 'paid'">
-                            Paid
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                        <input
+                            type="hidden"
+                            name="status"
+                            :value="statusFilter"
+                        />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    variant="outline"
+                                    class="min-w-[160px] justify-between"
+                                >
+                                    {{ selectedStatusLabel }}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-56">
+                                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem @click="statusFilter = ''">
+                                    All statuses
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    @click="statusFilter = 'pending'"
+                                >
+                                    Pending
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    @click="statusFilter = 'approved'"
+                                >
+                                    Approved
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    @click="statusFilter = 'rejected'"
+                                >
+                                    Rejected
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    @click="statusFilter = 'paid'"
+                                >
+                                    Paid
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                <input type="hidden" name="facility" :value="facilityFilter" />
-                <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                        <Button variant="outline" class="min-w-[180px] justify-between">
-                            {{ selectedFacilityLabel }}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-64">
-                        <DropdownMenuLabel>Facility</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem @click="facilityFilter = ''">
-                            All facilities
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            v-for="facility in facilities"
-                            :key="facility.id"
-                            @click="facilityFilter = String(facility.id)"
-                        >
-                            {{ facility.name }}
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                        <input
+                            type="hidden"
+                            name="facility"
+                            :value="facilityFilter"
+                        />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    variant="outline"
+                                    class="min-w-[180px] justify-between"
+                                >
+                                    {{ selectedFacilityLabel }}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-64">
+                                <DropdownMenuLabel>Facility</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem @click="facilityFilter = ''">
+                                    All facilities
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    v-for="facility in facilities"
+                                    :key="facility.id"
+                                    @click="
+                                        facilityFilter = String(facility.id)
+                                    "
+                                >
+                                    {{ facility.name }}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                <input type="hidden" name="vendor" :value="vendorFilter" />
-                <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                        <Button variant="outline" class="min-w-[180px] justify-between">
-                            {{ selectedVendorLabel }}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-64">
-                        <DropdownMenuLabel>Vendor</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem @click="vendorFilter = ''">
-                            All vendors
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            v-for="vendor in vendors"
-                            :key="vendor.id"
-                            @click="vendorFilter = String(vendor.id)"
-                        >
-                            {{ vendor.name }}
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                        <input
+                            type="hidden"
+                            name="vendor"
+                            :value="vendorFilter"
+                        />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    variant="outline"
+                                    class="min-w-[180px] justify-between"
+                                >
+                                    {{ selectedVendorLabel }}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-64">
+                                <DropdownMenuLabel>Vendor</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem @click="vendorFilter = ''">
+                                    All vendors
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    v-for="vendor in vendors"
+                                    :key="vendor.id"
+                                    @click="vendorFilter = String(vendor.id)"
+                                >
+                                    {{ vendor.name }}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                <DatePicker
-                    v-model="startDateFilter"
-                    name="start_date"
-                    class="min-w-[150px]"
-                 />
-                <DatePicker
-                    v-model="endDateFilter"
-                    name="end_date"
-                    class="min-w-[150px]"
-                 />
+                        <DatePicker
+                            v-model="startDateFilter"
+                            name="start_date"
+                            class="min-w-[150px]"
+                        />
+                        <DatePicker
+                            v-model="endDateFilter"
+                            name="end_date"
+                            class="min-w-[150px]"
+                        />
 
-                <div class="flex items-center gap-2">
-                    <Button type="submit" class="whitespace-nowrap">
-                        Apply filters
-                    </Button>
-                    <Button variant="ghost" as-child>
-                        <Link :href="paymentsAdmin().url">Reset</Link>
-                    </Button>
-                </div>
+                        <div class="flex items-center gap-2">
+                            <Button type="submit" class="whitespace-nowrap">
+                                Apply filters
+                            </Button>
+                            <Button variant="ghost" as-child>
+                                <Link :href="paymentsAdmin().url">Reset</Link>
+                            </Button>
+                        </div>
                     </form>
                 </template>
+                <template #footer>
+                    <TableTotalsBar
+                        :items="[
+                            {
+                                label: 'Cost',
+                                value: currencyFormat.format(
+                                    paymentTotals.cost,
+                                ),
+                            },
+                            {
+                                label: 'Amount paid',
+                                value: currencyFormat.format(
+                                    paymentTotals.amountPaid,
+                                ),
+                            },
+                        ]"
+                    />
+                </template>
             </DataTable>
-
 
             <PaginationLinks :links="data.payments.links" />
         </div>

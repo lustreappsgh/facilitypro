@@ -10,17 +10,20 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { usePermissions } from '@/composables/usePermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { createCurrencyFormatter } from '@/lib/currency';
 import { edit, index as maintenanceIndex } from '@/routes/maintenance';
-import { create as workOrderCreate, show as workOrderShow } from '@/routes/work-orders';
-import { index as vendorsIndex } from '@/routes/vendors';
 import { show as paymentShow } from '@/routes/payments';
+import { index as vendorsIndex } from '@/routes/vendors';
+import {
+    create as workOrderCreate,
+    show as workOrderShow,
+} from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Eye } from 'lucide-vue-next';
-import { ArrowLeft, ClipboardList, Pencil, Plus } from 'lucide-vue-next';
+import { ArrowLeft, ClipboardList, Eye, Pencil, Plus } from 'lucide-vue-next';
 import { h } from 'vue';
 
 interface FacilityType {
@@ -104,10 +107,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const { can } = usePermissions();
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-});
+const currencyFormat = createCurrencyFormatter();
 
 const statusSteps = [
     { value: 'pending', label: 'Pending' },
@@ -162,18 +162,37 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
         cell: ({ row }) =>
             h(
                 Badge,
-                { variant: 'secondary', class: statusBadgeClass(row.original.status ?? '') },
-                () => row.original.status ? row.original.status.replace('_', ' ') : 'unknown',
+                {
+                    variant: 'secondary',
+                    class: statusBadgeClass(row.original.status ?? ''),
+                },
+                () =>
+                    row.original.status
+                        ? row.original.status.replace('_', ' ')
+                        : 'unknown',
             ),
     },
     {
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
-                ),
+            h(
+                Button,
+                {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8',
+                    asChild: true,
+                },
+                () =>
+                    h(
+                        Link,
+                        {
+                            href: workOrderShow(row.original.id).url,
+                            'aria-label': 'View work order',
+                        },
+                        () => h(Eye, { class: 'h-4 w-4' }),
+                    ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -195,7 +214,8 @@ const paymentColumns: ColumnDef<Payment>[] = [
         accessorFn: (row) => row.amount_payed ?? 0,
         header: 'Amount paid',
         cell: ({ row }) =>
-            row.original.amount_payed !== null && row.original.amount_payed !== undefined
+            row.original.amount_payed !== null &&
+            row.original.amount_payed !== undefined
                 ? currencyFormat.format(row.original.amount_payed)
                 : '-',
     },
@@ -206,7 +226,10 @@ const paymentColumns: ColumnDef<Payment>[] = [
         cell: ({ row }) =>
             h(
                 Badge,
-                { variant: 'secondary', class: statusBadgeClass(row.original.status ?? '') },
+                {
+                    variant: 'secondary',
+                    class: statusBadgeClass(row.original.status ?? ''),
+                },
                 () => row.original.status ?? 'unknown',
             ),
     },
@@ -214,10 +237,23 @@ const paymentColumns: ColumnDef<Payment>[] = [
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) =>
-            h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
-                    h(Eye, { class: 'h-4 w-4' }),
-                ),
+            h(
+                Button,
+                {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8',
+                    asChild: true,
+                },
+                () =>
+                    h(
+                        Link,
+                        {
+                            href: paymentShow(row.original).url,
+                            'aria-label': 'View payment',
+                        },
+                        () => h(Eye, { class: 'h-4 w-4' }),
+                    ),
             ),
         enableSorting: false,
         enableHiding: false,
@@ -236,13 +272,24 @@ const paymentColumns: ColumnDef<Payment>[] = [
             >
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="maintenanceIndex().url" aria-label="Back to list">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            class="h-9 w-9"
+                            as-child
+                        >
+                            <Link
+                                :href="maintenanceIndex().url"
+                                aria-label="Back to list"
+                            >
                                 <ArrowLeft class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
-                            v-if="can('work_orders.create') && workOrders.length === 0"
+                            v-if="
+                                can('work_orders.create') &&
+                                workOrders.length === 0
+                            "
                             size="icon"
                             class="h-9 w-9"
                             as-child
@@ -261,24 +308,35 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </Link>
                         </Button>
                         <Button
-                            v-else-if="can('work_orders.view') && workOrders.length > 0"
+                            v-else-if="
+                                can('work_orders.view') && workOrders.length > 0
+                            "
                             variant="outline"
                             size="icon"
                             class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="workOrderShow(workOrders[0].id).url" aria-label="View work order">
+                            <Link
+                                :href="workOrderShow(workOrders[0].id).url"
+                                aria-label="View work order"
+                            >
                                 <ClipboardList class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
-                            v-if="can('maintenance.update') && request.status === 'pending'"
+                            v-if="
+                                can('maintenance.update') &&
+                                request.status === 'pending'
+                            "
                             variant="secondary"
                             size="icon"
                             class="h-9 w-9"
                             as-child
                         >
-                            <Link :href="edit(request).url" aria-label="Edit request">
+                            <Link
+                                :href="edit(request).url"
+                                aria-label="Edit request"
+                            >
                                 <Pencil class="h-4 w-4" />
                             </Link>
                         </Button>
@@ -296,7 +354,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Facility
                             </p>
                             <p class="text-base font-medium">
@@ -305,15 +363,22 @@ const paymentColumns: ColumnDef<Payment>[] = [
                         </div>
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div>
-                                <p class="text-xs uppercase text-muted-foreground">
+                                <p
+                                    class="text-xs text-muted-foreground uppercase"
+                                >
                                     Type
                                 </p>
                                 <p class="text-sm font-medium">
-                                    {{ request.facility?.facilityType?.name ?? '-' }}
+                                    {{
+                                        request.facility?.facilityType?.name ??
+                                        '-'
+                                    }}
                                 </p>
                             </div>
                             <div>
-                                <p class="text-xs uppercase text-muted-foreground">
+                                <p
+                                    class="text-xs text-muted-foreground uppercase"
+                                >
                                     Manager
                                 </p>
                                 <p class="text-sm font-medium">
@@ -322,7 +387,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </div>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Condition
                             </p>
                             <p class="text-sm font-medium">
@@ -346,23 +411,31 @@ const paymentColumns: ColumnDef<Payment>[] = [
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Request type
                             </p>
                             <p class="text-base font-medium">
-                                {{ request.requestType?.name ?? request.request_type?.name ?? '-' }}
+                                {{
+                                    request.requestType?.name ??
+                                    request.request_type?.name ??
+                                    '-'
+                                }}
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Requested by
                             </p>
                             <p class="text-sm font-medium">
-                                {{ request.requestedBy?.name ?? request.requested_by?.name ?? '-' }}
+                                {{
+                                    request.requestedBy?.name ??
+                                    request.requested_by?.name ??
+                                    '-'
+                                }}
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Estimated cost
                             </p>
                             <p class="text-sm font-medium">
@@ -375,7 +448,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Description
                             </p>
                             <p class="text-sm text-muted-foreground">
@@ -386,7 +459,7 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             </p>
                         </div>
                         <div class="space-y-2">
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Status progress
                             </p>
                             <div class="flex flex-wrap gap-2">
@@ -429,7 +502,6 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             :show-search="false"
                             :enable-column-toggle="false"
                             :show-selection-summary="false"
-
                         />
                     </CardContent>
                 </Card>
@@ -448,7 +520,6 @@ const paymentColumns: ColumnDef<Payment>[] = [
                             :show-search="false"
                             :enable-column-toggle="false"
                             :show-selection-summary="false"
-
                         />
                     </CardContent>
                 </Card>

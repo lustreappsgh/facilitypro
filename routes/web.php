@@ -79,6 +79,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('maintenance/oversight', [MaintenanceRequestController::class, 'index'])
         ->name('maintenance.oversight');
     Route::resource('maintenance', MaintenanceRequestController::class);
+    Route::post('maintenance/bulk-delete', [MaintenanceRequestController::class, 'bulkDestroy'])
+        ->name('maintenance.bulk-destroy');
     Route::get('maintenance-dashboard', [MaintenanceManagerDashboardController::class, 'index'])
         ->name('maintenance.dashboard');
     Route::post('maintenance/{maintenance}/review', [MaintenanceRequestController::class, 'review'])->name('maintenance.review');
@@ -153,6 +155,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:admin-actions');
     Route::post('users/{user}/manager-access/revoke', [UsersController::class, 'revokeManagerAccess'])
         ->name('users.manager-access.revoke')
+        ->middleware('throttle:admin-actions');
+    Route::post('users/{user}/reset-password', [UsersController::class, 'resetPassword'])
+        ->name('users.reset-password')
         ->middleware('throttle:admin-actions');
     Route::post('users/bulk-status', [UsersController::class, 'bulkStatus'])
         ->name('users.bulk-status')

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { createCurrencyFormatter } from '@/lib/currency';
 
 interface Props {
     oldestPendingDate?: string | null;
@@ -11,11 +12,7 @@ interface Props {
 
 defineProps<Props>();
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-});
+const currencyFormat = createCurrencyFormatter();
 </script>
 
 <template>
@@ -26,9 +23,12 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
             </CardHeader>
             <CardContent>
                 <p class="text-2xl font-semibold">
-                    {{ oldestPendingDays !== null && oldestPendingDays !== undefined
-                        ? `${oldestPendingDays} days`
-                        : '--' }}
+                    {{
+                        oldestPendingDays !== null &&
+                        oldestPendingDays !== undefined
+                            ? `${oldestPendingDays} days`
+                            : '--'
+                    }}
                 </p>
                 <p class="text-sm text-muted-foreground">
                     {{ oldestPendingDate ?? 'No pending approvals' }}
@@ -44,8 +44,10 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
                     {{ highCostPendingCount ?? 0 }}
                 </p>
                 <p class="text-sm text-muted-foreground">
-                    Threshold: {{
-                        highCostThreshold !== null && highCostThreshold !== undefined
+                    Threshold:
+                    {{
+                        highCostThreshold !== null &&
+                        highCostThreshold !== undefined
                             ? currencyFormat.format(highCostThreshold)
                             : '--'
                     }}
@@ -59,7 +61,8 @@ const currencyFormat = new Intl.NumberFormat(undefined, {
             <CardContent>
                 <p class="text-2xl font-semibold">
                     {{
-                        highCostPendingTotal !== null && highCostPendingTotal !== undefined
+                        highCostPendingTotal !== null &&
+                        highCostPendingTotal !== undefined
                             ? currencyFormat.format(highCostPendingTotal)
                             : '--'
                     }}

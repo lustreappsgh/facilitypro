@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { DatePicker } from '@/components/ui/date-picker';
 import ExportTools from '@/components/Admin/ExportTools.vue';
 import SystemMetrics from '@/components/Admin/SystemMetrics.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { createCurrencyFormatter } from '@/lib/currency';
 import { admin as reportsAdmin } from '@/routes/reports';
 import adminExports from '@/routes/reports/admin';
 import type { BreadcrumbItem } from '@/types';
@@ -59,11 +60,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const startDateFilter = ref(props.filters.start_date ?? '');
 const endDateFilter = ref(props.filters.end_date ?? '');
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-});
+const currencyFormat = createCurrencyFormatter();
 
 const buildExportUrl = (format: 'csv' | 'pdf') =>
     adminExports.export({
@@ -75,7 +72,9 @@ const buildExportUrl = (format: 'csv' | 'pdf') =>
     }).url;
 
 const summaryEntries = computed(() => Object.entries(props.data.summary));
-const statusEntries = computed(() => Object.entries(props.data.statusBreakdown));
+const statusEntries = computed(() =>
+    Object.entries(props.data.statusBreakdown),
+);
 const costMetrics = computed(() => [
     {
         label: 'Total cost',
@@ -130,12 +129,12 @@ const costMetrics = computed(() => [
                     v-model="startDateFilter"
                     name="start_date"
                     class="min-w-[150px]"
-                 />
+                />
                 <DatePicker
                     v-model="endDateFilter"
                     name="end_date"
                     class="min-w-[150px]"
-                 />
+                />
                 <div class="flex items-center gap-2">
                     <Button type="submit">Apply</Button>
                     <Button variant="ghost" as-child>
@@ -158,7 +157,7 @@ const costMetrics = computed(() => [
                                 :key="label"
                                 class="flex items-center justify-between"
                             >
-                                <span class="capitalize text-muted-foreground">
+                                <span class="text-muted-foreground capitalize">
                                     {{ label.replace(/([A-Z])/g, ' $1') }}
                                 </span>
                                 <span class="font-medium">{{ value }}</span>
@@ -189,7 +188,9 @@ const costMetrics = computed(() => [
                                         <span class="text-muted-foreground">
                                             {{ status.replace('_', ' ') }}
                                         </span>
-                                        <span class="font-medium">{{ count }}</span>
+                                        <span class="font-medium">{{
+                                            count
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -215,7 +216,11 @@ const costMetrics = computed(() => [
                                 </span>
                                 <span class="font-medium">
                                     {{ entry.count ?? 0 }} /
-                                    {{ currencyFormat.format(entry.total_cost ?? 0) }}
+                                    {{
+                                        currencyFormat.format(
+                                            entry.total_cost ?? 0,
+                                        )
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -235,7 +240,9 @@ const costMetrics = computed(() => [
                                 <span class="text-muted-foreground">
                                     {{ entry.period }}
                                 </span>
-                                <span class="font-medium">{{ entry.count ?? 0 }}</span>
+                                <span class="font-medium">{{
+                                    entry.count ?? 0
+                                }}</span>
                             </div>
                         </div>
                     </CardContent>
@@ -254,7 +261,9 @@ const costMetrics = computed(() => [
                                 <span class="text-muted-foreground">
                                     {{ entry.period }}
                                 </span>
-                                <span class="font-medium">{{ entry.count ?? 0 }}</span>
+                                <span class="font-medium">{{
+                                    entry.count ?? 0
+                                }}</span>
                             </div>
                         </div>
                     </CardContent>

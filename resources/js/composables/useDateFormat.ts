@@ -1,4 +1,11 @@
-import { format, formatDistanceToNow, parseISO, isValid, parse } from 'date-fns';
+import { formatLocaleDate, formatLocaleDateTime } from '@/lib/locale';
+import {
+    format,
+    formatDistanceToNow,
+    isValid,
+    parse,
+    parseISO,
+} from 'date-fns';
 
 export interface DateFormatOptions {
     relative?: boolean;
@@ -11,7 +18,9 @@ export interface DateFormatOptions {
  * Converts ISO timestamps like "2025-12-14T00:00:00.000000Z" to readable formats
  */
 export function useDateFormat() {
-    const parseDate = (dateString: string | Date | null | undefined): Date | null => {
+    const parseDate = (
+        dateString: string | Date | null | undefined,
+    ): Date | null => {
         if (!dateString) return null;
         if (dateString instanceof Date) return dateString;
 
@@ -21,7 +30,11 @@ export function useDateFormat() {
         const humanDate = parse(dateString, 'MMM d, yyyy', new Date());
         if (isValid(humanDate)) return humanDate;
 
-        const humanDateTime = parse(dateString, 'MMM d, yyyy h:mm a', new Date());
+        const humanDateTime = parse(
+            dateString,
+            'MMM d, yyyy h:mm a',
+            new Date(),
+        );
         if (isValid(humanDateTime)) return humanDateTime;
 
         return null;
@@ -35,16 +48,20 @@ export function useDateFormat() {
      */
     const formatDate = (
         dateString: string | Date | null | undefined,
-        options: DateFormatOptions = {}
+        options: DateFormatOptions = {},
     ): string => {
         if (!dateString) return 'Not set';
 
         try {
             const date = parseDate(dateString);
-            
+
             if (!date || !isValid(date)) return 'Invalid date';
 
-            const { relative = false, includeTime = false, format: customFormat } = options;
+            const {
+                relative = false,
+                includeTime = false,
+                format: customFormat,
+            } = options;
 
             // Custom format takes precedence
             if (customFormat) {
@@ -58,10 +75,10 @@ export function useDateFormat() {
 
             // Absolute format
             if (includeTime) {
-                return format(date, 'MMM d, yyyy h:mm a');
+                return formatLocaleDateTime(date);
             }
 
-            return format(date, 'MMM d, yyyy');
+            return formatLocaleDate(date);
         } catch (error) {
             console.error('Date formatting error:', error);
             return 'Invalid date';
@@ -71,21 +88,27 @@ export function useDateFormat() {
     /**
      * Format a date for display in tables (short format)
      */
-    const formatTableDate = (dateString: string | Date | null | undefined): string => {
+    const formatTableDate = (
+        dateString: string | Date | null | undefined,
+    ): string => {
         return formatDate(dateString, { includeTime: false });
     };
 
     /**
      * Format a date with relative time (e.g., "2 days ago")
      */
-    const formatRelative = (dateString: string | Date | null | undefined): string => {
+    const formatRelative = (
+        dateString: string | Date | null | undefined,
+    ): string => {
         return formatDate(dateString, { relative: true });
     };
 
     /**
      * Format a date with time
      */
-    const formatDateTime = (dateString: string | Date | null | undefined): string => {
+    const formatDateTime = (
+        dateString: string | Date | null | undefined,
+    ): string => {
         return formatDate(dateString, { includeTime: true });
     };
 

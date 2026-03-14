@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Domains\Maintenance\Actions\CreateWorkOrderAction;
 use App\Domains\Maintenance\DTOs\MaintenanceRequestData;
 use App\Domains\Maintenance\DTOs\WorkOrderData;
+use App\Domains\Maintenance\Requests\BulkDeleteMaintenanceRequestsRequest;
 use App\Domains\Maintenance\Requests\MaintenanceRequestRequest;
 use App\Domains\Maintenance\Services\MaintenanceService;
 use App\Domains\Payments\Services\PaymentService;
@@ -19,6 +20,7 @@ use App\Models\Vendor;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use DomainException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -140,6 +142,7 @@ class MaintenanceRequestController extends Controller
                 'requests' => $items->values()->map(fn (MaintenanceRequest $maintenanceRequest) => [
                     'id' => $maintenanceRequest->id,
                     'status' => $maintenanceRequest->status,
+                    'submission_route' => $maintenanceRequest->submission_route,
                     'description' => $maintenanceRequest->description,
                     'cost' => $maintenanceRequest->cost,
                     'created_at' => $maintenanceRequest->created_at?->toDateString(),
@@ -181,6 +184,7 @@ class MaintenanceRequestController extends Controller
             'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
             'routes' => [
                 'create' => route('maintenance.create'),
+                'bulkDestroy' => route('maintenance.bulk-destroy'),
                 'index' => route('maintenance.index'),
             ],
             'meta' => [
@@ -288,6 +292,7 @@ class MaintenanceRequestController extends Controller
         $this->authorize('create', MaintenanceRequest::class);
 
         $validated = $request->validated();
+        $submissionRoute = $validated['submission_route'] ?? MaintenanceRequest::SubmissionRouteMaintenanceManager;
         $bulkRequests = collect($validated['bulk_requests'] ?? [])
             ->filter(fn (array $item) => isset($item['facility_id']))
             ->unique('facility_id')
@@ -296,7 +301,10 @@ class MaintenanceRequestController extends Controller
 
         if ($bulkRequests !== []) {
             foreach ($bulkRequests as $item) {
-                $data = MaintenanceRequestData::fromRequest($item);
+                $data = MaintenanceRequestData::fromRequest([
+                    ...$item,
+                    'submission_route' => $submissionRoute,
+                ]);
                 $this->maintenanceService->create($data);
             }
 
@@ -314,6 +322,7 @@ class MaintenanceRequestController extends Controller
                 $data = MaintenanceRequestData::fromRequest([
                     ...$validated,
                     'facility_id' => $facilityId,
+                    'submission_route' => $submissionRoute,
                 ]);
                 $this->maintenanceService->create($data);
             }
@@ -325,7 +334,10 @@ class MaintenanceRequestController extends Controller
                 ->with('success', 'Requests created.');
         }
 
-        $data = MaintenanceRequestData::fromRequest($validated);
+        $data = MaintenanceRequestData::fromRequest([
+            ...$validated,
+            'submission_route' => $submissionRoute,
+        ]);
         $this->maintenanceService->create($data);
 
         $redirectTo = $request->input('redirect_to') ?? route('maintenance.index');
@@ -378,10 +390,84 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('update', $maintenance);
 
-        $data = MaintenanceRequestData::fromRequest($request->validated());
+        $data = MaintenanceRequestData::fromRequest(
+            $request->validated(),
+            defaultSubmissionRoute: null
+        );
         $this->maintenanceService->update($maintenance, $data);
 
         return back()->with('success', 'Request updated.');
+    }
+
+    public function destroy(Request $request, MaintenanceRequest $maintenance)
+    {
+        $this->authorize('delete', $maintenance);
+
+        try {
+            $maintenance->delete();
+        } catch (QueryException $exception) {
+            return back()->withErrors([
+                'maintenance' => 'Request cannot be deleted because it has related records.',
+            ]);
+        }
+
+        $redirectTo = $request->input('redirect_to');
+
+        if (is_string($redirectTo) && $redirectTo !== '') {
+            return redirect()->to($redirectTo)->with('success', 'Request deleted.');
+        }
+
+        return redirect()->route('maintenance.index')->with('success', 'Request deleted.');
+    }
+
+    public function bulkDestroy(BulkDeleteMaintenanceRequestsRequest $request)
+    {
+        $maintenanceRequestIds = $request->validated('maintenance_request_ids');
+
+        $maintenanceRequests = MaintenanceRequest::query()
+            ->whereIn('id', $maintenanceRequestIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($maintenanceRequests->count() !== count($maintenanceRequestIds)) {
+            abort(403);
+        }
+
+        foreach ($maintenanceRequestIds as $maintenanceRequestId) {
+            $maintenanceRequest = $maintenanceRequests->get($maintenanceRequestId);
+            if (! $maintenanceRequest) {
+                abort(403);
+            }
+
+            $this->authorize('delete', $maintenanceRequest);
+        }
+
+        try {
+            DB::transaction(function () use ($maintenanceRequestIds, $maintenanceRequests) {
+                foreach ($maintenanceRequestIds as $maintenanceRequestId) {
+                    $maintenanceRequest = $maintenanceRequests->get($maintenanceRequestId);
+                    if ($maintenanceRequest) {
+                        $maintenanceRequest->delete();
+                    }
+                }
+            });
+        } catch (QueryException $exception) {
+            return back()->withErrors([
+                'maintenance' => 'One or more requests could not be deleted because they have related records.',
+            ]);
+        }
+
+        $redirectTo = $request->input('redirect_to');
+
+        if (is_string($redirectTo) && $redirectTo !== '') {
+            return redirect()
+                ->to($redirectTo)
+                ->with('success', sprintf('Deleted %d requests.', count($maintenanceRequestIds)));
+        }
+
+        return redirect()
+            ->route('maintenance.index')
+            ->with('success', sprintf('Deleted %d requests.', count($maintenanceRequestIds)));
     }
 
     public function review(MaintenanceRequest $maintenance)

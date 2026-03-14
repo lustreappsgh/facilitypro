@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import CostTracker from '@/components/CostTracker.vue';
+import DataTable from '@/components/data-table/DataTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import DataTable from '@/components/data-table/DataTable.vue';
 import {
     Card,
     CardContent,
@@ -12,18 +12,41 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { edit, index as maintenanceIndex } from '@/routes/maintenance';
-import { bulkCreate as workOrdersBulkCreate, show as workOrderShow } from '@/routes/work-orders';
-import { index as vendorsIndex } from '@/routes/vendors';
-import { show as paymentShow } from '@/routes/payments';
-import type { BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { usePermissions } from '@/composables/usePermissions';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { createCurrencyFormatter } from '@/lib/currency';
+import { destroy, edit, index as maintenanceIndex } from '@/routes/maintenance';
+import { show as paymentShow } from '@/routes/payments';
+import { index as vendorsIndex } from '@/routes/vendors';
+import {
+    bulkCreate as workOrdersBulkCreate,
+    show as workOrderShow,
+} from '@/routes/work-orders';
+import type { BreadcrumbItem } from '@/types';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { ArrowLeft, ClipboardCheck, ClipboardList, Eye, Pencil, UsersRound, X } from 'lucide-vue-next';
+import {
+    ArrowLeft,
+    ClipboardCheck,
+    ClipboardList,
+    Eye,
+    Pencil,
+    Trash2,
+    UsersRound,
+    X,
+} from 'lucide-vue-next';
 import { computed, h } from 'vue';
 
 interface FacilityType {
@@ -128,13 +151,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 const { can } = usePermissions();
 const canManageAll = computed(() => can('maintenance.manage_all'));
 const canAdminFastTrack = computed(
-    () => canManageAll.value && ['submitted', 'pending'].includes(props.request.status),
+    () =>
+        canManageAll.value &&
+        ['submitted', 'pending'].includes(props.request.status),
 );
 const canFirstApproval = computed(
-    () => can('maintenance.review') && !canManageAll.value && ['submitted', 'pending'].includes(props.request.status),
+    () =>
+        can('maintenance.review') &&
+        !canManageAll.value &&
+        ['submitted', 'pending'].includes(props.request.status),
 );
 const canFinalApproval = computed(
-    () => canManageAll.value && ['approved', 'assigned', 'work_order_created'].includes(props.request.status),
+    () =>
+        canManageAll.value &&
+        ['approved', 'assigned', 'work_order_created'].includes(
+            props.request.status,
+        ),
 );
 
 const approveForm = useForm({
@@ -154,10 +186,26 @@ if (!approveForm.estimated_cost) {
     approveForm.estimated_cost = defaultEstimatedCost.value;
 }
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-});
+const currencyFormat = createCurrencyFormatter();
+const canDeleteRequest = computed(
+    () =>
+        (can('maintenance.update') || can('maintenance_requests.update')) &&
+        ['submitted', 'pending'].includes(props.request.status) &&
+        props.workOrders.length === 0,
+);
+
+const confirmDeleteRequest = () => {
+    if (!window.confirm('Delete this request? This action cannot be undone.')) {
+        return;
+    }
+
+    router.delete(destroy(props.request.id).url, {
+        data: {
+            redirect_to: maintenanceIndex().url,
+        },
+        preserveScroll: true,
+    });
+};
 
 const statusLabel = computed(() => props.request.status.replace(/_/g, ' '));
 const hasApprovedRequest = computed(() =>
@@ -194,7 +242,11 @@ const statusBadgeClass = (status: string) => {
         return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
     }
 
-    if (status === 'approved' || status === 'assigned' || status === 'work_order_created') {
+    if (
+        status === 'approved' ||
+        status === 'assigned' ||
+        status === 'work_order_created'
+    ) {
         return 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300';
     }
 
@@ -216,7 +268,8 @@ const paymentColumns: ColumnDef<Payment>[] = [
         accessorFn: (row) => row.amount_payed ?? 0,
         header: 'Amount paid',
         cell: ({ row }) =>
-            row.original.amount_payed !== null && row.original.amount_payed !== undefined
+            row.original.amount_payed !== null &&
+            row.original.amount_payed !== undefined
                 ? currencyFormat.format(row.original.amount_payed)
                 : '-',
     },
@@ -227,7 +280,10 @@ const paymentColumns: ColumnDef<Payment>[] = [
         cell: ({ row }) =>
             h(
                 Badge,
-                { variant: 'secondary', class: statusBadgeClass(row.original.status ?? '') },
+                {
+                    variant: 'secondary',
+                    class: statusBadgeClass(row.original.status ?? ''),
+                },
                 () => row.original.status ?? 'unknown',
             ),
     },
@@ -237,7 +293,11 @@ const paymentColumns: ColumnDef<Payment>[] = [
         cell: ({ row }) => {
             const approvals = row.original.approvals ?? [];
             if (!approvals.length) {
-                return h('span', { class: 'text-xs text-muted-foreground' }, '--');
+                return h(
+                    'span',
+                    { class: 'text-xs text-muted-foreground' },
+                    '--',
+                );
             }
             return h(
                 'div',
@@ -258,10 +318,23 @@ const paymentColumns: ColumnDef<Payment>[] = [
         cell: ({ row }) =>
             h(Tooltip, {}, () => [
                 h(TooltipTrigger, { asChild: true }, () =>
-                    h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                        h(Link, { href: paymentShow(row.original).url, 'aria-label': 'View payment' }, () =>
-                            h(Eye, { class: 'h-4 w-4' }),
-                        ),
+                    h(
+                        Button,
+                        {
+                            variant: 'ghost',
+                            size: 'icon',
+                            class: 'h-8 w-8',
+                            asChild: true,
+                        },
+                        () =>
+                            h(
+                                Link,
+                                {
+                                    href: paymentShow(row.original).url,
+                                    'aria-label': 'View payment',
+                                },
+                                () => h(Eye, { class: 'h-4 w-4' }),
+                            ),
                     ),
                 ),
                 h(TooltipContent, { side: 'top' }, () => 'View payment'),
@@ -291,7 +364,8 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
         id: 'estimated',
         header: 'Est. cost',
         cell: ({ row }) =>
-            row.original.estimated_cost !== null && row.original.estimated_cost !== undefined
+            row.original.estimated_cost !== null &&
+            row.original.estimated_cost !== undefined
                 ? currencyFormat.format(row.original.estimated_cost)
                 : '-',
     },
@@ -299,7 +373,8 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
         id: 'actual',
         header: 'Actual cost',
         cell: ({ row }) =>
-            row.original.actual_cost !== null && row.original.actual_cost !== undefined
+            row.original.actual_cost !== null &&
+            row.original.actual_cost !== undefined
                 ? currencyFormat.format(row.original.actual_cost)
                 : '-',
     },
@@ -309,7 +384,10 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
         cell: ({ row }) =>
             h(
                 Badge,
-                { variant: 'secondary', class: statusBadgeClass(row.original.status ?? '') },
+                {
+                    variant: 'secondary',
+                    class: statusBadgeClass(row.original.status ?? ''),
+                },
                 () => row.original.status ?? 'unknown',
             ),
     },
@@ -319,10 +397,23 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
         cell: ({ row }) =>
             h(Tooltip, {}, () => [
                 h(TooltipTrigger, { asChild: true }, () =>
-                    h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8', asChild: true }, () =>
-                        h(Link, { href: workOrderShow(row.original.id).url, 'aria-label': 'View work order' }, () =>
-                            h(Eye, { class: 'h-4 w-4' }),
-                        ),
+                    h(
+                        Button,
+                        {
+                            variant: 'ghost',
+                            size: 'icon',
+                            class: 'h-8 w-8',
+                            asChild: true,
+                        },
+                        () =>
+                            h(
+                                Link,
+                                {
+                                    href: workOrderShow(row.original.id).url,
+                                    'aria-label': 'View work order',
+                                },
+                                () => h(Eye, { class: 'h-4 w-4' }),
+                            ),
                     ),
                 ),
                 h(TooltipContent, { side: 'top' }, () => 'View work order'),
@@ -334,7 +425,6 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
 </script>
 
 <template>
-
     <Head title="Maintenance request" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
@@ -347,27 +437,42 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                     <div class="flex flex-wrap items-center gap-2">
                         <Tooltip>
                             <TooltipTrigger as-child>
-                                <Button variant="outline" size="icon" class="h-9 w-9" as-child>
-                                    <Link :href="maintenanceIndex().url" aria-label="Back to list">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    class="h-9 w-9"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="maintenanceIndex().url"
+                                        aria-label="Back to list"
+                                    >
                                         <ArrowLeft class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Back to list</TooltipContent>
+                            <TooltipContent side="top"
+                                >Back to list</TooltipContent
+                            >
                         </Tooltip>
                         <form
                             v-if="canFirstApproval || canAdminFastTrack"
                             class="flex flex-wrap items-end gap-2"
                             @submit.prevent="
-                                approveForm.post(`/maintenance/${request.id}/approve`, {
-                                    preserveScroll: true,
-                                })
+                                approveForm.post(
+                                    `/maintenance/${request.id}/approve`,
+                                    {
+                                        preserveScroll: true,
+                                    },
+                                )
                             "
                         >
                             <div class="min-w-[180px]">
                                 <Select v-model="approveForm.vendor_id">
                                     <SelectTrigger class="h-9">
-                                        <SelectValue placeholder="Select vendor" />
+                                        <SelectValue
+                                            placeholder="Select vendor"
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem
@@ -379,7 +484,10 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="approveForm.errors.vendor_id" class="mt-1 text-xs text-destructive">
+                                <p
+                                    v-if="approveForm.errors.vendor_id"
+                                    class="mt-1 text-xs text-destructive"
+                                >
                                     {{ approveForm.errors.vendor_id }}
                                 </p>
                             </div>
@@ -391,19 +499,32 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     class="h-9"
                                     placeholder="Estimated cost"
                                 />
-                                <p v-if="approveForm.errors.estimated_cost" class="mt-1 text-xs text-destructive">
+                                <p
+                                    v-if="approveForm.errors.estimated_cost"
+                                    class="mt-1 text-xs text-destructive"
+                                >
                                     {{ approveForm.errors.estimated_cost }}
                                 </p>
                             </div>
                             <Tooltip>
                                 <TooltipTrigger as-child>
-                                    <Button :disabled="approveForm.processing" size="icon" class="h-9 w-9" aria-label="Approve request">
+                                    <Button
+                                        :disabled="approveForm.processing"
+                                        size="icon"
+                                        class="h-9 w-9"
+                                        aria-label="Approve request"
+                                    >
                                         <ClipboardCheck class="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent side="top">Approve request</TooltipContent>
+                                <TooltipContent side="top"
+                                    >Approve request</TooltipContent
+                                >
                             </Tooltip>
-                            <p v-if="approveForm.errors.status" class="basis-full text-xs text-destructive">
+                            <p
+                                v-if="approveForm.errors.status"
+                                class="basis-full text-xs text-destructive"
+                            >
                                 {{ approveForm.errors.status }}
                             </p>
                         </form>
@@ -425,9 +546,17 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     </Link>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Final approve request</TooltipContent>
+                            <TooltipContent side="top"
+                                >Final approve request</TooltipContent
+                            >
                         </Tooltip>
-                        <Tooltip v-if="canFirstApproval || canAdminFastTrack || canFinalApproval">
+                        <Tooltip
+                            v-if="
+                                canFirstApproval ||
+                                canAdminFastTrack ||
+                                canFinalApproval
+                            "
+                        >
                             <TooltipTrigger as-child>
                                 <Button
                                     variant="secondary"
@@ -435,39 +564,57 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
                                     as-child
                                 >
-                                    <Link :href="`/maintenance/${request.id}/reject`" method="post" as="button" aria-label="Reject request">
+                                    <Link
+                                        :href="`/maintenance/${request.id}/reject`"
+                                        method="post"
+                                        as="button"
+                                        aria-label="Reject request"
+                                    >
                                         <X class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Reject request</TooltipContent>
+                            <TooltipContent side="top"
+                                >Reject request</TooltipContent
+                            >
                         </Tooltip>
                         <Tooltip
-                            v-if="can('work_orders.create') && workOrders.length === 0 && ['submitted', 'pending', 'rejected', 'approved'].includes(request.status)"
+                            v-if="
+                                can('work_orders.create') &&
+                                workOrders.length === 0 &&
+                                [
+                                    'submitted',
+                                    'pending',
+                                    'rejected',
+                                    'approved',
+                                ].includes(request.status)
+                            "
                         >
                             <TooltipTrigger as-child>
-                                <Button
-                                    size="icon"
-                                    class="h-9 w-9"
-                                    as-child
-                                >
+                                <Button size="icon" class="h-9 w-9" as-child>
                                     <Link
-                                        :href="workOrdersBulkCreate({
-                                            query: {
-                                                request_ids: [request.id],
-                                                intent: 'review',
-                                            },
-                                        }).url"
+                                        :href="
+                                            workOrdersBulkCreate({
+                                                query: {
+                                                    request_ids: [request.id],
+                                                    intent: 'review',
+                                                },
+                                            }).url
+                                        "
                                         aria-label="Review request"
                                     >
                                         <ClipboardList class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Review request</TooltipContent>
+                            <TooltipContent side="top"
+                                >Review request</TooltipContent
+                            >
                         </Tooltip>
                         <Tooltip
-                            v-else-if="can('work_orders.view') && workOrders.length > 0"
+                            v-else-if="
+                                can('work_orders.view') && workOrders.length > 0
+                            "
                         >
                             <TooltipTrigger as-child>
                                 <Button
@@ -476,14 +623,28 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     class="h-9 w-9"
                                     as-child
                                 >
-                                    <Link :href="workOrderShow(workOrders[0].id).url" aria-label="View work order">
+                                    <Link
+                                        :href="
+                                            workOrderShow(workOrders[0].id).url
+                                        "
+                                        aria-label="View work order"
+                                    >
                                         <ClipboardList class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">View work order</TooltipContent>
+                            <TooltipContent side="top"
+                                >View work order</TooltipContent
+                            >
                         </Tooltip>
-                        <Tooltip v-if="can('maintenance.update') && ['submitted', 'pending'].includes(request.status)">
+                        <Tooltip
+                            v-if="
+                                can('maintenance.update') &&
+                                ['submitted', 'pending'].includes(
+                                    request.status,
+                                )
+                            "
+                        >
                             <TooltipTrigger as-child>
                                 <Button
                                     variant="secondary"
@@ -491,14 +652,40 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     class="h-9 w-9"
                                     as-child
                                 >
-                                    <Link :href="edit(request).url" aria-label="Edit request">
+                                    <Link
+                                        :href="edit(request).url"
+                                        aria-label="Edit request"
+                                    >
                                         <Pencil class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Edit request</TooltipContent>
+                            <TooltipContent side="top"
+                                >Edit request</TooltipContent
+                            >
                         </Tooltip>
-                        <Tooltip v-if="can('maintenance.close') && request.status === 'paid'">
+                        <Tooltip v-if="canDeleteRequest">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+                                    aria-label="Delete request"
+                                    @click="confirmDeleteRequest"
+                                >
+                                    <Trash2 class="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top"
+                                >Delete request</TooltipContent
+                            >
+                        </Tooltip>
+                        <Tooltip
+                            v-if="
+                                can('maintenance.close') &&
+                                request.status === 'paid'
+                            "
+                        >
                             <TooltipTrigger as-child>
                                 <Button
                                     variant="secondary"
@@ -506,12 +693,19 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     class="h-9 w-9"
                                     as-child
                                 >
-                                    <Link :href="`/maintenance/${request.id}/close`" method="post" as="button" aria-label="Close request">
+                                    <Link
+                                        :href="`/maintenance/${request.id}/close`"
+                                        method="post"
+                                        as="button"
+                                        aria-label="Close request"
+                                    >
                                         <ClipboardCheck class="h-4 w-4" />
                                     </Link>
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top">Close request</TooltipContent>
+                            <TooltipContent side="top"
+                                >Close request</TooltipContent
+                            >
                         </Tooltip>
                     </div>
                 </template>
@@ -536,46 +730,103 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                 <CardContent class="p-0">
                     <div class="divide-y divide-border/60 text-sm">
                         <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Facility</div>
-                            <div class="col-span-2 font-semibold">{{ request.facility?.name ?? '-' }}</div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Facility type</div>
-                            <div class="col-span-2 font-semibold">{{ request.facility?.facilityType?.name ?? '-' }}</div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Facility manager</div>
-                            <div class="col-span-2 flex items-center gap-2 font-semibold">
-                                <UsersRound class="h-4 w-4 text-muted-foreground" />
-                                <span>{{ request.facility?.manager?.name ?? '-' }}</span>
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Facility
                             </div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Condition</div>
-                            <div class="col-span-2 font-semibold">{{ request.facility?.condition ?? '-' }}</div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Request type</div>
                             <div class="col-span-2 font-semibold">
-                                {{ request.requestType?.name ?? request.request_type?.name ?? '-' }}
+                                {{ request.facility?.name ?? '-' }}
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Requested by</div>
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Facility type
+                            </div>
                             <div class="col-span-2 font-semibold">
-                                {{ request.requestedBy?.name ?? request.requested_by?.name ?? '-' }}
+                                {{
+                                    request.facility?.facilityType?.name ?? '-'
+                                }}
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Status</div>
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Facility manager
+                            </div>
+                            <div
+                                class="col-span-2 flex items-center gap-2 font-semibold"
+                            >
+                                <UsersRound
+                                    class="h-4 w-4 text-muted-foreground"
+                                />
+                                <span>{{
+                                    request.facility?.manager?.name ?? '-'
+                                }}</span>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Condition
+                            </div>
+                            <div class="col-span-2 font-semibold">
+                                {{ request.facility?.condition ?? '-' }}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Request type
+                            </div>
+                            <div class="col-span-2 font-semibold">
+                                {{
+                                    request.requestType?.name ??
+                                    request.request_type?.name ??
+                                    '-'
+                                }}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Requested by
+                            </div>
+                            <div class="col-span-2 font-semibold">
+                                {{
+                                    request.requestedBy?.name ??
+                                    request.requested_by?.name ??
+                                    '-'
+                                }}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Status
+                            </div>
                             <div class="col-span-2">
-                                <Badge variant="secondary" :class="statusBadgeClass(request.status)">
+                                <Badge
+                                    variant="secondary"
+                                    :class="statusBadgeClass(request.status)"
+                                >
                                     {{ statusLabel }}
                                 </Badge>
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-4 px-6 py-4">
-                            <div class="text-xs uppercase text-muted-foreground">Description</div>
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Description
+                            </div>
                             <div class="col-span-2 text-muted-foreground">
                                 {{
                                     request.description ??
@@ -584,7 +835,10 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                             </div>
                         </div>
                         <div class="px-6 py-4">
-                            <CostTracker :estimated="request.cost" :actual="null" />
+                            <CostTracker
+                                :estimated="request.cost"
+                                :actual="null"
+                            />
                         </div>
                     </div>
                 </CardContent>

@@ -4,6 +4,7 @@ import ReportFilters from '@/components/ReportFilters.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { createCurrencyFormatter } from '@/lib/currency';
 import { dashboard as reportsDashboard } from '@/routes/reports';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
@@ -69,11 +70,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-});
+const currencyFormat = createCurrencyFormatter();
 
 const maxTrendCost = computed(() => {
     return Math.max(...props.data.trend.map((item) => item.total_cost), 1);
@@ -197,7 +194,11 @@ const exportUrl = computed(() => {
                         </p>
                         <p class="text-sm text-muted-foreground">
                             Pending value:
-                            {{ currencyFormat.format(data.approvals.pendingCost) }}
+                            {{
+                                currencyFormat.format(
+                                    data.approvals.pendingCost,
+                                )
+                            }}
                         </p>
                     </CardContent>
                 </Card>
@@ -216,7 +217,8 @@ const exportUrl = computed(() => {
                                     class="w-full rounded-md bg-slate-900/10"
                                     :style="{
                                         height: `${Math.max(
-                                            (item.total_cost / maxTrendCost) * 140,
+                                            (item.total_cost / maxTrendCost) *
+                                                140,
                                             12,
                                         )}px`,
                                     }"
@@ -236,7 +238,10 @@ const exportUrl = computed(() => {
                         <CardTitle>Top facilities</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div v-if="!data.breakdowns.facilities.length" class="text-sm text-muted-foreground">
+                        <div
+                            v-if="!data.breakdowns.facilities.length"
+                            class="text-sm text-muted-foreground"
+                        >
                             No facility spend data yet.
                         </div>
                         <div v-else class="space-y-2 text-sm">
@@ -247,7 +252,11 @@ const exportUrl = computed(() => {
                             >
                                 <span>{{ facility.name }}</span>
                                 <span class="font-medium">
-                                    {{ currencyFormat.format(facility.total_cost) }}
+                                    {{
+                                        currencyFormat.format(
+                                            facility.total_cost,
+                                        )
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -258,7 +267,10 @@ const exportUrl = computed(() => {
                         <CardTitle>Top vendors</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div v-if="!data.breakdowns.vendors.length" class="text-sm text-muted-foreground">
+                        <div
+                            v-if="!data.breakdowns.vendors.length"
+                            class="text-sm text-muted-foreground"
+                        >
                             No vendor spend data yet.
                         </div>
                         <div v-else class="space-y-2 text-sm">
@@ -269,7 +281,9 @@ const exportUrl = computed(() => {
                             >
                                 <span>{{ vendor.name }}</span>
                                 <span class="font-medium">
-                                    {{ currencyFormat.format(vendor.total_cost) }}
+                                    {{
+                                        currencyFormat.format(vendor.total_cost)
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -280,7 +294,10 @@ const exportUrl = computed(() => {
                         <CardTitle>Top request types</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div v-if="!data.breakdowns.types.length" class="text-sm text-muted-foreground">
+                        <div
+                            v-if="!data.breakdowns.types.length"
+                            class="text-sm text-muted-foreground"
+                        >
                             No request type spend data yet.
                         </div>
                         <div v-else class="space-y-2 text-sm">

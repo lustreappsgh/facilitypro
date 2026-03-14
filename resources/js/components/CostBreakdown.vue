@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { createCurrencyFormatter } from '@/lib/currency';
 
 interface Props {
     cost?: number | null;
@@ -8,10 +9,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-});
+const currencyFormat = createCurrencyFormatter();
 
 const outstanding = () => {
     if (props.cost === null || props.cost === undefined) {

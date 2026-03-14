@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { createNumberFormatter } from '@/lib/locale';
 import { my as facilitiesMy } from '@/routes/facilities';
 import { create as inspectionsCreate } from '@/routes/inspections';
 import { create as maintenanceCreate } from '@/routes/maintenance';
 import { weekly as todosWeekly } from '@/routes/todos';
 import { Link } from '@inertiajs/vue3';
-import { Building2, ClipboardCheck, ClipboardList, Wrench } from 'lucide-vue-next';
+import {
+    Building2,
+    ClipboardCheck,
+    ClipboardList,
+    Wrench,
+} from 'lucide-vue-next';
 
 interface Props {
     inspectionsSubmitted: number;
@@ -16,7 +22,7 @@ interface Props {
 
 defineProps<Props>();
 
-const numberFormat = new Intl.NumberFormat();
+const numberFormat = createNumberFormatter();
 </script>
 
 <template>
@@ -56,7 +62,10 @@ const numberFormat = new Intl.NumberFormat();
 
         <div class="flex flex-wrap items-center gap-2">
             <Button size="icon" class="h-9 w-9" as-child>
-                <Link :href="inspectionsCreate().url" aria-label="New inspection">
+                <Link
+                    :href="inspectionsCreate().url"
+                    aria-label="New inspection"
+                >
                     <ClipboardCheck class="h-4 w-4" />
                 </Link>
             </Button>
@@ -71,7 +80,10 @@ const numberFormat = new Intl.NumberFormat();
                 </Link>
             </Button>
             <Button size="icon" variant="ghost" class="h-9 w-9" as-child>
-                <Link :href="facilitiesMy().url" aria-label="View my facilities">
+                <Link
+                    :href="facilitiesMy().url"
+                    aria-label="View my facilities"
+                >
                     <Building2 class="h-4 w-4" />
                 </Link>
             </Button>

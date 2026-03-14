@@ -75,11 +75,49 @@ class MaintenanceRequestPolicy
             && ! $maintenanceRequest->workOrders()->exists();
     }
 
+    public function delete(User $user, MaintenanceRequest $maintenanceRequest): bool
+    {
+        $override = $this->allowAdmin($user, 'delete', $maintenanceRequest);
+        if ($override !== null) {
+            return $override;
+        }
+
+        if (! ($user->can('maintenance.update') || $user->can('maintenance_requests.update'))) {
+            return false;
+        }
+
+        if ($user->can('users.manage')) {
+            return true;
+        }
+
+        if (! in_array($maintenanceRequest->status, MaintenanceStatus::requesterEditable(), true)) {
+            return false;
+        }
+
+        if ($maintenanceRequest->workOrders()->exists()) {
+            return false;
+        }
+
+        if ($user->can('maintenance_requests.update')) {
+            return $maintenanceRequest->requested_by === $user->id
+                && $this->isInMaintenanceRequestScope($user, $maintenanceRequest);
+        }
+
+        return $maintenanceRequest->requested_by === $user->id;
+    }
+
     public function review(User $user, MaintenanceRequest $maintenanceRequest): bool
     {
         $override = $this->allowAdmin($user, 'review', $maintenanceRequest);
         if ($override !== null) {
             return $override;
+        }
+
+        if (
+            $maintenanceRequest->submission_route === MaintenanceRequest::SubmissionRouteAdmin
+            && ! $user->can('users.manage')
+        ) {
+            return false;
         }
 
         if (! ($user->can('maintenance.review') || $user->can('work_orders.create'))) {

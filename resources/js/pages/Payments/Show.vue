@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CostBreakdown from '@/components/CostBreakdown.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,14 +19,18 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import PageHeader from '@/components/PageHeader.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { createCurrencyFormatter } from '@/lib/currency';
 import { show as maintenanceShow } from '@/routes/maintenance';
-import { approve as paymentApprove, index as paymentsIndex, reject as paymentReject } from '@/routes/payments';
+import {
+    approve as paymentApprove,
+    reject as paymentReject,
+    index as paymentsIndex,
+} from '@/routes/payments';
 import { show as workOrderShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { usePermissions } from '@/composables/usePermissions';
 import { ArrowLeft, Check, Plus, Send, X } from 'lucide-vue-next';
 import { ref } from 'vue';
 
@@ -110,10 +115,7 @@ const rejectForm = useForm({
 const approveOpen = ref(false);
 const rejectOpen = ref(false);
 
-const currencyFormat = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-});
+const currencyFormat = createCurrencyFormatter();
 
 const statusBadgeClass = (status: string) => {
     if (status === 'paid') {
@@ -155,16 +157,31 @@ const submitReject = () => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader :title="`Payment #${payment.id}`" subtitle="Review payment status and approvals.">
+            <PageHeader
+                :title="`Payment #${payment.id}`"
+                subtitle="Review payment status and approvals."
+            >
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button variant="outline" size="icon" class="h-9 w-9" as-child>
-                            <Link :href="paymentsIndex().url" aria-label="Back to list">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            class="h-9 w-9"
+                            as-child
+                        >
+                            <Link
+                                :href="paymentsIndex().url"
+                                aria-label="Back to list"
+                            >
                                 <ArrowLeft class="h-4 w-4" />
                             </Link>
                         </Button>
                         <Button
-                            v-if="payment.status === 'pending' && can('payments.submit') && !can('payments.approve')"
+                            v-if="
+                                payment.status === 'pending' &&
+                                can('payments.submit') &&
+                                !can('payments.approve')
+                            "
                             variant="secondary"
                             size="icon"
                             class="h-9 w-9"
@@ -173,7 +190,10 @@ const submitReject = () => {
                             <Send class="h-4 w-4" />
                         </Button>
                         <Button
-                            v-if="payment.status === 'pending' && can('payments.approve')"
+                            v-if="
+                                payment.status === 'pending' &&
+                                can('payments.approve')
+                            "
                             size="icon"
                             class="h-9 w-9"
                             @click="approveOpen = true"
@@ -182,7 +202,10 @@ const submitReject = () => {
                             <Check class="h-4 w-4" />
                         </Button>
                         <Button
-                            v-if="payment.status === 'pending' && can('payments.reject')"
+                            v-if="
+                                payment.status === 'pending' &&
+                                can('payments.reject')
+                            "
                             variant="secondary"
                             size="icon"
                             class="h-9 w-9"
@@ -205,7 +228,7 @@ const submitReject = () => {
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Maintenance request
                             </p>
                             <Button
@@ -221,35 +244,39 @@ const submitReject = () => {
                                         ).url
                                     "
                                 >
-                                    Request #{{ payment.maintenanceRequest?.id }}
+                                    Request #{{
+                                        payment.maintenanceRequest?.id
+                                    }}
                                 </Link>
                             </Button>
-                            <p v-else class="text-sm text-muted-foreground">—</p>
+                            <p v-else class="text-sm text-muted-foreground">
+                                —
+                            </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Facility
                             </p>
                             <p class="text-sm font-medium">
                                 {{
-                                    payment.maintenanceRequest?.facility?.name ??
-                                    '—'
+                                    payment.maintenanceRequest?.facility
+                                        ?.name ?? '—'
                                 }}
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Request type
                             </p>
                             <p class="text-sm font-medium">
                                 {{
-                                    payment.maintenanceRequest?.requestType?.name ??
-                                    '—'
+                                    payment.maintenanceRequest?.requestType
+                                        ?.name ?? '—'
                                 }}
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Work order
                             </p>
                             <Button
@@ -278,7 +305,7 @@ const submitReject = () => {
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Cost
                             </p>
                             <p class="text-sm font-medium">
@@ -291,7 +318,7 @@ const submitReject = () => {
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Amount paid
                             </p>
                             <p class="text-sm font-medium">
@@ -306,7 +333,7 @@ const submitReject = () => {
                             </p>
                         </div>
                         <div>
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Status
                             </p>
                             <Badge
@@ -317,14 +344,20 @@ const submitReject = () => {
                             </Badge>
                         </div>
                         <div v-if="payment.comments">
-                            <p class="text-xs uppercase text-muted-foreground">
+                            <p class="text-xs text-muted-foreground uppercase">
                                 Comments
                             </p>
                             <p class="text-sm text-muted-foreground">
                                 {{ payment.comments }}
                             </p>
                         </div>
-                        <Button v-if="can('payments.create')" variant="outline" size="icon" class="h-9 w-9" aria-label="Add payment record">
+                        <Button
+                            v-if="can('payments.create')"
+                            variant="outline"
+                            size="icon"
+                            class="h-9 w-9"
+                            aria-label="Add payment record"
+                        >
                             <Plus class="h-4 w-4" />
                         </Button>
                     </CardContent>
@@ -366,16 +399,15 @@ const submitReject = () => {
                     >
                         No approvals recorded yet.
                     </div>
-                    <div
-                        v-else
-                        class="space-y-3"
-                    >
+                    <div v-else class="space-y-3">
                         <div
                             v-for="approval in payment.approvals"
                             :key="approval.id"
                             class="rounded-lg border border-border/70 p-3"
                         >
-                            <div class="flex items-center justify-between text-sm">
+                            <div
+                                class="flex items-center justify-between text-sm"
+                            >
                                 <span class="font-medium">
                                     {{ approval.approver?.name ?? 'Manager' }}
                                 </span>
@@ -387,7 +419,9 @@ const submitReject = () => {
                                 </Badge>
                             </div>
                             <p class="mt-2 text-xs text-muted-foreground">
-                                {{ approval.comments ?? 'No comments provided.' }}
+                                {{
+                                    approval.comments ?? 'No comments provided.'
+                                }}
                             </p>
                         </div>
                     </div>
@@ -410,7 +444,10 @@ const submitReject = () => {
                     v-model="approveForm.comments"
                     placeholder="Add context for the approval"
                 />
-                <p v-if="approveForm.errors.comments" class="text-sm text-destructive">
+                <p
+                    v-if="approveForm.errors.comments"
+                    class="text-sm text-destructive"
+                >
                     {{ approveForm.errors.comments }}
                 </p>
             </div>
@@ -418,7 +455,10 @@ const submitReject = () => {
                 <Button variant="ghost" @click="approveOpen = false">
                     Cancel
                 </Button>
-                <Button :disabled="approveForm.processing" @click="submitApprove">
+                <Button
+                    :disabled="approveForm.processing"
+                    @click="submitApprove"
+                >
                     Confirm approval
                 </Button>
             </DialogFooter>
@@ -439,7 +479,10 @@ const submitReject = () => {
                     v-model="rejectForm.comments"
                     placeholder="Explain why the payment is rejected"
                 />
-                <p v-if="rejectForm.errors.comments" class="text-sm text-destructive">
+                <p
+                    v-if="rejectForm.errors.comments"
+                    class="text-sm text-destructive"
+                >
                     {{ rejectForm.errors.comments }}
                 </p>
             </div>
