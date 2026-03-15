@@ -31,6 +31,10 @@ export type AppPageProps<
         error?: string | null;
         warning?: string | null;
         info?: string | null;
+        created_vendor?: {
+            id: number;
+            name: string;
+        } | null;
     };
 };
 

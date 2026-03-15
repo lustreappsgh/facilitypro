@@ -175,6 +175,7 @@ class WorkOrderController extends Controller
                 ])
                 ->get(),
             'selectedRequestId' => $request->integer('maintenance_request_id') ?: null,
+            'selectedVendorId' => $request->integer('vendor_id') ?: null,
             'vendors' => Vendor::where('status', 'active')
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -232,6 +233,8 @@ class WorkOrderController extends Controller
             'maintenanceRequests' => $maintenanceRequests->map(fn (MaintenanceRequest $item) => [
                 'id' => $item->id,
                 'description' => $item->description,
+                'priority' => $item->priority,
+                'rejection_reason' => $item->rejection_reason,
                 'cost' => $item->cost,
                 'facility' => $item->facility ? [
                     'id' => $item->facility->id,
@@ -242,6 +245,8 @@ class WorkOrderController extends Controller
                     'id' => $item->requestType->id,
                     'name' => $item->requestType->name,
                 ] : null,
+                'can_approve' => $item->canBeReviewedBy($request->user(), 'approve'),
+                'can_reject' => $item->canBeReviewedBy($request->user(), 'reject'),
             ])->values(),
             'selection' => [
                 'request_ids' => $requestedIds->all(),
@@ -256,7 +261,7 @@ class WorkOrderController extends Controller
 
         $data = WorkOrderData::fromRequest($request->validated());
         $maintenanceRequest = MaintenanceRequest::query()->findOrFail($data->maintenance_request_id);
-        $this->authorize('review', $maintenanceRequest);
+        $this->authorize('approve', $maintenanceRequest);
         try {
             DB::transaction(function () use ($request, $maintenanceRequest, $data): void {
                 $this->createApprovedWorkOrderForRequest($request->user(), $maintenanceRequest, $data);
@@ -280,6 +285,7 @@ class WorkOrderController extends Controller
             'bulk_orders.*.estimated_cost' => ['nullable', 'numeric'],
             'bulk_orders.*.vendor_id' => ['nullable', 'exists:vendors,id'],
             'bulk_orders.*.review_action' => ['required', 'in:approve,reject'],
+            'bulk_orders.*.rejection_reason' => ['nullable', 'string', 'min:3', 'max:1000'],
         ]);
 
         $bulkOrders = collect($validated['bulk_orders'])
@@ -315,18 +321,20 @@ class WorkOrderController extends Controller
             }
 
             try {
-                $this->authorize('review', $maintenanceRequest);
-
                 DB::transaction(function () use ($request, $reviewAction, $maintenanceRequest, $maintenanceRequestId, $item): void {
                     if ($reviewAction === 'reject') {
-                        $this->maintenanceService->reject($maintenanceRequest);
+                        $this->authorize('reject', $maintenanceRequest);
+
+                        if (! isset($item['rejection_reason']) || trim((string) $item['rejection_reason']) === '') {
+                            throw new DomainException('Rejection reason is required.');
+                        }
+
+                        $this->maintenanceService->reject($maintenanceRequest, trim((string) $item['rejection_reason']));
 
                         return;
                     }
 
-                    if (empty($item['vendor_id'])) {
-                        throw new DomainException('Vendor is required for approval.');
-                    }
+                    $this->authorize('approve', $maintenanceRequest);
 
                     if (! isset($item['estimated_cost']) || $item['estimated_cost'] === '') {
                         throw new DomainException('Estimated cost is required for approval.');
@@ -334,7 +342,7 @@ class WorkOrderController extends Controller
 
                     $this->createApprovedWorkOrderForRequest($request->user(), $maintenanceRequest, WorkOrderData::fromRequest([
                         'maintenance_request_id' => $maintenanceRequestId,
-                        'vendor_id' => $item['vendor_id'],
+                        'vendor_id' => $item['vendor_id'] ?? null,
                         'estimated_cost' => $item['estimated_cost'] ?? $maintenanceRequest->cost,
                         'status' => 'assigned',
                     ]));

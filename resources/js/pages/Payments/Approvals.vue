@@ -57,6 +57,7 @@ interface Props {
     };
     filters: Filters;
     facilities: Facility[];
+    canManageQueue: boolean;
     permissions: string[];
     routes: Record<string, string>;
     meta: Record<string, string>;
@@ -84,6 +85,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 :payments="props.data.payments"
                 :filters="props.filters"
                 :facilities="props.facilities"
+                :can-manage-queue="props.canManageQueue"
             />
 
             <PaginationLinks :links="props.data.payments.links" />

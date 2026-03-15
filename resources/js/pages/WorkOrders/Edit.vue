@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DatePicker } from '@/components/ui/date-picker';
+import InlineVendorCreateDialog from '@/components/InlineVendorCreateDialog.vue';
 import WorkOrderController from '@/actions/App/Http/Controllers/WorkOrderController';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -55,6 +56,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const UNASSIGNED_VENDOR = 'unassigned';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -79,10 +81,23 @@ const executionUnlocked = computed(() =>
 const selectedMaintenanceRequestId = ref(
     props.workOrder.maintenance_request_id ? String(props.workOrder.maintenance_request_id) : '',
 );
+const vendorOptions = ref<Vendor[]>([...props.vendors]);
 const selectedVendorId = ref(
-    props.workOrder.vendor_id ? String(props.workOrder.vendor_id) : '',
+    props.workOrder.vendor_id ? String(props.workOrder.vendor_id) : UNASSIGNED_VENDOR,
 );
 const selectedStatus = ref(props.workOrder.status ?? '');
+
+const handleVendorCreated = (vendor: Vendor) => {
+    if (vendorOptions.value.some((option) => option.id === vendor.id)) {
+        selectedVendorId.value = String(vendor.id);
+        return;
+    }
+
+    vendorOptions.value = [...vendorOptions.value, vendor].sort((left, right) =>
+        left.name.localeCompare(right.name),
+    );
+    selectedVendorId.value = String(vendor.id);
+};
 </script>
 
 <template>
@@ -102,7 +117,11 @@ const selectedStatus = ref(props.workOrder.status ?? '');
                     name="maintenance_request_id"
                     :value="selectedMaintenanceRequestId"
                 />
-                <input type="hidden" name="vendor_id" :value="selectedVendorId" />
+                <input
+                    type="hidden"
+                    name="vendor_id"
+                    :value="selectedVendorId === UNASSIGNED_VENDOR ? '' : selectedVendorId"
+                />
                 <input type="hidden" name="status" :value="selectedStatus" />
                 <div class="grid gap-2">
                     <Label for="maintenance_request_id">
@@ -126,14 +145,20 @@ const selectedStatus = ref(props.workOrder.status ?? '');
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="vendor_id">Vendor</Label>
+                    <div class="flex items-center justify-between gap-3">
+                        <Label for="vendor_id">Vendor</Label>
+                        <InlineVendorCreateDialog @created="handleVendorCreated" />
+                    </div>
                     <Select v-model="selectedVendorId" :disabled="!executionUnlocked">
                         <SelectTrigger id="vendor_id" class="w-full">
-                            <SelectValue placeholder="Select a vendor" />
+                            <SelectValue placeholder="Assign vendor later" />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem :value="UNASSIGNED_VENDOR">
+                                Assign later
+                            </SelectItem>
                             <SelectItem
-                                v-for="vendor in vendors"
+                                v-for="vendor in vendorOptions"
                                 :key="vendor.id"
                                 :value="String(vendor.id)"
                             >
@@ -147,6 +172,12 @@ const selectedStatus = ref(props.workOrder.status ?? '');
                         class="text-xs text-muted-foreground"
                     >
                         Vendor assignment is available after admin approval.
+                    </p>
+                    <p
+                        v-else
+                        class="text-xs text-muted-foreground"
+                    >
+                        Leave vendor unassigned until execution starts if needed.
                     </p>
                 </div>
 

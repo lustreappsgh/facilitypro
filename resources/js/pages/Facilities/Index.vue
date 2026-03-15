@@ -110,13 +110,9 @@ const viewMode = ref<'table' | 'grid'>(getViewFromUrl(page.url) ?? 'table');
 const appliedManager = ref(props.activeManagerId ? String(props.activeManagerId) : 'all');
 const appliedCondition = ref(getQueryParam('condition') ?? 'all');
 const appliedFacilityType = ref(getQueryParam('facility_type_id') ?? 'all');
-const appliedParent = ref(getQueryParam('parent_id') ?? 'all');
-const appliedChildrenScope = ref(getQueryParam('children_scope') ?? 'all');
 const selectedManager = ref(appliedManager.value);
 const selectedCondition = ref(appliedCondition.value);
 const selectedFacilityType = ref(appliedFacilityType.value);
-const selectedParent = ref(appliedParent.value);
-const selectedChildrenScope = ref(appliedChildrenScope.value);
 const facilitiesPerPageFromProps = computed(() => {
     const facilitiesAny = props.facilities as any;
     const perPage = facilitiesAny.meta?.per_page ?? facilitiesAny.per_page;
@@ -193,8 +189,6 @@ const applyFilters = (options: Record<string, unknown> = {}) => {
         search: search.value || undefined,
         condition: appliedCondition.value === 'all' ? undefined : appliedCondition.value,
         facility_type_id: appliedFacilityType.value === 'all' ? undefined : appliedFacilityType.value,
-        parent_id: appliedParent.value === 'all' ? undefined : appliedParent.value,
-        children_scope: appliedChildrenScope.value === 'all' ? undefined : appliedChildrenScope.value,
         per_page: Number.isFinite(parsedPerPage) && parsedPerPage > 0 ? parsedPerPage : undefined,
         view: viewMode.value
     }, {
@@ -208,8 +202,6 @@ const applySelectedFilters = () => {
     appliedManager.value = selectedManager.value;
     appliedCondition.value = selectedCondition.value;
     appliedFacilityType.value = selectedFacilityType.value;
-    appliedParent.value = selectedParent.value;
-    appliedChildrenScope.value = selectedChildrenScope.value;
     applyFilters({ replace: true, only: ['facilities'] });
 };
 
@@ -218,13 +210,9 @@ const resetFilters = () => {
     appliedManager.value = 'all';
     appliedCondition.value = 'all';
     appliedFacilityType.value = 'all';
-    appliedParent.value = 'all';
-    appliedChildrenScope.value = 'all';
     selectedManager.value = 'all';
     selectedCondition.value = 'all';
     selectedFacilityType.value = 'all';
-    selectedParent.value = 'all';
-    selectedChildrenScope.value = 'all';
     applyFilters({ replace: true, only: ['facilities'] });
 };
 
@@ -544,7 +532,7 @@ const columns: ColumnDef<Facility>[] = [
             </PageHeader>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_170px_170px_220px_170px_auto] lg:items-end">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_170px_170px_170px_auto] lg:items-end">
                     <div class="relative min-w-[220px] flex-1">
                         <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input v-model="search" class="h-9 pl-9" placeholder="Search facilities..." />
@@ -583,30 +571,6 @@ const columns: ColumnDef<Facility>[] = [
                             <SelectItem v-for="condition in formOptions.conditions" :key="condition" :value="condition">
                                 {{ condition }}
                             </SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select v-model="selectedParent">
-                        <SelectTrigger class="h-9 min-w-[200px]">
-                            <SelectValue placeholder="Any parent node" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Any parent node</SelectItem>
-                            <SelectItem value="root">Root nodes only</SelectItem>
-                            <SelectItem v-for="parent in formOptions.parents" :key="parent.id" :value="String(parent.id)">
-                                {{ parent.name }} ({{ parent.children_count }} child{{ parent.children_count === 1 ? '' : 'ren' }})
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select v-model="selectedChildrenScope">
-                        <SelectTrigger class="h-9 min-w-[160px]">
-                            <SelectValue placeholder="Any child count" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Any child count</SelectItem>
-                            <SelectItem value="with">With children</SelectItem>
-                            <SelectItem value="without">Without children</SelectItem>
                         </SelectContent>
                     </Select>
 

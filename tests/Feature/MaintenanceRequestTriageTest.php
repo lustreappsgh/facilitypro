@@ -8,18 +8,22 @@ use App\Models\RequestType;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WorkOrder;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 test('maintenance manager approval sends request for final approval', function () {
     $manager = User::factory()->create();
+    $facilityManager = User::factory()->create();
 
     Permission::findOrCreate('maintenance.review');
+    Permission::findOrCreate('maintenance.start');
     Permission::findOrCreate('maintenance_requests.view');
     Permission::findOrCreate('work_orders.create');
-    $manager->givePermissionTo(['maintenance.review', 'maintenance_requests.view', 'work_orders.create']);
+    $manager->givePermissionTo(['maintenance.review', 'maintenance.start', 'maintenance_requests.view', 'work_orders.create']);
     $manager->assignRole(Role::findOrCreate('Maintenance Manager'));
+    $facilityManager->assignRole(Role::findOrCreate('Facility Manager'));
 
     $facilityType = FacilityType::create(['name' => 'Campus']);
     $facility = Facility::create([
@@ -27,17 +31,21 @@ test('maintenance manager approval sends request for final approval', function (
         'facility_type_id' => $facilityType->id,
         'parent_id' => null,
         'condition' => 'Good',
-        'managed_by' => $manager->id,
+        'managed_by' => $facilityManager->id,
     ]);
 
     $requestType = RequestType::firstOrCreate(['name' => 'Plumbing']);
+    DB::table('maintenance_request_type_role')->insertOrIgnore([
+        'role_id' => Role::findByName('Maintenance Manager')->id,
+        'request_type_id' => $requestType->id,
+    ]);
     $maintenance = MaintenanceRequest::create([
         'facility_id' => $facility->id,
         'request_type_id' => $requestType->id,
         'description' => 'Pipe leak',
         'cost' => 350,
         'status' => 'submitted',
-        'requested_by' => $manager->id,
+        'requested_by' => $facilityManager->id,
     ]);
 
     $vendor = Vendor::create([
@@ -180,11 +188,16 @@ test('admin can fast-track request from submitted to work order and approved pay
 
 test('manager can open bulk review flow for a single request using maintenance_request_id', function () {
     $manager = User::factory()->create();
+    $facilityManager = User::factory()->create([
+        'manager_id' => $manager->id,
+    ]);
 
     Permission::findOrCreate('maintenance.manage_all');
     Permission::findOrCreate('maintenance_requests.view');
     Permission::findOrCreate('work_orders.create');
     $manager->givePermissionTo(['maintenance.manage_all', 'maintenance_requests.view', 'work_orders.create']);
+    $manager->assignRole(Role::findOrCreate('Manager'));
+    $facilityManager->assignRole(Role::findOrCreate('Facility Manager'));
 
     $facilityType = FacilityType::create(['name' => 'Campus']);
     $facility = Facility::create([
@@ -192,7 +205,7 @@ test('manager can open bulk review flow for a single request using maintenance_r
         'facility_type_id' => $facilityType->id,
         'parent_id' => null,
         'condition' => 'Good',
-        'managed_by' => $manager->id,
+        'managed_by' => $facilityManager->id,
     ]);
 
     $requestType = RequestType::firstOrCreate(['name' => 'General']);
@@ -202,7 +215,7 @@ test('manager can open bulk review flow for a single request using maintenance_r
         'description' => 'Single review request',
         'cost' => 500,
         'status' => 'submitted',
-        'requested_by' => $manager->id,
+        'requested_by' => $facilityManager->id,
     ]);
 
     $this->actingAs($manager);
@@ -223,12 +236,16 @@ test('manager can open bulk review flow for a single request using maintenance_r
 
 test('manager with maintenance manage all can approve a submitted request through work order creation', function () {
     $manager = User::factory()->create();
+    $facilityManager = User::factory()->create([
+        'manager_id' => $manager->id,
+    ]);
 
     Permission::findOrCreate('maintenance.manage_all');
     Permission::findOrCreate('maintenance_requests.view');
     Permission::findOrCreate('work_orders.create');
     $manager->givePermissionTo(['maintenance.manage_all', 'maintenance_requests.view', 'work_orders.create']);
     $manager->assignRole(Role::findOrCreate('Manager'));
+    $facilityManager->assignRole(Role::findOrCreate('Facility Manager'));
 
     $facilityType = FacilityType::create(['name' => 'Campus']);
     $facility = Facility::create([
@@ -236,7 +253,7 @@ test('manager with maintenance manage all can approve a submitted request throug
         'facility_type_id' => $facilityType->id,
         'parent_id' => null,
         'condition' => 'Good',
-        'managed_by' => $manager->id,
+        'managed_by' => $facilityManager->id,
     ]);
 
     $requestType = RequestType::firstOrCreate(['name' => 'Plumbing']);
@@ -246,7 +263,7 @@ test('manager with maintenance manage all can approve a submitted request throug
         'description' => 'Burst pipe',
         'cost' => 700,
         'status' => 'submitted',
-        'requested_by' => $manager->id,
+        'requested_by' => $facilityManager->id,
     ]);
 
     $vendor = Vendor::create([
@@ -426,7 +443,9 @@ test('manager can review a direct report maintenance request from the request in
             ->where('data.groups.0.requests.0.requested_by_name', $directReport->name)
     );
 
-    $reviewResponse = $this->post(route('maintenance.reject', $maintenance));
+    $reviewResponse = $this->post(route('maintenance.reject', $maintenance), [
+        'rejection_reason' => 'Insufficient detail',
+    ]);
 
     $reviewResponse->assertRedirect();
     expect($maintenance->refresh()->status)->toBe('rejected');

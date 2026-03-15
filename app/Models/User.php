@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Models\Concerns\FormatsDates;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -132,6 +133,13 @@ class User extends Authenticatable
     public function maintenanceRequestsRequested()
     {
         return $this->hasMany(MaintenanceRequest::class, 'requested_by');
+    }
+
+    public function managerRequestTypePermissions(): BelongsToMany
+    {
+        return $this->belongsToMany(RequestType::class, 'maintenance_request_type_user')
+            ->withPivot(['can_approve', 'can_reject'])
+            ->withTimestamps();
     }
 
     public function notifications()

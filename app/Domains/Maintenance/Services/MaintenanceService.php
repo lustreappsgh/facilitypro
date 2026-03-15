@@ -2,8 +2,8 @@
 
 namespace App\Domains\Maintenance\Services;
 
-use App\Domains\Maintenance\Actions\CompleteMaintenanceAction;
 use App\Domains\Maintenance\Actions\CloseMaintenanceAction;
+use App\Domains\Maintenance\Actions\CompleteMaintenanceAction;
 use App\Domains\Maintenance\Actions\CreateMaintenanceRequestAction;
 use App\Domains\Maintenance\Actions\RejectMaintenanceAction;
 use App\Domains\Maintenance\Actions\ReviewMaintenanceAction;
@@ -39,9 +39,9 @@ class MaintenanceService
         return $this->reviewAction->execute($request);
     }
 
-    public function reject(MaintenanceRequest $request): MaintenanceRequest
+    public function reject(MaintenanceRequest $request, string $reason): MaintenanceRequest
     {
-        return $this->rejectAction->execute($request);
+        return $this->rejectAction->execute($request, $reason);
     }
 
     public function start(MaintenanceRequest $request): MaintenanceRequest

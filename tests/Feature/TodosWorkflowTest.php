@@ -8,6 +8,7 @@ use App\Models\Todo;
 use App\Models\User;
 use Carbon\Carbon;
 use Spatie\Permission\Models\Permission;
+
 use function Pest\Laravel\artisan;
 
 function todoUserWithPermissions(array $permissions): User
@@ -49,7 +50,7 @@ test('facility manager can create a weekly todo', function () {
     expect($todo)->not()->toBeNull()
         ->and($todo->status)->toBe(TodoStatus::Pending->value)
         ->and($todo->user_id)->toBe($user->id)
-        ->and($todo->week_start->format('Y-m-d'))->toBe(now()->next('Monday')->format('Y-m-d'));
+        ->and($todo->week_start->format('Y-m-d'))->toBe(now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'));
 
     expect(AuditLog::query()
         ->where('action', 'todo.created')
@@ -97,7 +98,7 @@ test('overdue todo command marks past pending todos as overdue', function () {
         'condition' => 'Good',
         'managed_by' => $user->id,
     ]);
-    
+
     // Create a todo for 2 weeks ago
     $pendingTodo = Todo::create([
         'user_id' => $user->id,

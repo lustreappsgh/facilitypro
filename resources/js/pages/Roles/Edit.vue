@@ -27,11 +27,17 @@ interface RequestTypeOption {
     name: string;
 }
 
+interface RequestTypePermission {
+    request_type_id: number;
+    can_approve: boolean;
+    can_reject: boolean;
+}
+
 interface Props {
     role: Role;
     permissions: Permission[];
     requestTypes: RequestTypeOption[];
-    allowedRequestTypeIds: number[];
+    requestTypePermissions: RequestTypePermission[];
     routes: Record<string, string>;
 }
 
@@ -53,29 +59,50 @@ const form = useForm({
     permissions: (props.role.permissions ?? []).map((permission) => permission.name),
 });
 
+const permissionMap = new Map(
+    props.requestTypePermissions.map((permission) => [
+        permission.request_type_id,
+        permission,
+    ]),
+);
+
 const requestTypesForm = useForm({
-    request_type_ids: props.allowedRequestTypeIds.map((id) => Number(id)),
+    request_type_permissions: props.requestTypes.map((requestType) => {
+        const existing = permissionMap.get(requestType.id);
+
+        return {
+            request_type_id: requestType.id,
+            can_approve: existing?.can_approve ?? false,
+            can_reject: existing?.can_reject ?? false,
+        };
+    }),
 });
 
-const selectAllRequestTypes = () => {
-    requestTypesForm.request_type_ids = props.requestTypes.map((type) => type.id);
+const setPermissionColumn = (
+    column: 'can_approve' | 'can_reject',
+    checked: boolean,
+) => {
+    requestTypesForm.request_type_permissions =
+        requestTypesForm.request_type_permissions.map((permission) => ({
+            ...permission,
+            [column]: checked,
+        }));
 };
 
-const clearRequestTypes = () => {
-    requestTypesForm.request_type_ids = [];
-};
-
-const toggleRequestType = (typeId: number, checked: boolean) => {
-    if (checked) {
-        if (!requestTypesForm.request_type_ids.includes(typeId)) {
-            requestTypesForm.request_type_ids.push(typeId);
-        }
-        return;
-    }
-
-    requestTypesForm.request_type_ids = requestTypesForm.request_type_ids.filter(
-        (id) => id !== typeId,
-    );
+const updatePermission = (
+    requestTypeId: number,
+    column: 'can_approve' | 'can_reject',
+    checked: boolean,
+) => {
+    requestTypesForm.request_type_permissions =
+        requestTypesForm.request_type_permissions.map((permission) =>
+            permission.request_type_id === requestTypeId
+                ? {
+                      ...permission,
+                      [column]: checked,
+                  }
+                : permission,
+        );
 };
 
 const submitRequestTypes = () => {
@@ -115,15 +142,30 @@ const submit = () => {
                 <div class="grid gap-4 rounded-xl border border-border/60 bg-card/60 p-5">
                     <div class="space-y-1">
                         <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                            Request Type Access
+                            Request Type Approval Settings
                         </h2>
                         <p class="text-xs text-muted-foreground">
-                            Control which maintenance request types this role can approve or create work orders for.
+                            Control which maintenance request types this role can approve or reject.
                         </p>
                     </div>
 
                     <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>Selected: {{ requestTypesForm.request_type_ids.length }}</span>
+                        <span>
+                            Approve enabled:
+                            {{
+                                requestTypesForm.request_type_permissions.filter(
+                                    (permission) => permission.can_approve,
+                                ).length
+                            }}
+                        </span>
+                        <span>
+                            Reject enabled:
+                            {{
+                                requestTypesForm.request_type_permissions.filter(
+                                    (permission) => permission.can_reject,
+                                ).length
+                            }}
+                        </span>
                         <span>Total: {{ props.requestTypes.length }}</span>
                     </div>
 
@@ -133,18 +175,36 @@ const submit = () => {
                             variant="secondary"
                             size="sm"
                             :disabled="requestTypesForm.processing"
-                            @click="selectAllRequestTypes"
+                            @click="setPermissionColumn('can_approve', true)"
                         >
-                            Select all
+                            Approve all
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            :disabled="requestTypesForm.processing"
+                            @click="setPermissionColumn('can_reject', true)"
+                        >
+                            Reject all
                         </Button>
                         <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            :disabled="requestTypesForm.processing || requestTypesForm.request_type_ids.length === 0"
-                            @click="clearRequestTypes"
+                            :disabled="requestTypesForm.processing"
+                            @click="setPermissionColumn('can_approve', false)"
                         >
-                            Clear
+                            Clear approve
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            :disabled="requestTypesForm.processing"
+                            @click="setPermissionColumn('can_reject', false)"
+                        >
+                            Clear reject
                         </Button>
                     </div>
 
@@ -152,28 +212,69 @@ const submit = () => {
                         <div
                             v-for="requestType in props.requestTypes"
                             :key="requestType.id"
-                            class="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
+                            class="grid grid-cols-[minmax(0,1fr)_96px_96px] items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
                         >
-                            <Checkbox
-                                :id="`request-type-${requestType.id}`"
-                                :model-value="requestTypesForm.request_type_ids.includes(requestType.id)"
-                                :disabled="requestTypesForm.processing"
-                                @update:modelValue="
-                                    (checked) =>
-                                        toggleRequestType(
-                                            requestType.id,
-                                            checked === true,
-                                        )
-                                "
-                            />
                             <label
                                 class="flex-1 cursor-pointer"
-                                :for="`request-type-${requestType.id}`"
                             >
                                 {{ requestType.name }}
                             </label>
+                            <div class="flex items-center justify-center gap-2">
+                                <Checkbox
+                                    :id="`request-type-approve-${requestType.id}`"
+                                    :model-value="
+                                        requestTypesForm.request_type_permissions.find(
+                                            (permission) =>
+                                                permission.request_type_id ===
+                                                requestType.id,
+                                        )?.can_approve ?? false
+                                    "
+                                    :disabled="requestTypesForm.processing"
+                                    @update:modelValue="
+                                        (checked) =>
+                                            updatePermission(
+                                                requestType.id,
+                                                'can_approve',
+                                                checked === true,
+                                            )
+                                    "
+                                />
+                                <label
+                                    :for="`request-type-approve-${requestType.id}`"
+                                >
+                                    Approve
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-center gap-2">
+                                <Checkbox
+                                    :id="`request-type-reject-${requestType.id}`"
+                                    :model-value="
+                                        requestTypesForm.request_type_permissions.find(
+                                            (permission) =>
+                                                permission.request_type_id ===
+                                                requestType.id,
+                                        )?.can_reject ?? false
+                                    "
+                                    :disabled="requestTypesForm.processing"
+                                    @update:modelValue="
+                                        (checked) =>
+                                            updatePermission(
+                                                requestType.id,
+                                                'can_reject',
+                                                checked === true,
+                                            )
+                                    "
+                                />
+                                <label
+                                    :for="`request-type-reject-${requestType.id}`"
+                                >
+                                    Reject
+                                </label>
+                            </div>
                         </div>
-                        <InputError :message="requestTypesForm.errors.request_type_ids" />
+                        <InputError
+                            :message="requestTypesForm.errors.request_type_permissions"
+                        />
                     </div>
 
                     <div class="flex items-center gap-3">
@@ -183,7 +284,7 @@ const submit = () => {
                             :disabled="requestTypesForm.processing"
                             @click="submitRequestTypes"
                         >
-                            Save request types
+                            Save approval settings
                         </Button>
                     </div>
                 </div>

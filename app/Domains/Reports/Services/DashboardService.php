@@ -53,6 +53,8 @@ class DashboardService
         if ($user->can('maintenance.start')) {
             $weekStart = Carbon::now()->startOfWeek(Carbon::MONDAY);
             $weekEnd = Carbon::now()->endOfWeek(Carbon::SUNDAY);
+            $ownRequests = MaintenanceRequest::query()
+                ->where('requested_by', $user->id);
 
             $data['maintenanceManager'] = [
                 'openRequests' => MaintenanceRequest::userRequests($user)
@@ -74,6 +76,12 @@ class DashboardService
                     ->whereHas('maintenanceRequest', fn ($q) => $q->maintenanceScope($user))
                     ->where('status', 'pending')
                     ->count(),
+                'ownRequestSummary' => [
+                    'total' => (clone $ownRequests)->count(),
+                    'pending' => (clone $ownRequests)->whereIn('status', MaintenanceStatus::approvalQueue())->count(),
+                    'active' => (clone $ownRequests)->whereIn('status', MaintenanceStatus::active())->count(),
+                    'rejected' => (clone $ownRequests)->where('status', MaintenanceStatus::Rejected->value)->count(),
+                ],
                 'users' => $user->can('users.manage') ? [] : $this->maintenanceManagerUserCards(),
             ];
         }
@@ -95,6 +103,8 @@ class DashboardService
                 ->whereHas('maintenanceRequest', fn ($q) => $q->maintenanceScope($user))
                 ->where('status', 'pending')
                 ->where('cost', '>=', $highCostThreshold);
+            $ownRequests = MaintenanceRequest::query()
+                ->where('requested_by', $user->id);
 
             $data['manager'] = [
                 'pendingApprovals' => Payment::query()
@@ -110,6 +120,12 @@ class DashboardService
                 'highCostThreshold' => $highCostThreshold,
                 'highCostPendingCount' => $highCostPending->count(),
                 'highCostPendingTotal' => $highCostPending->sum('cost'),
+                'ownRequestSummary' => [
+                    'total' => (clone $ownRequests)->count(),
+                    'pending' => (clone $ownRequests)->whereIn('status', MaintenanceStatus::approvalQueue())->count(),
+                    'active' => (clone $ownRequests)->whereIn('status', MaintenanceStatus::active())->count(),
+                    'rejected' => (clone $ownRequests)->where('status', MaintenanceStatus::Rejected->value)->count(),
+                ],
                 'facilityManagers' => $facilityManagers,
                 'users' => $user->can('users.manage') ? [] : $this->userCardsForManager($user),
                 'todoSummary' => $todoSummary,
@@ -178,8 +194,11 @@ class DashboardService
             ->active()
             ->role('Facility Manager')
             ->withCount('facilities')
-            ->orderBy('name')
             ->get(['id', 'name', 'email', 'profile_photo_path', 'is_active'])
+            ->sortBy(fn (User $user) => [
+                $user->id === $manager->id ? 0 : 1,
+                $user->name,
+            ])
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -198,8 +217,11 @@ class DashboardService
             ->role('Facility Manager')
             ->where('manager_id', $manager->id)
             ->withCount('facilities')
-            ->orderBy('name')
             ->get(['id', 'name', 'email', 'profile_photo_path', 'is_active'])
+            ->sortBy(fn (User $user) => [
+                $user->id === $manager->id ? 0 : 1,
+                $user->name,
+            ])
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -258,8 +280,13 @@ class DashboardService
 
         return User::query()
             ->active()
-            ->role('Facility Manager')
-            ->where('manager_id', $manager->id)
+            ->where(function ($query) use ($manager) {
+                $query->where('id', $manager->id)
+                    ->orWhere(function ($reportQuery) use ($manager) {
+                        $reportQuery->role('Facility Manager')
+                            ->where('manager_id', $manager->id);
+                    });
+            })
             ->with(['roles'])
             ->withCount(['facilities', 'maintenanceRequestsRequested'])
             ->addSelect([

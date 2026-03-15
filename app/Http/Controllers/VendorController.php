@@ -63,6 +63,7 @@ class VendorController extends Controller
     public function create()
     {
         $this->authorize('create', Vendor::class);
+
         return Inertia::render('Vendors/Create');
     }
 
@@ -71,11 +72,16 @@ class VendorController extends Controller
         $this->authorize('create', Vendor::class);
 
         $data = VendorData::fromRequest($request->validated());
-        $this->vendorService->create($data);
+        $vendor = $this->vendorService->create($data);
 
         $redirectTo = $request->input('redirect_to');
         if ($redirectTo) {
-            return redirect()->to($redirectTo)->with('success', 'Vendor created.');
+            return redirect()->to($redirectTo)
+                ->with('success', 'Vendor created.')
+                ->with('created_vendor', [
+                    'id' => $vendor->id,
+                    'name' => $vendor->name,
+                ]);
         }
 
         return redirect()->route('vendors.index')->with('success', 'Vendor created.');

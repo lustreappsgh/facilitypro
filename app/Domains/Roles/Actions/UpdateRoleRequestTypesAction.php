@@ -8,33 +8,38 @@ use Spatie\Permission\Models\Role;
 class UpdateRoleRequestTypesAction
 {
     /**
-     * @param  array<int, int>  $requestTypeIds
+     * @param  array<int, array{request_type_id:int,can_approve?:bool,can_reject?:bool}>  $requestTypePermissions
      */
-    public function execute(Role $role, array $requestTypeIds): void
+    public function execute(Role $role, array $requestTypePermissions): void
     {
-        $uniqueIds = array_values(array_unique($requestTypeIds));
+        $rows = collect($requestTypePermissions)
+            ->mapWithKeys(fn (array $item) => [
+                (int) $item['request_type_id'] => [
+                    'can_approve' => (bool) ($item['can_approve'] ?? false),
+                    'can_reject' => (bool) ($item['can_reject'] ?? false),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ])
+            ->all();
 
-        DB::transaction(function () use ($role, $uniqueIds): void {
-            DB::table('maintenance_request_type_role')
-                ->where('role_id', $role->id)
-                ->delete();
+        DB::transaction(function () use ($role, $rows): void {
+            DB::table('maintenance_request_type_role')->where('role_id', $role->id)->delete();
 
-            if ($uniqueIds === []) {
+            if ($rows === []) {
                 return;
             }
 
-            $now = now();
-            $rows = array_map(
-                fn (int $requestTypeId) => [
+            $payload = collect($rows)
+                ->map(fn (array $row, int $requestTypeId) => [
                     'role_id' => $role->id,
                     'request_type_id' => $requestTypeId,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ],
-                $uniqueIds
-            );
+                    ...$row,
+                ])
+                ->values()
+                ->all();
 
-            DB::table('maintenance_request_type_role')->insert($rows);
+            DB::table('maintenance_request_type_role')->insert($payload);
         });
     }
 }

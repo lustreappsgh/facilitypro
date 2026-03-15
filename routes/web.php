@@ -156,6 +156,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('users/{user}/manager-access/revoke', [UsersController::class, 'revokeManagerAccess'])
         ->name('users.manager-access.revoke')
         ->middleware('throttle:admin-actions');
+    Route::get('users/{user}/approval-settings', [UsersController::class, 'editApprovalSettings'])
+        ->name('users.approval-settings.edit')
+        ->middleware('throttle:admin-actions');
+    Route::post('users/{user}/approval-settings', [UsersController::class, 'updateApprovalSettings'])
+        ->name('users.approval-settings.update')
+        ->middleware('throttle:admin-actions');
     Route::post('users/{user}/reset-password', [UsersController::class, 'resetPassword'])
         ->name('users.reset-password')
         ->middleware('throttle:admin-actions');

@@ -108,6 +108,12 @@ class MaintenanceRequestPolicy
 
     public function review(User $user, MaintenanceRequest $maintenanceRequest): bool
     {
+        return $this->approve($user, $maintenanceRequest)
+            || $this->reject($user, $maintenanceRequest);
+    }
+
+    public function approve(User $user, MaintenanceRequest $maintenanceRequest): bool
+    {
         $override = $this->allowAdmin($user, 'review', $maintenanceRequest);
         if ($override !== null) {
             return $override;
@@ -124,8 +130,28 @@ class MaintenanceRequestPolicy
             return false;
         }
 
-        return $user->can('users.manage')
-            || $this->isReviewableMaintenanceRequest($user, $maintenanceRequest);
+        return $maintenanceRequest->canBeReviewedBy($user, 'approve');
+    }
+
+    public function reject(User $user, MaintenanceRequest $maintenanceRequest): bool
+    {
+        $override = $this->allowAdmin($user, 'review', $maintenanceRequest);
+        if ($override !== null) {
+            return $override;
+        }
+
+        if (
+            $maintenanceRequest->submission_route === MaintenanceRequest::SubmissionRouteAdmin
+            && ! $user->can('users.manage')
+        ) {
+            return false;
+        }
+
+        if (! ($user->can('maintenance.review') || $user->can('work_orders.create'))) {
+            return false;
+        }
+
+        return $maintenanceRequest->canBeReviewedBy($user, 'reject');
     }
 
     public function create(User $user): bool
@@ -202,14 +228,6 @@ class MaintenanceRequestPolicy
     {
         return MaintenanceRequest::query()
             ->maintenanceScope($user)
-            ->whereKey($maintenanceRequest->id)
-            ->exists();
-    }
-
-    protected function isReviewableMaintenanceRequest(User $user, MaintenanceRequest $maintenanceRequest): bool
-    {
-        return MaintenanceRequest::query()
-            ->reviewableBy($user)
             ->whereKey($maintenanceRequest->id)
             ->exists();
     }

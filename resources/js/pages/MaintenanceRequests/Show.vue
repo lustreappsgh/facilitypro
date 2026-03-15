@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CostTracker from '@/components/CostTracker.vue';
 import DataTable from '@/components/data-table/DataTable.vue';
+import InlineVendorCreateDialog from '@/components/InlineVendorCreateDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,14 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -47,7 +56,8 @@ import {
     UsersRound,
     X,
 } from 'lucide-vue-next';
-import { computed, h } from 'vue';
+import { computed, h, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 interface FacilityType {
     id: number;
@@ -80,8 +90,10 @@ interface RequestType {
 interface MaintenanceRequest {
     id: number;
     status: string;
+    priority?: 'low' | 'medium' | 'high' | null;
     cost?: number | null;
     description?: string | null;
+    rejection_reason?: string | null;
     facility?: Facility | null;
     requestedBy?: RequestedBy | null;
     requested_by?: RequestedBy | null;
@@ -133,9 +145,15 @@ interface Props {
     workOrders: WorkOrder[];
     payments: Payment[];
     vendors: Vendor[];
+    actions?: {
+        can_approve?: boolean;
+        can_reject?: boolean;
+    };
 }
 
 const props = defineProps<Props>();
+const page = usePage();
+const UNASSIGNED_VENDOR = 'unassigned';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -149,30 +167,57 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const { can } = usePermissions();
+const currentUserId = computed<number | null>(() => {
+    const id = page.props.auth?.user?.id;
+
+    return typeof id === 'number' ? id : null;
+});
+const isOwnRequest = computed(() => {
+    const requesterId =
+        props.request.requestedBy?.id ?? props.request.requested_by?.id ?? null;
+
+    return currentUserId.value !== null && requesterId === currentUserId.value;
+});
 const canManageAll = computed(() => can('maintenance.manage_all'));
 const canAdminFastTrack = computed(
     () =>
         canManageAll.value &&
+        props.actions?.can_approve !== false &&
+        !isOwnRequest.value &&
         ['submitted', 'pending'].includes(props.request.status),
 );
 const canFirstApproval = computed(
     () =>
         can('maintenance.review') &&
+        props.actions?.can_approve !== false &&
         !canManageAll.value &&
+        !isOwnRequest.value &&
         ['submitted', 'pending'].includes(props.request.status),
 );
 const canFinalApproval = computed(
     () =>
         canManageAll.value &&
+        props.actions?.can_approve !== false &&
+        !isOwnRequest.value &&
         ['approved', 'assigned', 'work_order_created'].includes(
             props.request.status,
         ),
 );
+const canRejectRequest = computed(
+    () =>
+        props.actions?.can_reject !== false &&
+        (canFirstApproval.value || canAdminFastTrack.value || canFinalApproval.value),
+);
 
 const approveForm = useForm({
-    vendor_id: '',
+    vendor_id: UNASSIGNED_VENDOR,
     estimated_cost: '',
     scheduled_date: '',
+});
+const vendorOptions = computed(() => props.vendors);
+const rejectOpen = ref(false);
+const rejectForm = useForm({
+    rejection_reason: '',
 });
 
 const defaultEstimatedCost = computed(() => {
@@ -185,6 +230,32 @@ const defaultEstimatedCost = computed(() => {
 if (!approveForm.estimated_cost) {
     approveForm.estimated_cost = defaultEstimatedCost.value;
 }
+
+const handleVendorCreated = (vendor: Vendor) => {
+    router.reload({
+        preserveScroll: true,
+        preserveState: true,
+        only: ['vendors', 'flash'],
+        onSuccess: () => {
+            approveForm.vendor_id = String(vendor.id);
+        },
+    });
+};
+
+const openRejectDialog = () => {
+    rejectForm.reset('rejection_reason');
+    rejectForm.clearErrors();
+    rejectOpen.value = true;
+};
+
+const submitReject = () => {
+    rejectForm.post(`/maintenance/${props.request.id}/reject`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            rejectOpen.value = false;
+        },
+    });
+};
 
 const currencyFormat = createCurrencyFormatter();
 const canDeleteRequest = computed(
@@ -248,6 +319,18 @@ const statusBadgeClass = (status: string) => {
         status === 'work_order_created'
     ) {
         return 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300';
+    }
+
+    return 'bg-slate-500/10 text-slate-700 dark:text-slate-300';
+};
+
+const priorityBadgeClass = (priority?: string | null) => {
+    if (priority === 'high') {
+        return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
+    }
+
+    if (priority === 'medium') {
+        return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
     }
 
     return 'bg-slate-500/10 text-slate-700 dark:text-slate-300';
@@ -459,24 +542,36 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                             v-if="canFirstApproval || canAdminFastTrack"
                             class="flex flex-wrap items-end gap-2"
                             @submit.prevent="
-                                approveForm.post(
-                                    `/maintenance/${request.id}/approve`,
-                                    {
+                                approveForm
+                                    .transform((data) => ({
+                                        ...data,
+                                        vendor_id:
+                                            data.vendor_id === UNASSIGNED_VENDOR
+                                                ? ''
+                                                : data.vendor_id,
+                                    }))
+                                    .post(`/maintenance/${request.id}/approve`, {
                                         preserveScroll: true,
-                                    },
-                                )
+                                    })
                             "
                         >
                             <div class="min-w-[180px]">
+                                <div class="mb-2 flex items-center justify-between gap-2">
+                                    <span class="text-xs font-medium text-muted-foreground">Vendor</span>
+                                    <InlineVendorCreateDialog @created="handleVendorCreated" />
+                                </div>
                                 <Select v-model="approveForm.vendor_id">
                                     <SelectTrigger class="h-9">
                                         <SelectValue
-                                            placeholder="Select vendor"
+                                            placeholder="Assign vendor later"
                                         />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem :value="UNASSIGNED_VENDOR">
+                                            Assign later
+                                        </SelectItem>
                                         <SelectItem
-                                            v-for="vendor in vendors"
+                                            v-for="vendor in vendorOptions"
                                             :key="vendor.id"
                                             :value="String(vendor.id)"
                                         >
@@ -552,9 +647,7 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                         </Tooltip>
                         <Tooltip
                             v-if="
-                                canFirstApproval ||
-                                canAdminFastTrack ||
-                                canFinalApproval
+                                canRejectRequest
                             "
                         >
                             <TooltipTrigger as-child>
@@ -562,16 +655,9 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                                     variant="secondary"
                                     size="icon"
                                     class="h-9 w-9 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
-                                    as-child
+                                    @click="openRejectDialog"
                                 >
-                                    <Link
-                                        :href="`/maintenance/${request.id}/reject`"
-                                        method="post"
-                                        as="button"
-                                        aria-label="Reject request"
-                                    >
-                                        <X class="h-4 w-4" />
-                                    </Link>
+                                    <X class="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top"
@@ -810,6 +896,21 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                             <div
                                 class="text-xs text-muted-foreground uppercase"
                             >
+                                Priority
+                            </div>
+                            <div class="col-span-2">
+                                <Badge
+                                    variant="secondary"
+                                    :class="priorityBadgeClass(request.priority)"
+                                >
+                                    {{ request.priority ?? 'medium' }}
+                                </Badge>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 px-6 py-4">
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
                                 Status
                             </div>
                             <div class="col-span-2">
@@ -827,11 +928,24 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                             >
                                 Description
                             </div>
-                            <div class="col-span-2 text-muted-foreground">
+                            <div class="col-span-2 whitespace-pre-line text-muted-foreground">
                                 {{
                                     request.description ??
                                     'No description provided.'
                                 }}
+                            </div>
+                        </div>
+                        <div
+                            v-if="request.rejection_reason"
+                            class="grid grid-cols-3 gap-4 px-6 py-4"
+                        >
+                            <div
+                                class="text-xs text-muted-foreground uppercase"
+                            >
+                                Rejection reason
+                            </div>
+                            <div class="col-span-2 whitespace-pre-line text-muted-foreground">
+                                {{ request.rejection_reason }}
                             </div>
                         </div>
                         <div class="px-6 py-4">
@@ -890,5 +1004,49 @@ const workOrderColumns: ColumnDef<WorkOrder>[] = [
                 </Card>
             </div>
         </div>
+
+        <Dialog v-model:open="rejectOpen">
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reject request</DialogTitle>
+                    <DialogDescription>
+                        Provide a reason so the requester can correct and resubmit it.
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">Rejection reason</label>
+                    <textarea
+                        v-model="rejectForm.rejection_reason"
+                        rows="4"
+                        class="border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[112px] w-full rounded-md border px-3 py-2 outline-none"
+                        placeholder="Explain why this request is being rejected"
+                    />
+                    <p
+                        v-if="rejectForm.errors.rejection_reason"
+                        class="text-sm text-destructive"
+                    >
+                        {{ rejectForm.errors.rejection_reason }}
+                    </p>
+                    <p
+                        v-if="rejectForm.errors.status"
+                        class="text-sm text-destructive"
+                    >
+                        {{ rejectForm.errors.status }}
+                    </p>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" @click="rejectOpen = false">
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        :disabled="rejectForm.processing"
+                        @click="submitReject"
+                    >
+                        Confirm rejection
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

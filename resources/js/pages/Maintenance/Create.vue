@@ -34,10 +34,13 @@ interface RequestType {
     name: string;
 }
 
+type Priority = 'low' | 'medium' | 'high';
+
 interface Props {
     facilities: Facility[];
     facilityTypes: FacilityType[];
     requestTypes: RequestType[];
+    priorities: Priority[];
     selectedFacilityId?: number | null;
 }
 
@@ -47,6 +50,7 @@ interface BulkRow {
     facility_id: number;
     facility_name: string;
     request_type_id: string;
+    priority: Priority;
     description: string;
     cost: string;
     week_start: string;
@@ -92,6 +96,7 @@ const selectedFacilityTypeId = ref<string | null>(
 const defaultRequestTypeId = ref<string | null>(
     props.requestTypes[0] ? String(props.requestTypes[0].id) : null,
 );
+const defaultPriority = ref<Priority>('medium');
 const defaultWeekStart = ref(getUpcomingMonday());
 const rows = ref<BulkRow[]>([]);
 
@@ -127,6 +132,7 @@ const initializeRows = () => {
         facility_id: facility.id,
         facility_name: facility.name,
         request_type_id: defaultRequestTypeId.value ?? '',
+        priority: defaultPriority.value,
         description: '',
         cost: '',
         week_start: defaultWeekStart.value,
@@ -209,6 +215,24 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             </SelectContent>
                         </Select>
                     </div>
+
+                    <div class="grid gap-2">
+                        <Label for="default_priority">Default priority</Label>
+                        <Select v-model="defaultPriority">
+                            <SelectTrigger id="default_priority" class="w-full">
+                                <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="priority in priorities"
+                                    :key="priority"
+                                    :value="priority"
+                                >
+                                    {{ priority }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <div
@@ -229,6 +253,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 </th>
                                 <th class="px-3 py-2 text-left font-semibold">
                                     Request type
+                                </th>
+                                <th class="px-3 py-2 text-left font-semibold">
+                                    Priority
                                 </th>
                                 <th class="px-3 py-2 text-left font-semibold">
                                     Description
@@ -282,6 +309,22 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     />
                                 </td>
                                 <td class="px-3 py-2">
+                                    <Select v-model="row.priority">
+                                        <SelectTrigger class="w-full">
+                                            <SelectValue placeholder="Select priority" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem
+                                                v-for="priority in priorities"
+                                                :key="priority"
+                                                :value="priority"
+                                            >
+                                                {{ priority }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </td>
+                                <td class="px-3 py-2">
                                     <textarea
                                         v-model="row.description"
                                         :class="textAreaClass"
@@ -305,7 +348,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             </tr>
                             <tr v-if="rows.length === 0">
                                 <td
-                                    colspan="6"
+                                    colspan="7"
                                     class="px-3 py-8 text-center text-sm text-muted-foreground"
                                 >
                                     Select a facility type to load facilities.
@@ -328,6 +371,11 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                         type="hidden"
                         :name="`bulk_requests[${index}][request_type_id]`"
                         :value="row.request_type_id"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_requests[${index}][priority]`"
+                        :value="row.priority"
                     />
                     <input
                         type="hidden"

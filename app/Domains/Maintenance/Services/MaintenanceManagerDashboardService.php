@@ -14,16 +14,19 @@ class MaintenanceManagerDashboardService
     public function summary(User $user): array
     {
         return [
-            'metrics' => $this->metrics(),
-            'queues' => $this->queues(),
+            'metrics' => $this->metrics($user),
+            'queues' => $this->queues($user),
         ];
     }
 
-    protected function metrics(): array
+    protected function metrics(User $user): array
     {
+        $ownRequests = MaintenanceRequest::query()
+            ->where('requested_by', $user->id);
+
         return [
             'open_requests' => MaintenanceRequest::query()
-            ->whereIn('status', MaintenanceStatus::active())
+                ->whereIn('status', MaintenanceStatus::active())
                 ->count(),
             'work_orders_in_flight' => WorkOrder::query()
                 ->whereNotIn('status', ['completed', 'cancelled'])
@@ -31,10 +34,13 @@ class MaintenanceManagerDashboardService
             'pending_payments' => Payment::query()
                 ->where('status', 'pending')
                 ->count(),
+            'own_request_total' => (clone $ownRequests)->count(),
+            'own_request_pending' => (clone $ownRequests)->whereIn('status', MaintenanceStatus::approvalQueue())->count(),
+            'own_request_rejected' => (clone $ownRequests)->where('status', MaintenanceStatus::Rejected->value)->count(),
         ];
     }
 
-    protected function queues(): array
+    protected function queues(User $user): array
     {
         $pendingRequests = MaintenanceRequest::query()
             ->with(['facility', 'requestType'])
@@ -51,8 +57,10 @@ class MaintenanceManagerDashboardService
                 'facility' => $request->facility?->name,
                 'request_type' => $request->requestType?->name,
                 'description' => $request->description,
+                'priority' => $request->priority,
                 'cost' => $request->cost,
                 'created_at' => $request->created_at?->toDateString(),
+                'is_self_request' => (int) $request->requested_by === (int) $user->id,
             ]);
 
         $overdueWorkOrders = WorkOrder::query()

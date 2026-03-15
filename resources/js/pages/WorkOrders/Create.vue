@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DatePicker } from '@/components/ui/date-picker';
+import InlineVendorCreateDialog from '@/components/InlineVendorCreateDialog.vue';
 import WorkOrderController from '@/actions/App/Http/Controllers/WorkOrderController';
 import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -40,6 +41,7 @@ interface MaintenanceRequest {
 interface Props {
     maintenanceRequests: MaintenanceRequest[];
     selectedRequestId?: number | null;
+    selectedVendorId?: number | null;
     vendors: Vendor[];
 }
 
@@ -56,13 +58,18 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+const UNASSIGNED_VENDOR = 'unassigned';
+
 const statusMode = ref<'assigned'>('assigned');
 const selectedRequestId = ref<string | number | null>(
     props.selectedRequestId ?? null,
 );
 const estimatedCost = ref('');
 const scheduledDate = ref('');
-const selectedVendorId = ref<string | number | null>(null);
+const vendorOptions = ref<Vendor[]>([...props.vendors]);
+const selectedVendorId = ref<string | number | null>(
+    props.selectedVendorId ? String(props.selectedVendorId) : UNASSIGNED_VENDOR,
+);
 
 const selectedRequest = computed(() =>
     props.maintenanceRequests.find(
@@ -92,6 +99,18 @@ watch(
     },
     { immediate: true },
 );
+
+const handleVendorCreated = (vendor: Vendor) => {
+    if (vendorOptions.value.some((option) => option.id === vendor.id)) {
+        selectedVendorId.value = String(vendor.id);
+        return;
+    }
+
+    vendorOptions.value = [...vendorOptions.value, vendor].sort((left, right) =>
+        left.name.localeCompare(right.name),
+    );
+    selectedVendorId.value = String(vendor.id);
+};
 </script>
 
 <template>
@@ -114,7 +133,7 @@ watch(
                     :value="selectedRequestId"
                 />
                 <input
-                    v-if="selectedVendorId !== null && selectedVendorId !== ''"
+                    v-if="selectedVendorId !== UNASSIGNED_VENDOR"
                     type="hidden"
                     name="vendor_id"
                     :value="selectedVendorId"
@@ -171,14 +190,20 @@ watch(
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="vendor_id">Vendor</Label>
-                    <Select v-model="selectedVendorId" required>
+                    <div class="flex items-center justify-between gap-3">
+                        <Label for="vendor_id">Vendor</Label>
+                        <InlineVendorCreateDialog @created="handleVendorCreated" />
+                    </div>
+                    <Select v-model="selectedVendorId">
                         <SelectTrigger id="vendor_id" class="w-full">
-                            <SelectValue placeholder="Select a vendor" />
+                            <SelectValue placeholder="Assign vendor later" />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem :value="UNASSIGNED_VENDOR">
+                                Assign later
+                            </SelectItem>
                             <SelectItem
-                                v-for="vendor in vendors"
+                                v-for="vendor in vendorOptions"
                                 :key="vendor.id"
                                 :value="String(vendor.id)"
                             >
@@ -187,6 +212,9 @@ watch(
                         </SelectContent>
                     </Select>
                     <InputError :message="errors.vendor_id" />
+                    <p class="text-xs text-muted-foreground">
+                        Vendor assignment is optional until execution begins.
+                    </p>
                 </div>
 
                 <div class="grid gap-2">

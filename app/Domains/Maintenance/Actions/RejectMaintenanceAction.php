@@ -20,7 +20,7 @@ class RejectMaintenanceAction
         protected SendUserNotificationAction $sendUserNotificationAction
     ) {}
 
-    public function execute(MaintenanceRequest $request): MaintenanceRequest
+    public function execute(MaintenanceRequest $request, string $reason): MaintenanceRequest
     {
         $actor = auth()->user();
         if (! $actor) {
@@ -51,6 +51,7 @@ class RejectMaintenanceAction
 
         $request->update([
             'status' => MaintenanceStatus::Rejected->value,
+            'rejection_reason' => $reason,
         ]);
 
         $request = $request->refresh();
@@ -72,11 +73,12 @@ class RejectMaintenanceAction
                 ? 'maintenance_request.final_rejected'
                 : 'maintenance_request.rejected',
             title: 'Maintenance request rejected',
-            body: 'Request #'.$request->id.' was rejected.',
+            body: 'Request #'.$request->id.' was rejected. Reason: '.$reason,
             action_url: route('maintenance.show', $request),
             meta: [
                 'maintenance_request_id' => $request->id,
                 'status' => $request->status,
+                'rejection_reason' => $reason,
             ],
         ));
 

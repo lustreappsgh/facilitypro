@@ -14,7 +14,7 @@ import {
 } from '@/routes/maintenance';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as todosIndex } from '@/routes/todos';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     ClipboardCheck,
@@ -66,6 +66,11 @@ interface Props {
             last_7_days: number;
             latest_date?: string | null;
         };
+        ownRequestSummary?: {
+            total: number;
+            pending: number;
+            rejected: number;
+        };
     };
     permissions?: string[];
 }
@@ -73,9 +78,10 @@ interface Props {
 const props = defineProps<Props>();
 const paymentApprovalsUrl = '/payment-approvals';
 const { getInitials } = useInitials();
+const page = usePage();
 const users = computed(() => props.data.users ?? []);
 const canApprovePayments = computed(() =>
-    (props.permissions ?? []).includes('payments.approve'),
+    (props.permissions ?? []).includes('users.manage'),
 );
 
 const currencyFormat = createCurrencyFormatter();
@@ -89,6 +95,14 @@ const inspectionSummary = computed(
             total: 0,
             last_7_days: 0,
             latest_date: null,
+        },
+);
+const ownRequestSummary = computed(
+    () =>
+        props.data.ownRequestSummary ?? {
+            total: 0,
+            pending: 0,
+            rejected: 0,
         },
 );
 const actionCenterItems = computed(() => {
@@ -126,8 +140,8 @@ const actionCenterItems = computed(() => {
                 key: 'pending-payments',
                 label: 'Pending payments',
                 value: props.data.pendingApprovals,
-                helper: 'Read-only payment queue',
-                href: '/payments',
+                helper: 'Read-only approval queue',
+                href: paymentApprovalsUrl,
             },
             {
                 key: 'queue-age',
@@ -136,14 +150,14 @@ const actionCenterItems = computed(() => {
                     ? `${props.data.oldestPendingDays}d`
                     : '--',
                 helper: props.data.oldestPendingDate ?? 'No delayed queue',
-                href: '/payments',
+                href: paymentApprovalsUrl,
             },
             {
                 key: 'high-cost',
                 label: 'High-cost payments',
                 value: props.data.highCostPendingCount || 0,
                 helper: `Threshold ${currencyFormat.format(props.data.highCostThreshold || 0)}`,
-                href: '/payments',
+                href: paymentApprovalsUrl,
             },
         );
     }
@@ -205,7 +219,13 @@ const actionCenterItems = computed(() => {
                                         : ''
                                 "
                             >
-                                {{ user.is_active ? 'Active' : 'Inactive' }}
+                                {{
+                                    user.id === page.props.auth?.user?.id
+                                        ? 'You'
+                                        : user.is_active
+                                          ? 'Active'
+                                          : 'Inactive'
+                                }}
                             </Badge>
                         </div>
                         <div class="mt-3 grid grid-cols-3 gap-2">
@@ -266,6 +286,22 @@ const actionCenterItems = computed(() => {
         </Card>
 
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <StatsCard
+                v-if="props.data.ownRequestSummary"
+                title="My Requests"
+                :value="ownRequestSummary.total"
+                :icon="ClipboardCheck"
+                accent-color="amber"
+                :description="`Pending: ${ownRequestSummary.pending}`"
+            />
+            <StatsCard
+                v-if="props.data.ownRequestSummary"
+                title="My Rejected"
+                :value="ownRequestSummary.rejected"
+                :icon="AlertTriangle"
+                accent-color="rose"
+                description="Needs correction"
+            />
             <StatsCard
                 title="Pending Approvals"
                 :value="props.data.pendingApprovals"

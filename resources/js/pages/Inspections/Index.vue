@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { create, index as inspectionsIndex, show } from '@/routes/inspections';
@@ -13,7 +14,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import { useDateFormat } from '@/composables/useDateFormat';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref, watch } from 'vue';
 import { AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList, Eye, Plus, TrendingUp } from 'lucide-vue-next';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,6 +68,7 @@ interface Props {
         filters: {
             start_date: string;
             end_date: string;
+            search?: string | null;
             facility_id: string | null;
             user_id?: string | null;
         };
@@ -119,8 +121,10 @@ const defaultRange = getPreviousAndCurrentWeekRange();
 
 const filterStartDate = ref(props.data.filters.start_date || defaultRange.start);
 const filterEndDate = ref(props.data.filters.end_date || defaultRange.end);
+const searchFilter = ref(props.data.filters.search ?? '');
 const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
 const filterUserId = ref(props.data.filters.user_id ? String(props.data.filters.user_id) : 'all');
+let searchDebounceTimer: number | null = null;
 
 const allInspections = computed(() => props.data.groups.flatMap((group) => group.inspections));
 
@@ -148,6 +152,7 @@ const applyFilters = () => {
         {
             start_date: filterStartDate.value || undefined,
             end_date: filterEndDate.value || undefined,
+            search: searchFilter.value || undefined,
             facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
             user_id: filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
@@ -156,6 +161,12 @@ const applyFilters = () => {
 };
 
 const clearFilters = () => {
+    filterStartDate.value = defaultRange.start;
+    filterEndDate.value = defaultRange.end;
+    searchFilter.value = '';
+    filterFacilityId.value = 'all';
+    filterUserId.value = 'all';
+
     router.get(
         inspectionsIndex().url,
         {
@@ -167,6 +178,16 @@ const clearFilters = () => {
 };
 
 const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDate.value}`);
+
+watch(searchFilter, () => {
+    if (searchDebounceTimer !== null) {
+        window.clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = window.setTimeout(() => {
+        applyFilters();
+    }, 350);
+});
 
 const conditionClass = (condition: string) => {
     if (condition === 'Good') return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
@@ -276,8 +297,13 @@ onMounted(() => {
             </div>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-end">
-                    <div class="grid gap-2 sm:grid-cols-2">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_220px_auto] lg:items-end">
+                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_repeat(2,minmax(0,220px))]">
+                        <Input
+                            v-model="searchFilter"
+                            class="h-9 w-full"
+                            placeholder="Search facility, inspector, condition"
+                        />
                         <DatePicker v-model="filterStartDate" class="h-9 w-full" placeholder="Start date" />
                         <DatePicker v-model="filterEndDate" class="h-9 w-full" placeholder="End date" />
                     </div>

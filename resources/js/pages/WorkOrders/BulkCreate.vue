@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import InlineVendorCreateDialog from '@/components/InlineVendorCreateDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,10 @@ interface MaintenanceRequestRow {
     id: number;
     description?: string | null;
     cost?: number | null;
+    priority?: 'low' | 'medium' | 'high' | null;
+    requested_by_name?: string | null;
+    can_approve?: boolean;
+    can_reject?: boolean;
     facility?: {
         id: number;
         name: string;
@@ -49,6 +54,11 @@ interface EditableRow {
     facility_manager_id: string;
     review_action: 'approve' | 'reject';
     vendor_id: string;
+    rejection_reason: string;
+    priority: 'low' | 'medium' | 'high' | null;
+    requested_by_name: string;
+    can_approve: boolean;
+    can_reject: boolean;
 }
 
 interface Props {
@@ -74,8 +84,20 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const textAreaClass =
+const notesAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
+const UNASSIGNED_VENDOR = 'unassigned';
+const priorityBadgeClass = (priority?: string | null) => {
+    if (priority === 'high') {
+        return 'bg-rose-500/10 text-rose-700';
+    }
+
+    if (priority === 'medium') {
+        return 'bg-amber-500/10 text-amber-700';
+    }
+
+    return 'bg-slate-500/10 text-slate-700';
+};
 
 const selectedRequestIdSet = new Set((props.selection?.request_ids ?? []).map((id) => Number(id)));
 const initiallySelectedRequest = props.maintenanceRequests.find((request) =>
@@ -86,9 +108,8 @@ const selectedFacilityManagerId = ref<string | null>(
         ? String(initiallySelectedRequest.facility.managed_by)
         : (props.facilityManagers[0] ? String(props.facilityManagers[0].id) : null),
 );
-const selectedVendorId = ref<string | null>(
-    props.vendors[0] ? String(props.vendors[0].id) : null,
-);
+const vendorOptions = ref<Vendor[]>([...props.vendors]);
+const selectedVendorId = ref<string>(UNASSIGNED_VENDOR);
 const rows = ref<EditableRow[]>([]);
 const pageSubtitle = computed(() =>
     props.selection?.intent === 'create'
@@ -133,8 +154,16 @@ const initializeRows = () => {
             ? selectedRequestIdSet.has(request.id)
             : true,
         facility_manager_id: String(request.facility?.managed_by ?? ''),
-        review_action: 'approve',
-        vendor_id: selectedVendorId.value ?? '',
+        review_action:
+            request.can_approve === false && request.can_reject !== false
+                ? 'reject'
+                : 'approve',
+        vendor_id: selectedVendorId.value,
+        rejection_reason: '',
+        priority: request.priority ?? 'medium',
+        requested_by_name: request.requested_by_name ?? 'Unknown requester',
+        can_approve: request.can_approve !== false,
+        can_reject: request.can_reject !== false,
     }));
 };
 
@@ -161,20 +190,35 @@ const rowHighlightClass = (row: EditableRow) => {
 };
 
 const setReviewAction = (row: EditableRow, action: 'approve' | 'reject') => {
+    if (action === 'approve' && !row.can_approve) {
+        return;
+    }
+
+    if (action === 'reject' && !row.can_reject) {
+        return;
+    }
+
     row.review_action = action;
     row.selected = true;
 };
 
 watch(selectedFacilityManagerId, initializeRows, { immediate: true });
 watch(selectedVendorId, () => {
-    if (!selectedVendorId.value) {
-        return;
-    }
     rows.value = rows.value.map((row) => ({
         ...row,
-        vendor_id: row.selected ? selectedVendorId.value ?? '' : row.vendor_id,
+        vendor_id: row.selected ? selectedVendorId.value : row.vendor_id,
     }));
 });
+
+const handleVendorCreated = (vendor: Vendor) => {
+    if (!vendorOptions.value.some((option) => option.id === vendor.id)) {
+        vendorOptions.value = [...vendorOptions.value, vendor].sort((left, right) =>
+            left.name.localeCompare(right.name),
+        );
+    }
+
+    selectedVendorId.value = String(vendor.id);
+};
 </script>
 
 <template>
@@ -210,14 +254,20 @@ watch(selectedVendorId, () => {
                             </Select>
                         </div>
                         <div class="grid gap-2">
-                            <Label for="default_vendor_id">Default vendor</Label>
+                            <div class="flex items-center justify-between gap-3">
+                                <Label for="default_vendor_id">Default vendor</Label>
+                                <InlineVendorCreateDialog @created="handleVendorCreated" />
+                            </div>
                             <Select v-model="selectedVendorId">
                                 <SelectTrigger id="default_vendor_id" class="w-full">
-                                    <SelectValue placeholder="Select vendor" />
+                                    <SelectValue placeholder="Assign vendor later" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem :value="UNASSIGNED_VENDOR">
+                                        Assign later
+                                    </SelectItem>
                                     <SelectItem
-                                        v-for="vendor in vendors"
+                                        v-for="vendor in vendorOptions"
                                         :key="vendor.id"
                                         :value="String(vendor.id)"
                                     >
@@ -243,6 +293,7 @@ watch(selectedVendorId, () => {
                                 <th class="px-3 py-2 text-left font-semibold">Request</th>
                                 <th class="px-3 py-2 text-left font-semibold">Facility</th>
                                 <th class="px-3 py-2 text-left font-semibold">Request type</th>
+                                <th class="px-3 py-2 text-left font-semibold">Priority</th>
                                 <th class="px-3 py-2 text-left font-semibold">Description</th>
                                 <th class="px-3 py-2 text-left font-semibold">Estimated cost</th>
                                 <th class="px-3 py-2 text-left font-semibold">Vendor</th>
@@ -265,11 +316,36 @@ watch(selectedVendorId, () => {
                                 <td class="px-3 py-2">{{ row.facility_name }}</td>
                                 <td class="px-3 py-2">{{ row.request_type_name }}</td>
                                 <td class="px-3 py-2">
-                                    <textarea
-                                        v-model="row.description"
-                                        :class="textAreaClass"
-                                        placeholder="Optional notes"
-                                    />
+                                    <Badge
+                                        variant="secondary"
+                                        class="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider"
+                                        :class="priorityBadgeClass(row.priority)"
+                                    >
+                                        {{ row.priority ?? 'medium' }}
+                                    </Badge>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <div class="space-y-2">
+                                        <div class="text-[11px] font-semibold text-muted-foreground">
+                                            {{ row.requested_by_name }}
+                                        </div>
+                                        <div
+                                            class="line-clamp-3 min-h-[76px] rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-[12px] leading-5 text-muted-foreground"
+                                            :title="row.description || 'No description provided.'"
+                                        >
+                                            {{
+                                                row.description ||
+                                                'No description provided.'
+                                            }}
+                                        </div>
+                                        <textarea
+                                            v-if="row.review_action === 'reject'"
+                                            v-model="row.rejection_reason"
+                                            :class="notesAreaClass"
+                                            rows="3"
+                                            placeholder="Required rejection reason"
+                                        />
+                                    </div>
                                 </td>
                                 <td class="px-3 py-2">
                                     <Input
@@ -283,11 +359,14 @@ watch(selectedVendorId, () => {
                                 <td class="px-3 py-2">
                                     <Select v-model="row.vendor_id" :disabled="row.review_action === 'reject'">
                                         <SelectTrigger class="h-9 w-[200px]">
-                                            <SelectValue placeholder="Select vendor" />
+                                            <SelectValue placeholder="Assign later" />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem :value="UNASSIGNED_VENDOR">
+                                                Assign later
+                                            </SelectItem>
                                             <SelectItem
-                                                v-for="vendor in vendors"
+                                                v-for="vendor in vendorOptions"
                                                 :key="vendor.id"
                                                 :value="String(vendor.id)"
                                             >
@@ -305,6 +384,7 @@ watch(selectedVendorId, () => {
                                                     size="sm"
                                                     :variant="row.review_action === 'approve' ? 'secondary' : 'ghost'"
                                                     class="rounded-none border-0 px-3 text-xs font-semibold uppercase tracking-wide text-emerald-700 hover:bg-emerald-500/10"
+                                                    :disabled="!row.can_approve"
                                                     @click="setReviewAction(row, 'approve')"
                                                 >
                                                     Approved
@@ -319,6 +399,7 @@ watch(selectedVendorId, () => {
                                                     size="sm"
                                                     :variant="row.review_action === 'reject' ? 'secondary' : 'ghost'"
                                                     class="rounded-none border-l border-border/40 px-3 text-xs font-semibold uppercase tracking-wide text-rose-600 hover:bg-rose-500/10"
+                                                    :disabled="!row.can_reject"
                                                     @click="setReviewAction(row, 'reject')"
                                                 >
                                                     Rejected
@@ -339,11 +420,11 @@ watch(selectedVendorId, () => {
                                 </td>
                             </tr>
                             <tr v-if="rows.length === 0">
-                                <td
-                                    colspan="8"
-                                    class="px-3 py-8 text-center text-sm text-muted-foreground"
-                                >
-                                    No pending maintenance requests found for this facility manager.
+                        <td
+                            colspan="9"
+                            class="px-3 py-8 text-center text-sm text-muted-foreground"
+                        >
+                            No pending maintenance requests found for this facility manager.
                                 </td>
                             </tr>
                         </tbody>
@@ -367,12 +448,17 @@ watch(selectedVendorId, () => {
                     <input
                         type="hidden"
                         :name="`bulk_orders[${index}][vendor_id]`"
-                        :value="row.vendor_id"
+                        :value="row.vendor_id === UNASSIGNED_VENDOR ? '' : row.vendor_id"
                     />
                     <input
                         type="hidden"
                         :name="`bulk_orders[${index}][review_action]`"
                         :value="row.review_action"
+                    />
+                    <input
+                        type="hidden"
+                        :name="`bulk_orders[${index}][rejection_reason]`"
+                        :value="row.rejection_reason"
                     />
                 </div>
 

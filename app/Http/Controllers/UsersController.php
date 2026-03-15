@@ -8,14 +8,17 @@ use App\Domains\Users\Actions\CreateUserAction;
 use App\Domains\Users\Actions\GrantMaintenanceManagerAccessAction;
 use App\Domains\Users\Actions\RevokeMaintenanceManagerAccessAction;
 use App\Domains\Users\Actions\UpdateManagerReportsAction;
+use App\Domains\Users\Actions\UpdateManagerRequestTypePermissionsAction;
 use App\Domains\Users\Actions\UpdateUserAction;
 use App\Domains\Users\DTOs\ManagerAccessData;
 use App\Domains\Users\DTOs\ManagerReportsData;
 use App\Domains\Users\DTOs\UserData;
 use App\Domains\Users\Requests\ManagerReportsRequest;
+use App\Domains\Users\Requests\ManagerRequestTypePermissionsRequest;
 use App\Domains\Users\Requests\UserBulkStatusRequest;
 use App\Domains\Users\Requests\UserRequest;
 use App\Models\Facility;
+use App\Models\RequestType;
 use App\Models\User;
 use DomainException;
 use Illuminate\Database\QueryException;
@@ -38,7 +41,8 @@ class UsersController extends Controller
         protected RecordAuditLogAction $recordAuditLogAction,
         protected GrantMaintenanceManagerAccessAction $grantMaintenanceManagerAccessAction,
         protected RevokeMaintenanceManagerAccessAction $revokeMaintenanceManagerAccessAction,
-        protected UpdateManagerReportsAction $updateManagerReportsAction
+        protected UpdateManagerReportsAction $updateManagerReportsAction,
+        protected UpdateManagerRequestTypePermissionsAction $updateManagerRequestTypePermissionsAction
     ) {}
 
     public function index(Request $request): Response
@@ -218,8 +222,73 @@ class UsersController extends Controller
                 'grantManagerAccess' => route('users.manager-access.grant', $user),
                 'revokeManagerAccess' => route('users.manager-access.revoke', $user),
                 'updateDirectReports' => route('users.manager-reports.update', $user),
+                'approvalSettings' => $user->can('maintenance.manage_all') && ! $user->can('users.manage')
+                    ? route('users.approval-settings.edit', $user)
+                    : null,
             ],
         ]);
+    }
+
+    public function editApprovalSettings(User $user): Response
+    {
+        abort_unless($this->canAccessApprovalSettings(request()->user(), $user), 403);
+
+        $permissionMap = $user->managerRequestTypePermissions()
+            ->get(['request_types.id'])
+            ->mapWithKeys(fn ($requestType) => [
+                $requestType->id => [
+                    'can_approve' => (bool) $requestType->pivot?->can_approve,
+                    'can_reject' => (bool) $requestType->pivot?->can_reject,
+                ],
+            ]);
+
+        return Inertia::render('Users/ApprovalSettings', [
+            'user' => $user->only(['id', 'name', 'email']),
+            'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
+            'requestTypePermissions' => $permissionMap->map(fn (array $permission, int $requestTypeId) => [
+                'request_type_id' => $requestTypeId,
+                'can_approve' => $permission['can_approve'],
+                'can_reject' => $permission['can_reject'],
+            ])->values(),
+            'routes' => [
+                'index' => request()->user()->can('users.manage')
+                    ? route('users.index')
+                    : route('dashboard'),
+                'edit' => request()->user()->can('users.manage')
+                    ? route('users.edit', $user)
+                    : route('dashboard'),
+                'update' => route('users.approval-settings.update', $user),
+            ],
+        ]);
+    }
+
+    public function updateApprovalSettings(ManagerRequestTypePermissionsRequest $request, User $user)
+    {
+        abort_unless($this->canAccessApprovalSettings($request->user(), $user), 403);
+
+        $this->updateManagerRequestTypePermissionsAction->execute(
+            $user,
+            $request->validated('request_type_permissions', [])
+        );
+
+        return back()->with('success', 'Approval settings updated.');
+    }
+
+    protected function canAccessApprovalSettings(?User $actor, User $user): bool
+    {
+        if (! $actor) {
+            return false;
+        }
+
+        if (! $user->can('maintenance.manage_all') || $user->can('users.manage')) {
+            return false;
+        }
+
+        if ($actor->can('users.manage')) {
+            return true;
+        }
+
+        return $actor->is($user);
     }
 
     public function update(UserRequest $request, User $user)

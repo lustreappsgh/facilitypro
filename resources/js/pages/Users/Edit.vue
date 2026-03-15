@@ -58,7 +58,7 @@ interface Props {
     managerAssignment: ManagerAssignment;
     reportOptions: ManagerOption[];
     directReportIds: number[];
-    routes: Record<string, string>;
+    routes: Record<string, string | null | undefined>;
 }
 
 const props = defineProps<Props>();

@@ -20,6 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import {
     Tooltip,
     TooltipContent,
@@ -55,7 +56,8 @@ import {
     Trash2,
     Wrench,
 } from 'lucide-vue-next';
-import { computed, h, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import { computed, h, ref, watch } from 'vue';
 
 interface Facility {
     id: number;
@@ -77,9 +79,15 @@ interface MaintenanceRequest {
     facility?: Facility | null;
     facility_manager_name?: string | null;
     requested_by_name?: string | null;
+    requested_by_id?: number | null;
     request_type_name?: string | null;
+    priority?: 'low' | 'medium' | 'high' | null;
+    rejection_reason?: string | null;
     latest_work_order_id?: number | null;
     has_work_order?: boolean;
+    is_self_request?: boolean;
+    can_approve?: boolean;
+    can_reject?: boolean;
 }
 
 interface MaintenanceRequestGroup {
@@ -103,15 +111,24 @@ interface WeeksByYearMonth {
 interface Props {
     data: {
         groups: MaintenanceRequestGroup[];
+        sections?: Array<{
+            key: string;
+            title: string;
+            description?: string | null;
+            groups: MaintenanceRequestGroup[];
+            empty_message?: string | null;
+        }>;
         weeks_by_year_month: WeeksByYearMonth[];
         facilities: Facility[];
         show_requester_name: boolean;
         show_facility_manager_name: boolean;
         is_facility_manager: boolean;
         users?: UserOption[];
+        priorities: Array<'low' | 'medium' | 'high'>;
         filters: {
             start_date: string;
             end_date: string;
+            search?: string | null;
             facility_id: string | null;
             user_id?: string | null;
         };
@@ -122,6 +139,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -131,18 +149,95 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const { can } = usePermissions();
+const currentUserId = computed<number | null>(() => {
+    const id = page.props.auth?.user?.id;
+
+    return typeof id === 'number' ? id : null;
+});
+const shouldSplitOwnRequests = computed(
+    () =>
+        !can('users.manage') &&
+        (can('maintenance.manage_all') || can('work_orders.create')),
+);
 
 const filterStartDate = ref(props.data.filters.start_date || '');
 const filterEndDate = ref(props.data.filters.end_date || '');
+const searchFilter = ref(props.data.filters.search ?? '');
 const filterUserId = ref(
     props.data.filters.user_id ? String(props.data.filters.user_id) : 'all',
 );
+let searchDebounceTimer: number | null = null;
 
 const currencyFormat = createCurrencyFormatter();
 
+const sections = computed(() => {
+    if (props.data.sections?.length) {
+        return props.data.sections;
+    }
+
+    if (!shouldSplitOwnRequests.value || currentUserId.value === null) {
+        return [
+            {
+                key: 'all',
+                title: 'Requests',
+                description: null,
+                groups: props.data.groups,
+                empty_message: 'No maintenance requests match this filter set.',
+            },
+        ];
+    }
+
+    const ownGroups = props.data.groups
+        .map((group) => ({
+            ...group,
+            requests: group.requests.filter(
+                (request) =>
+                    request.is_self_request === true ||
+                    request.requested_by_id === currentUserId.value,
+            ),
+        }))
+        .filter((group) => group.requests.length > 0);
+
+    const teamGroups = props.data.groups
+        .map((group) => ({
+            ...group,
+            requests: group.requests.filter(
+                (request) =>
+                    request.is_self_request !== true &&
+                    request.requested_by_id !== currentUserId.value,
+            ),
+        }))
+        .filter((group) => group.requests.length > 0);
+
+    return [
+        {
+            key: 'mine',
+            title: 'My Requests',
+            description: 'Requests you submitted yourself.',
+            groups: ownGroups,
+            empty_message: 'You do not have any requests in the current range.',
+        },
+        {
+            key: 'team',
+            title: 'Team Requests',
+            description: 'Requests submitted by the people you oversee.',
+            groups: teamGroups,
+            empty_message:
+                'No direct-report requests match the current filters.',
+        },
+    ].filter((section) => section.groups.length > 0);
+});
+
 const allRequests = computed(() =>
-    props.data.groups.flatMap((group) => group.requests),
+    sections.value.flatMap((section) =>
+        section.groups.flatMap((group) => group.requests),
+    ),
 );
+
+const sectionToneClass = (key: string) =>
+    key === 'mine'
+        ? 'border-amber-500/30 bg-amber-500/[0.04]'
+        : 'border-border/60 bg-card/60';
 
 const metrics = computed(() => {
     const requests = allRequests.value;
@@ -176,6 +271,7 @@ const applyFilters = () => {
         {
             start_date: filterStartDate.value || undefined,
             end_date: filterEndDate.value || undefined,
+            search: searchFilter.value || undefined,
             user_id:
                 filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
@@ -220,6 +316,7 @@ const applyNeedsActionNow = () => {
         {
             start_date: range.start,
             end_date: range.end,
+            search: searchFilter.value || undefined,
             user_id:
                 filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
@@ -228,6 +325,11 @@ const applyNeedsActionNow = () => {
 };
 
 const clearFilters = () => {
+    filterStartDate.value = '';
+    filterEndDate.value = '';
+    searchFilter.value = '';
+    filterUserId.value = 'all';
+
     router.get(
         maintenanceIndex().url,
         {},
@@ -252,7 +354,36 @@ const canBulkDeleteRequests = computed(
     () => can('maintenance.update') || can('maintenance_requests.update'),
 );
 
-const selectedEligibleRequestIds = (table: any) => {
+const selectedReviewableRequestIds = (table: any) => {
+    const selectedRows = table?.getSelectedRowModel?.().rows ?? [];
+
+    return selectedRows
+        .map((row: { original: MaintenanceRequest }) => row.original)
+        .filter(
+            (request: MaintenanceRequest) =>
+                ['submitted', 'pending'].includes(request.status) &&
+                !request.has_work_order &&
+                canReviewRequest(request),
+        )
+        .map((request: MaintenanceRequest) => request.id);
+};
+
+const selectedApprovableRequestIds = (table: any) => {
+    const selectedRows = table?.getSelectedRowModel?.().rows ?? [];
+
+    return selectedRows
+        .map((row: { original: MaintenanceRequest }) => row.original)
+        .filter(
+            (request: MaintenanceRequest) =>
+                ['submitted', 'pending'].includes(request.status) &&
+                !request.has_work_order &&
+                !request.is_self_request &&
+                request.can_approve !== false,
+        )
+        .map((request: MaintenanceRequest) => request.id);
+};
+
+const selectedDeletableRequestIds = (table: any) => {
     const selectedRows = table?.getSelectedRowModel?.().rows ?? [];
 
     return selectedRows
@@ -266,7 +397,7 @@ const selectedEligibleRequestIds = (table: any) => {
 };
 
 const confirmBulkDeleteRequests = (table: any) => {
-    const requestIds = selectedEligibleRequestIds(table);
+    const requestIds = selectedReviewableRequestIds(table);
     if (!requestIds.length) {
         return;
     }
@@ -292,7 +423,7 @@ const confirmBulkDeleteRequests = (table: any) => {
 };
 
 const openBulkReview = (table: any) => {
-    const requestIds = selectedEligibleRequestIds(table);
+    const requestIds = selectedApprovableRequestIds(table);
     if (!requestIds.length) {
         return;
     }
@@ -305,7 +436,7 @@ const openBulkReview = (table: any) => {
 };
 
 const openBulkCreateWorkOrders = (table: any) => {
-    const requestIds = selectedEligibleRequestIds(table);
+    const requestIds = selectedDeletableRequestIds(table);
     if (!requestIds.length) {
         return;
     }
@@ -317,9 +448,35 @@ const openBulkCreateWorkOrders = (table: any) => {
     );
 };
 
+const canReviewRequest = (request: MaintenanceRequest) =>
+    !request.is_self_request &&
+    (request.can_approve !== false || request.can_reject !== false);
+
 const dateRangeLabel = computed(
     () => `${filterStartDate.value} to ${filterEndDate.value}`,
 );
+
+const priorityClass = (priority?: string | null) => {
+    if (priority === 'high') {
+        return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
+    }
+
+    if (priority === 'medium') {
+        return 'bg-amber-500/10 text-amber-700 border-amber-500/20';
+    }
+
+    return 'bg-slate-500/10 text-slate-700 border-slate-500/20';
+};
+
+watch(searchFilter, () => {
+    if (searchDebounceTimer !== null) {
+        window.clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = window.setTimeout(() => {
+        applyFilters();
+    }, 350);
+});
 
 const groupCostTotal = (requests: MaintenanceRequest[]) =>
     sumByNumber(requests, (request) => request.cost);
@@ -434,7 +591,10 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
             cell: ({ row }) =>
                 h(
                     'span',
-                    { class: 'text-[11px] text-muted-foreground' },
+                    {
+                        class: 'line-clamp-3 max-w-[28rem] whitespace-pre-line break-words text-[11px] text-muted-foreground',
+                        title: row.original.description ?? '-',
+                    },
                     row.original.description ?? '-',
                 ),
         },
@@ -471,6 +631,17 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                         ),
                     );
                 }
+
+                chips.push(
+                    h(
+                        Badge,
+                        {
+                            variant: 'outline',
+                            class: `rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${priorityClass(row.original.priority)}`,
+                        },
+                        () => row.original.priority ?? 'medium',
+                    ),
+                );
 
                 return h(
                     'div',
@@ -596,7 +767,8 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                           ])
                         : null,
                     (can('maintenance.review') || can('work_orders.create')) &&
-                    ['submitted', 'pending'].includes(row.original.status)
+                    ['submitted', 'pending'].includes(row.original.status) &&
+                    canReviewRequest(row.original)
                         ? h(Tooltip, {}, () => [
                               h(TooltipTrigger, { asChild: true }, () =>
                                   h(
@@ -726,6 +898,25 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                 </div>
                 <div class="flex items-center gap-2">
                     <Button
+                        v-if="can('work_orders.create')"
+                        size="sm"
+                        variant="secondary"
+                        as-child
+                        class="h-9 rounded-lg px-4"
+                    >
+                        <Link
+                            :href="
+                                workOrdersBulkCreate({
+                                    query: { intent: 'review' },
+                                }).url
+                            "
+                            aria-label="Bulk review requests"
+                        >
+                            <ClipboardList class="mr-2 h-4 w-4" />
+                            Bulk review
+                        </Link>
+                    </Button>
+                    <Button
                         v-if="
                             can('maintenance.create') ||
                             can('maintenance_requests.create')
@@ -746,9 +937,14 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                 class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur"
             >
                 <div
-                    class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end"
+                    class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-end"
                 >
-                    <div class="grid gap-2 sm:grid-cols-2">
+                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_repeat(2,minmax(0,220px))]">
+                        <Input
+                            v-model="searchFilter"
+                            class="h-9 w-full"
+                            placeholder="Search request, facility, requester, priority"
+                        />
                         <DatePicker
                             v-model="filterStartDate"
                             class="h-9 w-full"
@@ -860,116 +1056,168 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                 />
             </div>
 
-            <div class="space-y-4">
-                <Accordion
-                    v-if="data.groups.length > 0"
-                    type="multiple"
-                    :default-value="data.groups.map((g) => g.week_start)"
+            <div class="space-y-6">
+                <div
+                    v-for="section in sections"
+                    :key="section.key"
+                    class="space-y-4 rounded-xl border p-4 backdrop-blur"
+                    :class="sectionToneClass(section.key)"
                 >
-                    <AccordionItem
-                        v-for="group in data.groups"
-                        :key="group.week_start"
-                        :value="group.week_start"
-                        class="mb-3 overflow-hidden rounded-xl border border-border/70 bg-card"
+                    <div
+                        v-if="sections.length > 1"
+                        class="rounded-xl border border-border/60 bg-card/80 p-4"
                     >
-                        <AccordionTrigger class="px-4 py-3 hover:no-underline">
-                            <div class="flex items-center gap-3">
-                                <p
-                                    class="font-display text-sm font-semibold tracking-wide"
-                                >
-                                    {{ group.week_label }}
-                                </p>
-                                <Badge variant="outline" class="text-[10px]"
-                                    >{{ group.requests.length }} requests</Badge
-                                >
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent class="px-4 pb-4">
-                            <DataTable
-                                :data="group.requests"
-                                :columns="columns"
-                                :show-search="false"
-                                :show-selection-summary="false"
-                                :enable-row-selection="
-                                    can('work_orders.create') ||
-                                    canBulkDeleteRequests
-                                "
-                            >
-                                <template
-                                    v-if="
+                        <h2 class="font-display text-lg font-semibold">
+                            {{ section.title }}
+                        </h2>
+                        <p
+                            v-if="section.description"
+                            class="mt-1 text-sm text-muted-foreground"
+                        >
+                            {{ section.description }}
+                        </p>
+                    </div>
+
+                    <Accordion
+                        v-if="section.groups.length > 0"
+                        type="multiple"
+                        :default-value="
+                            section.groups.map(
+                                (group) => `${section.key}-${group.week_start}`,
+                            )
+                        "
+                    >
+                        <AccordionItem
+                            v-for="group in section.groups"
+                            :key="`${section.key}-${group.week_start}`"
+                            :value="`${section.key}-${group.week_start}`"
+                            class="mb-3 overflow-hidden rounded-xl border border-border/70 bg-card"
+                        >
+                            <AccordionTrigger class="px-4 py-3 hover:no-underline">
+                                <div class="flex items-center gap-3">
+                                    <p
+                                        class="font-display text-sm font-semibold tracking-wide"
+                                    >
+                                        {{ group.week_label }}
+                                    </p>
+                                    <Badge variant="outline" class="text-[10px]">
+                                        {{ group.requests.length }} requests
+                                    </Badge>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent class="px-4 pb-4">
+                                <DataTable
+                                    :data="group.requests"
+                                    :columns="columns"
+                                    :show-search="false"
+                                    :show-selection-summary="false"
+                                    :enable-row-selection="
                                         can('work_orders.create') ||
                                         canBulkDeleteRequests
                                     "
-                                    #actions="{ table }"
                                 >
-                                    <div class="flex items-center gap-2">
-                                        <Button
-                                            v-if="canBulkDeleteRequests"
-                                            size="sm"
-                                            variant="outline"
-                                            class="h-8 px-3 text-[11px] font-semibold tracking-wide text-destructive uppercase"
-                                            :disabled="
-                                                selectedEligibleRequestIds(
-                                                    table,
-                                                ).length === 0
-                                            "
-                                            @click="
-                                                confirmBulkDeleteRequests(table)
-                                            "
-                                        >
-                                            Bulk delete selected
-                                        </Button>
-                                        <Button
-                                            v-if="can('work_orders.create')"
-                                            size="sm"
-                                            variant="secondary"
-                                            class="h-8 px-3 text-[11px] font-semibold tracking-wide uppercase"
-                                            :disabled="
-                                                selectedEligibleRequestIds(
-                                                    table,
-                                                ).length === 0
-                                            "
-                                            @click="openBulkReview(table)"
-                                        >
-                                            Bulk review selected
-                                        </Button>
-                                        <Button
-                                            v-if="can('work_orders.create')"
-                                            size="sm"
-                                            class="h-8 px-3 text-[11px] font-semibold tracking-wide uppercase"
-                                            :disabled="
-                                                selectedEligibleRequestIds(
-                                                    table,
-                                                ).length === 0
-                                            "
-                                            @click="
-                                                openBulkCreateWorkOrders(table)
-                                            "
-                                        >
-                                            Bulk create work orders
-                                        </Button>
-                                    </div>
-                                </template>
-                                <template #footer>
-                                    <TableTotalsBar
-                                        :items="[
-                                            {
-                                                label: 'Cost',
-                                                value: currencyFormat.format(
-                                                    groupCostTotal(
-                                                        group.requests,
+                                    <template
+                                        v-if="
+                                            can('work_orders.create') ||
+                                            canBulkDeleteRequests
+                                        "
+                                        #actions="{ table }"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <Button
+                                                v-if="canBulkDeleteRequests"
+                                                size="sm"
+                                                variant="outline"
+                                                class="h-8 px-3 text-[11px] font-semibold tracking-wide text-destructive uppercase"
+                                                :disabled="
+                                                    selectedDeletableRequestIds(
+                                                        table,
+                                                    ).length === 0
+                                                "
+                                                @click="
+                                                    confirmBulkDeleteRequests(
+                                                        table,
+                                                    )
+                                                "
+                                            >
+                                                Bulk delete selected
+                                            </Button>
+                                            <Button
+                                                v-if="can('work_orders.create')"
+                                                size="sm"
+                                                variant="secondary"
+                                                class="h-8 px-3 text-[11px] font-semibold tracking-wide uppercase"
+                                                :disabled="
+                                                    selectedReviewableRequestIds(
+                                                        table,
+                                                    ).length === 0
+                                                "
+                                                @click="openBulkReview(table)"
+                                            >
+                                                Bulk review selected
+                                            </Button>
+                                            <Button
+                                                v-if="can('work_orders.create')"
+                                                size="sm"
+                                                class="h-8 px-3 text-[11px] font-semibold tracking-wide uppercase"
+                                                :disabled="
+                                                    selectedApprovableRequestIds(
+                                                        table,
+                                                    ).length === 0
+                                                "
+                                                @click="
+                                                    openBulkCreateWorkOrders(
+                                                        table,
+                                                    )
+                                                "
+                                            >
+                                                Bulk create work orders
+                                            </Button>
+                                        </div>
+                                    </template>
+                                    <template #footer>
+                                        <TableTotalsBar
+                                            :items="[
+                                                {
+                                                    label: 'Cost',
+                                                    value: currencyFormat.format(
+                                                        groupCostTotal(
+                                                            group.requests,
+                                                        ),
                                                     ),
-                                                ),
-                                            },
-                                        ]"
-                                    />
-                                </template>
-                            </DataTable>
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
+                                                },
+                                            ]"
+                                        />
+                                    </template>
+                                </DataTable>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                    <Card
+                        v-else
+                        class="border-border/70 bg-card shadow-none"
+                    >
+                        <CardContent class="py-12 text-center">
+                            <ClipboardList
+                                class="mx-auto mb-4 h-12 w-12 text-muted-foreground/20"
+                            />
+                            <p class="text-sm font-bold text-muted-foreground">
+                                {{
+                                    section.empty_message ??
+                                    'No maintenance requests found'
+                                }}
+                            </p>
+                            <p class="mt-1 text-xs text-muted-foreground/60">
+                                Try adjusting your filters.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
 
-                <Card v-else class="border-border bg-card shadow-sm">
+                <Card
+                    v-if="sections.length === 0"
+                    class="border-border bg-card shadow-sm"
+                >
                     <CardContent class="py-12 text-center">
                         <ClipboardList
                             class="mx-auto mb-4 h-12 w-12 text-muted-foreground/20"

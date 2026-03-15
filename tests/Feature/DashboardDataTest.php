@@ -125,6 +125,7 @@ test('dashboard shows manager approval stats', function () {
         fn (Assert $page) => $page
             ->where('data.manager.pendingApprovals', 1)
             ->where('data.manager.pendingApprovalCost', 1500)
+            ->where('data.manager.users.0.id', $user->id)
     );
 });
 

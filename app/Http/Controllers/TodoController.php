@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Domains\Todos\DTOs\TodoData;
-
 use App\Domains\Todos\Requests\TodoBulkCompleteRequest;
 use App\Domains\Todos\Requests\TodoRequest;
 use App\Domains\Todos\Services\TodoService;
@@ -37,6 +36,7 @@ class TodoController extends Controller
         $endDateInput = $request->input('end_date');
         $facilityId = $request->input('facility_id');
         $userId = $request->input('user_id');
+        $search = $request->string('search')->trim()->toString();
 
         $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
         $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
@@ -47,7 +47,7 @@ class TodoController extends Controller
             [$startDate, $endDate] = [$endDate, $startDate];
         }
 
-        $facilitiesQuery = Facility::userFacilities(null, $user);
+        $facilitiesQuery = Facility::userFacilities(null, $user)->orderedForDisplay();
         $users = collect();
         if ($canViewAllTodos) {
             $usersQuery = User::query()
@@ -99,6 +99,18 @@ class TodoController extends Controller
             ->whereBetween('week_start', [$startDate, $endDate])
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllTodos && $userId, fn ($query) => $query->where('user_id', $userId))
+            ->when($search !== '', function ($query) use ($search, $canViewAllTodos) {
+                $query->where(function ($builder) use ($search, $canViewAllTodos) {
+                    $builder->where('description', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhereHas('facility', fn ($facilityQuery) => $facilityQuery->where('name', 'like', "%{$search}%"));
+
+                    if ($canViewAllTodos) {
+                        $builder->orWhereHas('facility.manager', fn ($managerQuery) => $managerQuery->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', "%{$search}%"));
+                    }
+                });
+            })
             ->orderByDesc('week_start')
             ->orderByRaw(
                 "CASE status
@@ -134,17 +146,18 @@ class TodoController extends Controller
             ])
             ->values()
             ->all();
-            
+
         return Inertia::render('Todos/Index', [
             'data' => [
                 'groups' => $groups,
                 'weeks_by_year_month' => $weeksByYearMonth,
-                'facilities' => $facilitiesQuery->orderBy('name')->get(),
+                'facilities' => $facilitiesQuery->get(),
                 'show_manager_name' => $canViewAllTodos,
                 'users' => $users,
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
+                    'search' => $search ?: null,
                     'facility_id' => $facilityId,
                     'user_id' => $canViewAllTodos ? $userId : null,
                 ],
@@ -165,9 +178,13 @@ class TodoController extends Controller
     {
         $this->authorize('create', Todo::class);
 
-        $facilities = Facility::userFacilities(null, $request->user())
+        $facilities = ($request->user()->can('maintenance.manage_all') && ! $request->user()->can('users.manage')
+            ? Facility::query()->where('facilities.managed_by', $request->user()->id)
+            : ($request->user()->can('maintenance.manage_all')
+                ? Facility::maintenanceFacilities($request->user())
+                : Facility::userFacilities(null, $request->user())))
             ->with('facilityType:id,name')
-            ->orderBy('name')
+            ->orderedForDisplay()
             ->get(['id', 'name', 'facility_type_id']);
 
         $facilityTypeIds = $facilities
@@ -264,7 +281,7 @@ class TodoController extends Controller
         return Inertia::render('Todos/Edit', [
             'data' => [
                 'todo' => $todo->load('facility'),
-                'facilities' => $facilitiesQuery->orderBy('name')->get(),
+                'facilities' => $facilitiesQuery->get(),
             ],
             'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
             'routes' => [
@@ -286,8 +303,6 @@ class TodoController extends Controller
 
         return redirect()->route('todos.index')->with('success', 'Todo updated.');
     }
-
-
 
     public function complete(Request $request, Todo $todo): RedirectResponse
     {
@@ -331,6 +346,4 @@ class TodoController extends Controller
     {
         return redirect()->route('todos.index', $request->only(['start_date', 'end_date', 'facility_id']));
     }
-
-
 }

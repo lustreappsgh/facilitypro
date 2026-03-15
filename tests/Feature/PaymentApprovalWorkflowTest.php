@@ -12,7 +12,9 @@ test('payment approval marks payment approved and completes pending maintenance'
     $approver = User::factory()->create();
 
     Permission::findOrCreate('payments.approve');
+    Permission::findOrCreate('users.manage');
     $approver->givePermissionTo('payments.approve');
+    $approver->givePermissionTo('users.manage');
 
     $facilityType = FacilityType::create(['name' => 'Campus']);
     $facility = Facility::create([

@@ -2,6 +2,8 @@
 
 namespace App\Domains\Todos\DTOs;
 
+use Carbon\Carbon;
+
 class TodoData
 {
     public function __construct(
@@ -13,10 +15,14 @@ class TodoData
 
     public static function fromRequest(array $data): self
     {
+        $week = isset($data['week']) && $data['week']
+            ? Carbon::parse((string) $data['week'])->startOfWeek(Carbon::MONDAY)->toDateString()
+            : now()->startOfWeek(Carbon::MONDAY)->toDateString();
+
         return new self(
             facility_id: (int) $data['facility_id'],
             description: $data['description'],
-            week: $data['week'] ?? now()->next('Monday')->format('Y-m-d'),
+            week: $week,
             user_id: (int) ($data['user_id'] ?? auth()->id()),
         );
     }

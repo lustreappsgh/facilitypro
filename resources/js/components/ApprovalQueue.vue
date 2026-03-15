@@ -57,6 +57,7 @@ interface RequestType {
 
 interface MaintenanceRequest {
     id: number;
+    priority?: 'low' | 'medium' | 'high' | null;
     facility?: Facility | null;
     requestType?: RequestType | null;
     request_type?: RequestType | null;
@@ -96,6 +97,7 @@ interface Props {
     payments: PaginatedPayments;
     facilities: Facility[];
     filters: Filters;
+    canManageQueue: boolean;
 }
 
 const props = defineProps<Props>();
@@ -136,6 +138,17 @@ const bulkRejectOpen = ref(false);
 const selectedPaymentIds = ref<number[]>([]);
 
 const currencyFormat = createCurrencyFormatter();
+const priorityBadgeClass = (priority?: string | null) => {
+    if (priority === 'high') {
+        return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
+    }
+
+    if (priority === 'medium') {
+        return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
+    }
+
+    return 'bg-slate-500/10 text-slate-700 dark:text-slate-300';
+};
 
 const statusBadgeClass = (status: string) => {
     if (status === 'paid') {
@@ -388,7 +401,7 @@ watch(
         </form>
 
         <div
-            v-if="pendingPaymentIds.length > 0"
+            v-if="canManageQueue && pendingPaymentIds.length > 0"
             class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2"
         >
             <div class="flex items-center gap-3 text-xs text-muted-foreground">
@@ -432,7 +445,7 @@ watch(
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead class="w-10" />
+                        <TableHead v-if="canManageQueue" class="w-10" />
                         <TableHead>Request details</TableHead>
                         <TableHead>Cost</TableHead>
                         <TableHead>Status</TableHead>
@@ -445,7 +458,7 @@ watch(
                         v-for="payment in payments.data"
                         :key="payment.id"
                     >
-                        <TableCell>
+                        <TableCell v-if="canManageQueue">
                             <Checkbox
                                 :model-value="isSelected(payment.id)"
                                 :disabled="payment.status !== 'pending'"
@@ -496,6 +509,23 @@ watch(
                                             ?.name ?? 'No facility linked'
                                     }}
                                 </p>
+                                <div class="pt-1">
+                                    <Badge
+                                        variant="secondary"
+                                        class="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider"
+                                        :class="
+                                            priorityBadgeClass(
+                                                paymentRequest(payment)
+                                                    ?.priority ?? 'medium',
+                                            )
+                                        "
+                                    >
+                                        {{
+                                            paymentRequest(payment)?.priority ??
+                                            'medium'
+                                        }}
+                                    </Badge>
+                                </div>
                             </div>
                             <span v-else>--</span>
                         </TableCell>
@@ -542,7 +572,12 @@ watch(
                                         >View payment</TooltipContent
                                     >
                                 </Tooltip>
-                                <Tooltip v-if="payment.status === 'pending'">
+                                <Tooltip
+                                    v-if="
+                                        canManageQueue &&
+                                        payment.status === 'pending'
+                                    "
+                                >
                                     <TooltipTrigger as-child>
                                         <Button
                                             size="icon"
@@ -557,7 +592,12 @@ watch(
                                         >Approve payment</TooltipContent
                                     >
                                 </Tooltip>
-                                <Tooltip v-if="payment.status === 'pending'">
+                                <Tooltip
+                                    v-if="
+                                        canManageQueue &&
+                                        payment.status === 'pending'
+                                    "
+                                >
                                     <TooltipTrigger as-child>
                                         <Button
                                             size="icon"
@@ -578,7 +618,7 @@ watch(
                     </TableRow>
                     <TableRow v-if="!payments.data.length">
                         <TableCell
-                            colspan="6"
+                            :colspan="canManageQueue ? 6 : 5"
                             class="py-8 text-center text-sm text-muted-foreground"
                         >
                             No payments match these filters.
@@ -588,7 +628,7 @@ watch(
             </Table>
         </div>
 
-        <Dialog v-model:open="approveOpen">
+        <Dialog v-if="canManageQueue" v-model:open="approveOpen">
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Approve payment</DialogTitle>
@@ -625,7 +665,7 @@ watch(
             </DialogContent>
         </Dialog>
 
-        <Dialog v-model:open="bulkApproveOpen">
+        <Dialog v-if="canManageQueue" v-model:open="bulkApproveOpen">
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Approve selected payments</DialogTitle>
@@ -672,7 +712,7 @@ watch(
             </DialogContent>
         </Dialog>
 
-        <Dialog v-model:open="bulkRejectOpen">
+        <Dialog v-if="canManageQueue" v-model:open="bulkRejectOpen">
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Reject selected payments</DialogTitle>
@@ -718,7 +758,7 @@ watch(
             </DialogContent>
         </Dialog>
 
-        <Dialog v-model:open="rejectOpen">
+        <Dialog v-if="canManageQueue" v-model:open="rejectOpen">
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Reject payment</DialogTitle>

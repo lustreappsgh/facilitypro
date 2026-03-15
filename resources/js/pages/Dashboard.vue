@@ -27,6 +27,11 @@ interface MaintenanceManagerData {
     workOrdersInFlight: number;
     workOrdersThisWeek?: number;
     pendingPayments: number;
+    ownRequestSummary?: {
+        total: number;
+        pending: number;
+        rejected: number;
+    };
     users?: {
         id: number;
         name: string;
@@ -78,6 +83,11 @@ interface ManagerData {
         total: number;
         last_7_days: number;
         latest_date?: string | null;
+    };
+    ownRequestSummary?: {
+        total: number;
+        pending: number;
+        rejected: number;
     };
 }
 

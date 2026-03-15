@@ -9,6 +9,7 @@ class MaintenanceRequestData
     public function __construct(
         public int $facility_id,
         public int $request_type_id,
+        public string $priority,
         public ?string $description,
         public ?int $cost,
         public string $week_start,
@@ -30,6 +31,7 @@ class MaintenanceRequestData
         return new self(
             facility_id: (int) $data['facility_id'],
             request_type_id: (int) $data['request_type_id'],
+            priority: (string) ($data['priority'] ?? MaintenanceRequest::PriorityMedium),
             description: $data['description'] ?? null,
             cost: isset($data['cost']) ? (int) $data['cost'] : null,
             week_start: $weekStart,
@@ -44,6 +46,7 @@ class MaintenanceRequestData
         $payload = [
             'facility_id' => $this->facility_id,
             'request_type_id' => $this->request_type_id,
+            'priority' => $this->priority,
             'description' => $this->description,
             'cost' => $this->cost,
             'week_start' => $this->week_start,

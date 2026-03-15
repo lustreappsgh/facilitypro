@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Domains\Roles\Requests;
+namespace App\Domains\Users\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class RoleRequestTypesRequest extends FormRequest
+class ManagerRequestTypePermissionsRequest extends FormRequest
 {
     public function authorize(): bool
     {

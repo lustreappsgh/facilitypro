@@ -94,10 +94,14 @@ class RolesController extends Controller
             'role' => $role->load('permissions'),
             'permissions' => Permission::orderBy('name')->get(['id', 'name']),
             'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
-            'allowedRequestTypeIds' => DB::table('maintenance_request_type_role')
+            'requestTypePermissions' => DB::table('maintenance_request_type_role')
                 ->where('role_id', $role->id)
-                ->pluck('request_type_id')
-                ->map(fn ($id) => (int) $id)
+                ->get(['request_type_id', 'can_approve', 'can_reject'])
+                ->map(fn ($permission) => [
+                    'request_type_id' => (int) $permission->request_type_id,
+                    'can_approve' => (bool) $permission->can_approve,
+                    'can_reject' => (bool) $permission->can_reject,
+                ])
                 ->values(),
             'routes' => [
                 'updateRequestTypes' => route('roles.request-types.update', $role),
@@ -174,10 +178,10 @@ class RolesController extends Controller
             abort(403);
         }
 
-        $requestTypeIds = $request->validated('request_type_ids', []);
+        $requestTypePermissions = $request->validated('request_type_permissions', []);
 
-        $this->updateRoleRequestTypesAction->execute($role, $requestTypeIds);
+        $this->updateRoleRequestTypesAction->execute($role, $requestTypePermissions);
 
-        return back()->with('success', 'Role request types updated.');
+        return back()->with('success', 'Role approval settings updated.');
     }
 }

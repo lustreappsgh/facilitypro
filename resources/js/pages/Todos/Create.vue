@@ -65,16 +65,24 @@ const breadcrumbs: BreadcrumbItem[] = [
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[120px] w-full rounded-md border px-3 py-2';
 
-const getUpcomingMonday = () => {
+const toDateString = (date: Date) => date.toISOString().slice(0, 10);
+
+const getCurrentWeekMonday = () => {
     const date = new Date();
     const day = date.getDay();
-    const diffToNextMonday = (8 - day) % 7 || 7;
-    date.setDate(date.getDate() + diffToNextMonday);
-    return date.toISOString().slice(0, 10);
+    const diffToMonday = (day + 6) % 7;
+    date.setDate(date.getDate() - diffToMonday);
+    return toDateString(date);
 };
 
-const minimumWeekStart = getUpcomingMonday();
-const maximumWeekStart = minimumWeekStart;
+const getNextWeekMonday = () => {
+    const date = new Date(getCurrentWeekMonday());
+    date.setDate(date.getDate() + 7);
+    return toDateString(date);
+};
+
+const minimumWeekStart = getCurrentWeekMonday();
+const maximumWeekStart = getNextWeekMonday();
 
 const hasPrefilledFacilities = computed(
     () =>
@@ -203,7 +211,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             :max="maximumWeekStart"
                         />
                         <p class="text-xs text-muted-foreground">
-                            Todo weeks always start on Monday. The next available week starts on {{ minimumWeekStart }}.
+                            Todo weeks always start on Monday. You can submit for the current week or the upcoming week.
                         </p>
                     </div>
                 </div>

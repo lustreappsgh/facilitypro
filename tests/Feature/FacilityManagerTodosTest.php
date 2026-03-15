@@ -62,12 +62,12 @@ test('facility manager can create bulk todos for assigned facilities', function 
                 [
                     'facility_id' => $facilityA->id,
                     'description' => 'Weekly round check A',
-                    'week' => now()->addWeeks(2)->startOfWeek()->toDateString(),
+                    'week' => now()->addWeek()->startOfWeek()->toDateString(),
                 ],
                 [
                     'facility_id' => $facilityB->id,
                     'description' => 'Weekly round check B',
-                    'week' => now()->addWeeks(2)->startOfWeek()->toDateString(),
+                    'week' => now()->addWeek()->startOfWeek()->toDateString(),
                 ],
             ],
         ])
@@ -75,10 +75,10 @@ test('facility manager can create bulk todos for assigned facilities', function 
 
     expect(Todo::query()->where('user_id', $user->id)->count())->toBe(2);
     expect(Todo::query()->where('facility_id', $facilityA->id)->first()?->week_start?->toDateString())
-        ->toBe(Carbon::parse(now()->addWeeks(2)->startOfWeek()->toDateString())->toDateString());
+        ->toBe(Carbon::parse(now()->addWeek()->startOfWeek()->toDateString())->toDateString());
 });
 
-test('facility manager cannot create todo for the current or previous week', function (string $week) {
+test('facility manager can create todo for the current week', function () {
     Carbon::setTestNow(Carbon::parse('2026-03-07 09:00:00'));
 
     $user = User::factory()->create();
@@ -100,14 +100,43 @@ test('facility manager cannot create todo for the current or previous week', fun
     $response = $this->post(route('todos.store'), [
         'facility_id' => $facility->id,
         'description' => 'Weekly round check',
-        'week' => $week,
+        'week' => '2026-03-04',
+    ]);
+
+    $response->assertRedirect(route('todos.index'));
+    expect(Todo::query()->count())->toBe(1);
+    expect(Todo::query()->first()?->week_start?->toDateString())->toBe('2026-03-02');
+
+    Carbon::setTestNow();
+});
+
+test('facility manager cannot create todo for previous week', function () {
+    Carbon::setTestNow(Carbon::parse('2026-03-07 09:00:00'));
+
+    $user = User::factory()->create();
+    Permission::findOrCreate('todos.create');
+    $user->givePermissionTo('todos.create');
+    $user->assignRole(Role::findOrCreate('Facility Manager'));
+
+    $facilityType = FacilityType::create(['name' => 'Campus']);
+    $facility = Facility::create([
+        'name' => 'Operations Hub',
+        'facility_type_id' => $facilityType->id,
+        'parent_id' => null,
+        'condition' => 'Good',
+        'managed_by' => $user->id,
+    ]);
+
+    $this->actingAs($user);
+
+    $response = $this->post(route('todos.store'), [
+        'facility_id' => $facility->id,
+        'description' => 'Weekly round check',
+        'week' => '2026-02-23',
     ]);
 
     $response->assertSessionHasErrors('week');
     expect(Todo::query()->count())->toBe(0);
 
     Carbon::setTestNow();
-})->with([
-    'current week' => ['2026-03-02'],
-    'previous week' => ['2026-02-23'],
-]);
+});

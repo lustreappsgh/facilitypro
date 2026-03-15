@@ -26,6 +26,7 @@ interface MaintenanceRequest {
     id: number;
     facility_id?: number | null;
     request_type_id?: number | null;
+    priority?: 'low' | 'medium' | 'high' | null;
     description?: string | null;
     cost?: number | null;
     week_start?: string | null;
@@ -35,6 +36,7 @@ interface Props {
     request: MaintenanceRequest;
     facilities: Facility[];
     requestTypes: RequestType[];
+    priorities: Array<'low' | 'medium' | 'high'>;
 }
 
 const props = defineProps<Props>();
@@ -63,6 +65,7 @@ const selectedFacilityId = ref(
 const selectedRequestTypeId = ref(
     props.request.request_type_id ? String(props.request.request_type_id) : '',
 );
+const selectedPriority = ref(props.request.priority ?? 'medium');
 </script>
 
 <template>
@@ -79,6 +82,7 @@ const selectedRequestTypeId = ref(
             >
                 <input type="hidden" name="facility_id" :value="selectedFacilityId" />
                 <input type="hidden" name="request_type_id" :value="selectedRequestTypeId" />
+                <input type="hidden" name="priority" :value="selectedPriority" />
                 <div class="grid gap-2">
                     <Label for="facility_id">Facility</Label>
                     <Select v-model="selectedFacilityId" required>
@@ -115,6 +119,25 @@ const selectedRequestTypeId = ref(
                         </SelectContent>
                     </Select>
                     <InputError :message="errors.request_type_id" />
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="priority">Priority</Label>
+                    <Select v-model="selectedPriority">
+                        <SelectTrigger id="priority" class="w-full">
+                            <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="priority in priorities"
+                                :key="priority"
+                                :value="priority"
+                            >
+                                {{ priority }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <InputError :message="errors.priority" />
                 </div>
 
                 <div class="grid gap-2">

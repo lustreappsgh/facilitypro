@@ -51,52 +51,38 @@ class FacilityController extends Controller
         $search = $request->query('search');
         $condition = $request->query('condition');
         $facilityTypeId = $request->query('facility_type_id');
-        $parentId = $request->query('parent_id');
-        $childrenScope = $request->query('children_scope');
-
         $baseFacilitiesQuery = $canManagePortfolio
             ? Facility::query()
             : Facility::maintenanceFacilities($user);
 
         $facilitiesQuery = (clone $baseFacilitiesQuery)
             ->with(['facilityType', 'manager', 'parent'])
-            ->withCount('children')
-            ->latest();
+            ->withCount('children');
 
         if ($managerId === 'self') {
-            $facilitiesQuery->where('managed_by', $user->id);
+            $facilitiesQuery->where('facilities.managed_by', $user->id);
         } elseif ($managerId === 'unassigned') {
-            $facilitiesQuery->whereNull('managed_by');
+            $facilitiesQuery->whereNull('facilities.managed_by');
         } elseif ($managerId) {
-            $facilitiesQuery->where('managed_by', $managerId);
+            $facilitiesQuery->where('facilities.managed_by', $managerId);
         }
 
         if ($search) {
             $facilitiesQuery->where(function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
+                $query->where('facilities.name', 'like', "%{$search}%")
                     ->orWhereHas('manager', fn ($q) => $q->where('name', 'like', "%{$search}%"))
                     ->orWhereHas('facilityType', fn ($q) => $q->where('name', 'like', "%{$search}%"));
             });
         }
         if ($condition) {
-            $facilitiesQuery->where('condition', $condition);
+            $facilitiesQuery->where('facilities.condition', $condition);
         }
         if ($facilityTypeId) {
-            $facilitiesQuery->where('facility_type_id', $facilityTypeId);
-        }
-        if ($parentId === 'root') {
-            $facilitiesQuery->whereNull('parent_id');
-        } elseif ($parentId) {
-            $facilitiesQuery->where('parent_id', $parentId);
-        }
-        if ($childrenScope === 'with') {
-            $facilitiesQuery->has('children');
-        } elseif ($childrenScope === 'without') {
-            $facilitiesQuery->doesntHave('children');
+            $facilitiesQuery->where('facilities.facility_type_id', $facilityTypeId);
         }
 
         $perPage = max(10, min((int) $request->integer('per_page', 50), 100));
-        $facilities = $facilitiesQuery->paginate($perPage)->withQueryString();
+        $facilities = $facilitiesQuery->orderedForDisplay()->paginate($perPage)->withQueryString();
 
         // Fetch facility managers for the sidebar
         $managersQuery = User::permission('inspections.view')
@@ -155,7 +141,7 @@ class FacilityController extends Controller
                 'facilities' => (clone $formFacilitiesQuery)->orderBy('name')->get(['id', 'name']),
                 'parents' => (clone $baseFacilitiesQuery)
                     ->withCount('children')
-                    ->orderBy('name')
+                    ->orderedForDisplay()
                     ->get(['id', 'name']),
                 'facilityTypes' => FacilityType::orderBy('name')->get(['id', 'name']),
                 'conditions' => collect(Condition::cases())
@@ -314,16 +300,16 @@ class FacilityController extends Controller
 
         if ($search !== '') {
             $facilitiesQuery->where(function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
+                $query->where('facilities.name', 'like', "%{$search}%")
                     ->orWhereHas('manager', fn ($managerQuery) => $managerQuery->where('name', 'like', "%{$search}%"))
                     ->orWhereHas('facilityType', fn ($typeQuery) => $typeQuery->where('name', 'like', "%{$search}%"));
             });
         }
 
         if ($currentManagerId === 'unassigned') {
-            $facilitiesQuery->whereNull('managed_by');
+            $facilitiesQuery->whereNull('facilities.managed_by');
         } elseif ($currentManagerId !== 'all' && $currentManagerId !== null && $currentManagerId !== '') {
-            $facilitiesQuery->where('managed_by', $currentManagerId);
+            $facilitiesQuery->where('facilities.managed_by', $currentManagerId);
         }
 
         return $facilitiesQuery;
@@ -512,6 +498,7 @@ class FacilityController extends Controller
                 'maintenanceRequests as open_maintenance_requests_count' => fn ($query) => $query
                     ->where('status', '!=', 'completed'),
             ])
+            ->orderedForDisplay()
             ->get();
 
         $parentCounts = $facilities->groupBy('parent_id')->map->count();
@@ -605,7 +592,7 @@ class FacilityController extends Controller
             ->with(['facilityType', 'manager', 'parent'])
             ->withCount('children')
             ->when($managerId, fn ($query) => $query->where('managed_by', $managerId))
-            ->orderBy('name')
+            ->orderedForDisplay()
             ->get();
 
         return Inertia::render('Facilities/AdminIndex', [

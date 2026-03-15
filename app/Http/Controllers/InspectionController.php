@@ -36,6 +36,7 @@ class InspectionController extends Controller
         $endDateInput = $request->input('end_date');
         $facilityId = $request->input('facility_id');
         $userId = $request->input('user_id');
+        $search = $request->string('search')->trim()->toString();
 
         $defaultStart = now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString();
         $defaultEnd = now()->endOfWeek(Carbon::SUNDAY)->toDateString();
@@ -46,7 +47,7 @@ class InspectionController extends Controller
             [$startDate, $endDate] = [$endDate, $startDate];
         }
 
-        $facilitiesQuery = Facility::userFacilities(null, $user);
+        $facilitiesQuery = Facility::userFacilities(null, $user)->orderedForDisplay();
         $users = collect();
         if ($canViewAllInspections) {
             $usersQuery = User::query()
@@ -97,6 +98,17 @@ class InspectionController extends Controller
             ->whereBetween('inspection_date', [$startDate, $endDate])
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllInspections && $userId, fn ($query) => $query->where('added_by', $userId))
+            ->when($search !== '', function ($query) use ($search, $canViewAllInspections) {
+                $query->where(function ($builder) use ($search, $canViewAllInspections) {
+                    $builder->where('condition', 'like', "%{$search}%")
+                        ->orWhere('comments', 'like', "%{$search}%")
+                        ->orWhereHas('facility', fn ($facilityQuery) => $facilityQuery->where('name', 'like', "%{$search}%"));
+
+                    if ($canViewAllInspections) {
+                        $builder->orWhereHas('addedBy', fn ($userQuery) => $userQuery->where('name', 'like', "%{$search}%"));
+                    }
+                });
+            })
             ->orderByDesc('inspection_date')
             ->latest()
             ->get();
@@ -127,12 +139,13 @@ class InspectionController extends Controller
             'data' => [
                 'groups' => $groups,
                 'weeks_by_year_month' => $weeksByYearMonth,
-                'facilities' => $facilitiesQuery->orderBy('name')->get(),
+                'facilities' => $facilitiesQuery->get(),
                 'show_inspector' => $canViewAllInspections,
                 'users' => $users,
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
+                    'search' => $search ?: null,
                     'facility_id' => $facilityId,
                     'user_id' => $canViewAllInspections ? $userId : null,
                 ],
@@ -152,9 +165,13 @@ class InspectionController extends Controller
     {
         $this->authorize('create', Inspection::class);
 
-        $facilities = Facility::userFacilities(null, $request->user())
+        $facilities = ($request->user()->can('maintenance.manage_all') && ! $request->user()->can('users.manage')
+            ? Facility::query()->where('facilities.managed_by', $request->user()->id)
+            : ($request->user()->can('maintenance.manage_all')
+                ? Facility::maintenanceFacilities($request->user())
+                : Facility::userFacilities(null, $request->user())))
             ->with('facilityType:id,name')
-            ->orderBy('name')
+            ->orderedForDisplay()
             ->get(['id', 'name', 'facility_type_id']);
 
         $facilityTypeIds = $facilities

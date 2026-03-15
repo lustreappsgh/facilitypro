@@ -38,6 +38,7 @@ interface QueueMaintenanceRequest {
     facility?: string | null;
     request_type?: string | null;
     description?: string | null;
+    priority?: 'low' | 'medium' | 'high' | null;
     cost?: number | null;
     created_at?: string | null;
 }
@@ -65,6 +66,9 @@ interface Props {
         open_requests: number;
         work_orders_in_flight: number;
         pending_payments: number;
+        own_request_total?: number;
+        own_request_pending?: number;
+        own_request_rejected?: number;
     };
     queues: {
         pendingRequests: QueueMaintenanceRequest[];
@@ -89,7 +93,6 @@ const currencyFormat = createCurrencyFormatter();
 
 const pendingPaymentTotal = () =>
     sumByNumber(props.queues.pendingPayments, (payment) => payment.cost);
-
 const overdueWorkOrderColumns: ColumnDef<QueueWorkOrder>[] = [
     {
         id: 'facility',
@@ -234,7 +237,39 @@ const pendingPaymentColumns: ColumnDef<QueuePayment>[] = [
                 </template>
             </PageHeader>
 
-            <div class="grid gap-4 md:grid-cols-3">
+            <div class="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                <Card v-if="metrics.own_request_total !== undefined">
+                    <CardHeader>
+                        <CardDescription>My requests</CardDescription>
+                        <CardTitle class="text-3xl font-semibold">
+                            {{ numberFormat.format(metrics.own_request_total) }}
+                        </CardTitle>
+                    </CardHeader>
+                </Card>
+                <Card v-if="metrics.own_request_pending !== undefined">
+                    <CardHeader>
+                        <CardDescription>My pending</CardDescription>
+                        <CardTitle class="text-3xl font-semibold">
+                            {{
+                                numberFormat.format(
+                                    metrics.own_request_pending,
+                                )
+                            }}
+                        </CardTitle>
+                    </CardHeader>
+                </Card>
+                <Card v-if="metrics.own_request_rejected !== undefined">
+                    <CardHeader>
+                        <CardDescription>My rejected</CardDescription>
+                        <CardTitle class="text-3xl font-semibold">
+                            {{
+                                numberFormat.format(
+                                    metrics.own_request_rejected,
+                                )
+                            }}
+                        </CardTitle>
+                    </CardHeader>
+                </Card>
                 <Card>
                     <CardHeader>
                         <CardDescription

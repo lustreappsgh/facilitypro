@@ -46,10 +46,13 @@ class MaintenanceRequestController extends Controller
         $isFacilityManager = method_exists($user, 'hasRole') && $user->hasRole('Facility Manager');
         $showRequesterName = $canViewAllRequests || $user->can('maintenance_requests.view');
         $showFacilityManagerName = $canViewAllRequests;
+        $splitOwnRequests = ! $user->can('users.manage')
+            && ($user->can('maintenance.manage_all') || $user->can('work_orders.create'));
 
         $startDateInput = $request->input('start_date');
         $endDateInput = $request->input('end_date');
         $userId = $request->input('user_id');
+        $search = $request->string('search')->trim()->toString();
 
         $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
         $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
@@ -112,6 +115,17 @@ class MaintenanceRequestController extends Controller
         $filteredRequests = (clone $baseQuery)
             ->whereBetween('week_start', [$startDate, $endDate])
             ->when($canViewAllRequests && $userId, fn ($query) => $query->where('requested_by', $userId))
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($builder) use ($search) {
+                    $builder->where('description', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhere('priority', 'like', "%{$search}%")
+                        ->orWhereHas('facility', fn ($facilityQuery) => $facilityQuery->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('requestType', fn ($typeQuery) => $typeQuery->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('requestedBy', fn ($userQuery) => $userQuery->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderByRaw(MaintenanceRequest::prioritySortCase())
             ->orderByRaw(
                 "CASE
                     WHEN status = 'pending' AND work_orders_count = 0 THEN 0
@@ -143,7 +157,9 @@ class MaintenanceRequestController extends Controller
                     'id' => $maintenanceRequest->id,
                     'status' => $maintenanceRequest->status,
                     'submission_route' => $maintenanceRequest->submission_route,
+                    'priority' => $maintenanceRequest->priority,
                     'description' => $maintenanceRequest->description,
+                    'rejection_reason' => $maintenanceRequest->rejection_reason,
                     'cost' => $maintenanceRequest->cost,
                     'created_at' => $maintenanceRequest->created_at?->toDateString(),
                     'week_start' => $maintenanceRequest->week_start?->toDateString(),
@@ -157,29 +173,81 @@ class MaintenanceRequestController extends Controller
                     'requested_by_name' => $showRequesterName
                         ? $maintenanceRequest->requestedBy?->name
                         : null,
+                    'requested_by_id' => $showRequesterName
+                        ? $maintenanceRequest->requested_by
+                        : null,
+                    'is_self_request' => (int) $maintenanceRequest->requested_by === (int) $user->id,
                     'request_type_name' => $maintenanceRequest->requestType?->name,
                     'latest_work_order_id' => $maintenanceRequest->workOrders->first()?->id,
                     'has_work_order' => ($maintenanceRequest->work_orders_count ?? 0) > 0,
+                    'can_approve' => $maintenanceRequest->canBeReviewedBy($user, 'approve'),
+                    'can_reject' => $maintenanceRequest->canBeReviewedBy($user, 'reject'),
                 ])->all(),
             ])
             ->values()
             ->all();
 
+        $sections = $splitOwnRequests
+            ? collect([
+                [
+                    'key' => 'own',
+                    'title' => 'My requests',
+                    'description' => 'Requests you submitted directly.',
+                    'groups' => collect($groups)
+                        ->map(fn (array $group) => [
+                            ...$group,
+                            'requests' => collect($group['requests'])
+                                ->filter(fn (array $item) => $item['is_self_request'])
+                                ->values()
+                                ->all(),
+                        ])
+                        ->filter(fn (array $group) => $group['requests'] !== [])
+                        ->values()
+                        ->all(),
+                ],
+                [
+                    'key' => 'team',
+                    'title' => 'Team requests',
+                    'description' => 'Requests submitted by facility managers and direct reports in your scope.',
+                    'groups' => collect($groups)
+                        ->map(fn (array $group) => [
+                            ...$group,
+                            'requests' => collect($group['requests'])
+                                ->reject(fn (array $item) => $item['is_self_request'])
+                                ->values()
+                                ->all(),
+                        ])
+                        ->filter(fn (array $group) => $group['requests'] !== [])
+                        ->values()
+                        ->all(),
+                ],
+            ])->filter(fn (array $section) => $section['groups'] !== [])->values()->all()
+            : [[
+                'key' => 'all',
+                'title' => 'All requests',
+                'description' => 'Requests in your current filter range.',
+                'groups' => $groups,
+            ]];
+
         return Inertia::render('MaintenanceRequests/Index', [
             'data' => [
                 'groups' => $groups,
+                'sections' => $sections,
                 'weeks_by_year_month' => $weeksByYearMonth,
                 'facilities' => [],
                 'show_requester_name' => $showRequesterName,
                 'show_facility_manager_name' => $showFacilityManagerName,
                 'is_facility_manager' => $isFacilityManager,
+                'split_own_requests' => $splitOwnRequests,
                 'users' => $users,
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
+                    'search' => $search ?: null,
                     'facility_id' => null,
                     'user_id' => $canViewAllRequests ? $userId : null,
                 ],
+                'priorities' => MaintenanceRequest::priorities(),
             ],
             'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
             'routes' => [
@@ -265,9 +333,13 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('create', MaintenanceRequest::class);
 
-        $facilities = Facility::userFacilities(null, $request->user())
+        $facilities = ($request->user()->can('maintenance.manage_all') && ! $request->user()->can('users.manage')
+            ? Facility::query()->where('facilities.managed_by', $request->user()->id)
+            : ($request->user()->can('maintenance.manage_all')
+                ? Facility::maintenanceFacilities($request->user())
+                : Facility::userFacilities(null, $request->user())))
             ->with('facilityType:id,name')
-            ->orderBy('name')
+            ->orderedForDisplay()
             ->get(['id', 'name', 'facility_type_id']);
 
         $facilityTypeIds = $facilities
@@ -283,6 +355,7 @@ class MaintenanceRequestController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'requestTypes' => RequestType::all(),
+            'priorities' => MaintenanceRequest::priorities(),
             'selectedFacilityId' => $request->integer('facility_id') ?: null,
         ]);
     }
@@ -370,6 +443,10 @@ class MaintenanceRequestController extends Controller
             'vendors' => Vendor::where('status', 'active')
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'actions' => [
+                'can_approve' => $maintenance->canBeReviewedBy(request()->user(), 'approve'),
+                'can_reject' => $maintenance->canBeReviewedBy(request()->user(), 'reject'),
+            ],
         ]);
     }
 
@@ -379,10 +456,13 @@ class MaintenanceRequestController extends Controller
 
         return Inertia::render('Maintenance/Edit', [
             'request' => $maintenance->load(['facility', 'requestType']),
-            'facilities' => Facility::userFacilities(null, request()->user())
-                ->orderBy('name')
+            'facilities' => (request()->user()->can('maintenance.manage_all')
+                ? Facility::maintenanceFacilities(request()->user())
+                : Facility::userFacilities(null, request()->user()))
+                ->orderedForDisplay()
                 ->get(),
             'requestTypes' => RequestType::all(),
+            'priorities' => MaintenanceRequest::priorities(),
         ]);
     }
 
@@ -472,7 +552,7 @@ class MaintenanceRequestController extends Controller
 
     public function review(MaintenanceRequest $maintenance)
     {
-        $this->authorize('review', $maintenance);
+        $this->authorize('approve', $maintenance);
 
         $isFinalApproval = request()->user()?->can('users.manage') === true;
         $isAdminFastTrack = $isFinalApproval && in_array($maintenance->status, [
@@ -483,7 +563,7 @@ class MaintenanceRequestController extends Controller
 
         if (! $isFinalApproval || $isAdminFastTrack) {
             $validated = request()->validate([
-                'vendor_id' => ['required', 'exists:vendors,id'],
+                'vendor_id' => ['nullable', 'exists:vendors,id'],
                 'estimated_cost' => ['required', 'integer', 'min:0'],
                 'scheduled_date' => ['nullable', 'date'],
             ]);
@@ -556,9 +636,14 @@ class MaintenanceRequestController extends Controller
 
     public function reject(MaintenanceRequest $maintenance)
     {
-        $this->authorize('review', $maintenance);
+        $this->authorize('reject', $maintenance);
+
+        $validated = request()->validate([
+            'rejection_reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
         try {
-            $this->maintenanceService->reject($maintenance);
+            $this->maintenanceService->reject($maintenance, $validated['rejection_reason']);
         } catch (DomainException $exception) {
             return back()->withErrors([
                 'status' => $exception->getMessage(),
@@ -683,7 +768,7 @@ class MaintenanceRequestController extends Controller
             ]),
             'requestTypes' => RequestType::orderBy('name')->get(['id', 'name']),
             'facilities' => Facility::maintenanceFacilities($request->user())
-                ->orderBy('name')
+                ->orderedForDisplay()
                 ->get(['id', 'name']),
             'filters' => [
                 'search' => $search ?: null,

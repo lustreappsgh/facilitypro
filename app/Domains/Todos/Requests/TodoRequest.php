@@ -37,13 +37,10 @@ class TodoRequest extends FormRequest
 
             $selectedWeekStart = Carbon::parse($value)->startOfWeek(Carbon::MONDAY);
             $currentWeekStart = Carbon::now()->startOfWeek(Carbon::MONDAY);
-            $previousWeekStart = Carbon::now()->subWeek()->startOfWeek(Carbon::MONDAY);
+            $nextWeekStart = Carbon::now()->addWeek()->startOfWeek(Carbon::MONDAY);
 
-            if (
-                $selectedWeekStart->equalTo($currentWeekStart)
-                || $selectedWeekStart->equalTo($previousWeekStart)
-            ) {
-                $fail('Todos can only be created for weeks after the current week.');
+            if ($selectedWeekStart->lt($currentWeekStart) || $selectedWeekStart->gt($nextWeekStart)) {
+                $fail('Todos can only be created for the current week or next week.');
             }
         };
     }

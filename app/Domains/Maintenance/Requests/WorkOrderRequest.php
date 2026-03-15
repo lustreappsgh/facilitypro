@@ -9,7 +9,7 @@ class WorkOrderRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; 
+        return true;
     }
 
     public function rules(): array
@@ -20,7 +20,7 @@ class WorkOrderRequest extends FormRequest
                 'exists:maintenance_requests,id',
             ],
             'vendor_id' => [
-                Rule::requiredIf($this->isMethod('post')),
+                'nullable',
                 'exists:vendors,id',
             ],
             'scheduled_date' => ['nullable', 'date'],

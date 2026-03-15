@@ -6,8 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/AuthLayout.vue';
-import { login } from '@/routes';
-import { store } from '@/routes/register';
 import { Form, Head } from '@inertiajs/vue3';
 </script>
 
@@ -19,7 +17,8 @@ import { Form, Head } from '@inertiajs/vue3';
         <Head title="Register" />
 
         <Form
-            v-bind="store.form()"
+            action="/register"
+            method="post"
             :reset-on-success="['password', 'password_confirmation']"
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"
@@ -97,7 +96,7 @@ import { Form, Head } from '@inertiajs/vue3';
             <div class="text-center text-sm text-muted-foreground">
                 Already have an account?
                 <TextLink
-                    :href="login()"
+                    href="/login"
                     class="underline underline-offset-4"
                     :tabindex="6"
                     >Log in</TextLink

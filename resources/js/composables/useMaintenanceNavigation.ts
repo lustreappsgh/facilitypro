@@ -40,7 +40,7 @@ export function useMaintenanceNavigation() {
             title: 'Approval Queue',
             href: '/payment-approvals',
             icon: CreditCard,
-            permissions: ['payments.approve', 'payments.reject'],
+            permission: 'payments.view',
         },
     ];
 

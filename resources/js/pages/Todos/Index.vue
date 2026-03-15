@@ -6,13 +6,14 @@ import StatsCard from '@/components/StatsCard.vue';
 import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { complete, create as todosCreate, edit, index as todosIndex } from '@/routes/todos';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { usePermissions } from '@/composables/usePermissions';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { computed, h, ref } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 import { useDateFormat } from '@/composables/useDateFormat';
 import { AlertTriangle, Check, CheckCircle2, ClipboardCheck, ClipboardList, Pencil, Plus, TrendingUp } from 'lucide-vue-next';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -69,6 +70,7 @@ interface Props {
         filters: {
             start_date: string;
             end_date: string;
+            search?: string | null;
             facility_id: string | null;
             user_id?: string | null;
         };
@@ -93,9 +95,11 @@ const { can } = usePermissions();
 
 const filterStartDate = ref(props.data.filters.start_date || '');
 const filterEndDate = ref(props.data.filters.end_date || '');
+const searchFilter = ref(props.data.filters.search ?? '');
 const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
 const filterUserId = ref(props.data.filters.user_id ? String(props.data.filters.user_id) : 'all');
 const selectedTodoIds = ref<number[]>([]);
+let searchDebounceTimer: number | null = null;
 
 const allTodos = computed(() => props.data.groups.flatMap((group) => group.todos));
 const completableTodoIds = computed(() =>
@@ -139,6 +143,7 @@ const applyFilters = () => {
         {
             start_date: filterStartDate.value || undefined,
             end_date: filterEndDate.value || undefined,
+            search: searchFilter.value || undefined,
             facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
             user_id: filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
@@ -147,10 +152,26 @@ const applyFilters = () => {
 };
 
 const clearFilters = () => {
+    filterStartDate.value = '';
+    filterEndDate.value = '';
+    searchFilter.value = '';
+    filterFacilityId.value = 'all';
+    filterUserId.value = 'all';
+
     router.get(todosIndex().url, {}, { preserveState: true, preserveScroll: true });
 };
 
 const dateRangeLabel = computed(() => `${filterStartDate.value} to ${filterEndDate.value}`);
+
+watch(searchFilter, () => {
+    if (searchDebounceTimer !== null) {
+        window.clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = window.setTimeout(() => {
+        applyFilters();
+    }, 350);
+});
 
 const toggleTodoSelection = (todoId: number, checked: boolean) => {
     if (checked) {
@@ -356,8 +377,13 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
             </div>
 
             <div class="rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur">
-                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_auto] lg:items-end">
-                    <div class="grid gap-2 sm:grid-cols-2">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_220px_auto] lg:items-end">
+                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_repeat(2,minmax(0,220px))]">
+                        <Input
+                            v-model="searchFilter"
+                            class="h-9 w-full"
+                            placeholder="Search todo, facility, manager"
+                        />
                         <DatePicker
                             v-model="filterStartDate"
                             class="h-9 w-full"

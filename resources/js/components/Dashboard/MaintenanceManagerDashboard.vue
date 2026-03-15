@@ -13,7 +13,7 @@ import { index as paymentsIndex } from '@/routes/payments';
 import { index as workOrdersIndex, create as workOrdersCreate } from '@/routes/work-orders';
 import { index as vendorsIndex } from '@/routes/vendors';
 import { Link } from '@inertiajs/vue3';
-import { ClipboardCheck, CreditCard, Hammer, Wrench } from 'lucide-vue-next';
+import { AlertTriangle, ClipboardCheck, CreditCard, Hammer, Wrench } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Props {
@@ -24,6 +24,11 @@ interface Props {
         workOrdersInFlight: number;
         workOrdersThisWeek?: number;
         pendingPayments: number;
+        ownRequestSummary?: {
+            total: number;
+            pending: number;
+            rejected: number;
+        };
         users?: {
             id: number;
             name: string;
@@ -42,6 +47,14 @@ interface Props {
 const props = defineProps<Props>();
 const { getInitials } = useInitials();
 const users = computed(() => props.data.users ?? []);
+const ownRequestSummary = computed(
+    () =>
+        props.data.ownRequestSummary ?? {
+            total: 0,
+            pending: 0,
+            rejected: 0,
+        },
+);
 </script>
 
 <template>
@@ -104,6 +117,22 @@ const users = computed(() => props.data.users ?? []);
         </Card>
 
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <StatsCard
+                v-if="props.data.ownRequestSummary"
+                title="My Requests"
+                :value="ownRequestSummary.total"
+                :icon="ClipboardCheck"
+                accent-color="amber"
+                :description="`Pending: ${ownRequestSummary.pending}`"
+            />
+            <StatsCard
+                v-if="props.data.ownRequestSummary"
+                title="My Rejected"
+                :value="ownRequestSummary.rejected"
+                :icon="AlertTriangle"
+                accent-color="rose"
+                description="Needs follow-up"
+            />
             <StatsCard
                 title="Requests This Week"
                 :value="props.data.requestsThisWeek ?? 0"
