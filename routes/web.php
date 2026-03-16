@@ -210,6 +210,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('todos/{todo}/complete', [TodoController::class, 'complete'])->name('todos.complete');
     Route::post('todos/bulk-complete', [TodoController::class, 'bulkComplete'])->name('todos.bulk-complete');
 
+    Route::get('notifications/inbox', [NotificationController::class, 'inbox'])->name('notifications.inbox');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])
         ->name('notifications.read');

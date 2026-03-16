@@ -6,6 +6,7 @@ use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Domains\Maintenance\DTOs\WorkOrderData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Domains\Payments\DTOs\PaymentData;
 use App\Domains\Payments\Services\PaymentService;
 use App\Enums\MaintenanceStatus;
@@ -19,7 +20,8 @@ class CreateWorkOrderAction
 
     public function __construct(
         protected RecordAuditLogAction $recordAuditLogAction,
-        protected PaymentService $paymentService
+        protected PaymentService $paymentService,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(WorkOrderData $data): WorkOrder
@@ -76,6 +78,8 @@ class CreateWorkOrderAction
             before: null,
             after: $workOrder->getAttributes(),
         ));
+
+        $this->operationalNotificationService->workOrderCreated($workOrder);
 
         return $workOrder;
     }

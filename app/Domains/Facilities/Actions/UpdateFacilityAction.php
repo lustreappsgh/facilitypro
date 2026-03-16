@@ -6,6 +6,7 @@ use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Domains\Facilities\DTOs\FacilityData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Models\Facility;
 use DomainException;
 
@@ -14,7 +15,8 @@ class UpdateFacilityAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(Facility $facility, FacilityData $data): Facility
@@ -35,6 +37,13 @@ class UpdateFacilityAction
             before: $before,
             after: $facility->getAttributes(),
         ));
+
+        if (($before['managed_by'] ?? null) !== $facility->managed_by) {
+            $this->operationalNotificationService->facilityManagerChanged(
+                $facility,
+                isset($before['managed_by']) ? (int) $before['managed_by'] : null,
+            );
+        }
 
         if ($before['parent_id'] !== $facility->parent_id) {
             $this->recordAuditLogAction->execute(new AuditLogData(

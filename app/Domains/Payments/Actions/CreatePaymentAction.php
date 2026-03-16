@@ -5,6 +5,7 @@ namespace App\Domains\Payments\Actions;
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Domains\Payments\DTOs\PaymentData;
 use App\Models\Payment;
 
@@ -13,7 +14,8 @@ class CreatePaymentAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(PaymentData $data): Payment
@@ -28,6 +30,8 @@ class CreatePaymentAction
             before: null,
             after: $payment->getAttributes(),
         ));
+
+        $this->operationalNotificationService->paymentCreated($payment);
 
         return $payment;
     }

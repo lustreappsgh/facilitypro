@@ -47,12 +47,12 @@ export function useNotifications() {
         unreadCount.value = data.unread_count ?? 0;
     };
 
-    const markRead = async (notificationId: string) => {
+    const markRead = async (notificationId: string): Promise<AppNotification | null> => {
         const response = await postJson(
             `/notifications/${notificationId}/read`,
         );
         if (!response.ok) {
-            return;
+            return null;
         }
 
         const data = await response.json();
@@ -60,7 +60,7 @@ export function useNotifications() {
 
         const updated = data.notification as AppNotification | undefined;
         if (!updated) {
-            return;
+            return null;
         }
 
         const index = notifications.value.findIndex(
@@ -71,12 +71,14 @@ export function useNotifications() {
         } else {
             notifications.value.unshift(updated);
         }
+
+        return updated;
     };
 
-    const markAllRead = async () => {
+    const markAllRead = async (): Promise<boolean> => {
         const response = await postJson('/notifications/read-all');
         if (!response.ok) {
-            return;
+            return false;
         }
 
         unreadCount.value = 0;
@@ -84,6 +86,8 @@ export function useNotifications() {
             ...item,
             read_at: item.read_at ?? new Date().toISOString(),
         }));
+
+        return true;
     };
 
     const subscribe = () => {

@@ -5,6 +5,7 @@ namespace App\Domains\Todos\Actions;
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Enums\TodoStatus;
 use App\Models\Todo;
 use RuntimeException;
@@ -14,7 +15,8 @@ class CompleteTodoAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(Todo $todo): Todo
@@ -40,6 +42,8 @@ class CompleteTodoAction
             before: $before,
             after: $todo->getAttributes(),
         ));
+
+        $this->operationalNotificationService->todoCompleted($todo);
 
         return $todo;
     }

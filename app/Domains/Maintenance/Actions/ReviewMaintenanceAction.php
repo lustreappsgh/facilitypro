@@ -5,8 +5,7 @@ namespace App\Domains\Maintenance\Actions;
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
-use App\Domains\Notifications\Actions\SendUserNotificationAction;
-use App\Domains\Notifications\DTOs\UserNotificationData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\WorkOrder;
@@ -18,7 +17,7 @@ class ReviewMaintenanceAction
 
     public function __construct(
         protected RecordAuditLogAction $recordAuditLogAction,
-        protected SendUserNotificationAction $sendUserNotificationAction
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(MaintenanceRequest $request): MaintenanceRequest
@@ -64,21 +63,7 @@ class ReviewMaintenanceAction
             after: $request->getAttributes(),
         ));
 
-        $this->sendUserNotificationAction->execute(new UserNotificationData(
-            user_id: (int) $request->requested_by,
-            event: $isFinalApprover
-                ? 'maintenance_request.final_approved'
-                : 'maintenance_request.approved',
-            title: $isFinalApprover
-                ? 'Maintenance request approved'
-                : 'Maintenance request approved by maintenance',
-            body: 'Request #'.$request->id.' is now '.$request->status.'.',
-            action_url: route('maintenance.show', $request),
-            meta: [
-                'maintenance_request_id' => $request->id,
-                'status' => $request->status,
-            ],
-        ));
+        $this->operationalNotificationService->maintenanceRequestApproved($request);
 
         return $request;
     }

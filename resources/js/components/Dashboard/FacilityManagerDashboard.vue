@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
+import NotificationHighlights from '@/components/Dashboard/NotificationHighlights.vue';
 import StatsCard from '@/components/StatsCard.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { my as facilitiesMy } from '@/routes/facilities';
@@ -18,6 +19,17 @@ interface Props {
         todosThisWeek?: number;
         pendingTodos?: number;
         pendingRequests?: number;
+        notifications?: {
+            unread_count: number;
+            items: {
+                id: string;
+                title: string | null;
+                body: string | null;
+                category: string | null;
+                severity: string | null;
+                action_url?: string | null;
+            }[];
+        };
     };
 }
 
@@ -84,5 +96,10 @@ const props = defineProps<Props>();
                 </div>
             </CardContent>
         </Card>
+
+        <NotificationHighlights
+            :unread-count="props.data.notifications?.unread_count ?? 0"
+            :items="props.data.notifications?.items ?? []"
+        />
     </div>
 </template>

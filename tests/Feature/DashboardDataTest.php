@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Notifications\Actions\SendUserNotificationAction;
+use App\Domains\Notifications\DTOs\UserNotificationData;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Inspection;
@@ -77,6 +79,41 @@ test('dashboard shows facility manager stats', function () {
             ->where('data.facilityManager.openMaintenanceRequests', 1)
             ->where('data.facilityManager.facilitiesManaged', 1)
     );
+});
+
+test('dashboard includes high priority unread notifications', function () {
+    $user = dashboardUserWithPermissions([
+        'inspections.create',
+        'facilities.view',
+        'maintenance.view',
+    ]);
+
+    $this->actingAs($user);
+
+    app(SendUserNotificationAction::class)->execute(new UserNotificationData(
+        user_id: $user->id,
+        event: 'payment.created',
+        title: 'Approval needed',
+        body: 'Payment is waiting for review.',
+        category: 'payments',
+        severity: UserNotificationData::SeverityWarning,
+    ));
+
+    app(SendUserNotificationAction::class)->execute(new UserNotificationData(
+        user_id: $user->id,
+        event: 'todo.created',
+        title: 'Routine update',
+        body: 'Todo added.',
+        category: 'todos',
+        severity: UserNotificationData::SeverityInfo,
+    ));
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('data.facilityManager.notifications.unread_count', 2)
+            ->has('data.facilityManager.notifications.items', 1)
+            ->where('data.facilityManager.notifications.items.0.category', 'payments')
+            ->where('data.facilityManager.notifications.items.0.severity', 'warning'));
 });
 
 test('dashboard shows manager approval stats', function () {

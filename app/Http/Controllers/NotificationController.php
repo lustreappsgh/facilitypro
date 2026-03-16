@@ -11,10 +11,23 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class NotificationController extends Controller
 {
     use AuthorizesRequests;
+
+    protected const Categories = [
+        'maintenance',
+        'work_orders',
+        'payments',
+        'todos',
+        'inspections',
+        'facilities',
+        'users',
+        'system',
+    ];
 
     public function __construct(
         protected MarkNotificationReadAction $markNotificationReadAction,
@@ -36,6 +49,35 @@ class NotificationController extends Controller
         return response()->json([
             'notifications' => $notifications,
             'unread_count' => $user->unreadNotifications()->count(),
+        ]);
+    }
+
+    public function inbox(Request $request): Response
+    {
+        $this->authorize('viewAny', Notification::class);
+
+        $category = $request->string('category')->trim()->toString();
+        $showUnreadOnly = $request->boolean('unread');
+
+        $notifications = $request->user()->notifications()
+            ->when($showUnreadOnly, fn ($query) => $query->whereNull('read_at'))
+            ->when(
+                $category !== '',
+                fn ($query) => $query->where('data->category', $category)
+            )
+            ->latest()
+            ->paginate(20)
+            ->through(fn (Notification $notification) => $this->serializeNotification($notification))
+            ->withQueryString();
+
+        return Inertia::render('Notifications/Index', [
+            'notifications' => $notifications,
+            'unreadCount' => $request->user()->unreadNotifications()->count(),
+            'filters' => [
+                'category' => $category ?: null,
+                'unread' => $showUnreadOnly,
+            ],
+            'categories' => self::Categories,
         ]);
     }
 
@@ -68,10 +110,20 @@ class NotificationController extends Controller
 
     protected function serializeNotification(Notification $notification): array
     {
+        $data = is_array($notification->data) ? $notification->data : [];
+
         return [
             'id' => $notification->id,
             'type' => $notification->type,
-            'data' => $notification->data,
+            'data' => array_merge([
+                'event' => null,
+                'title' => null,
+                'body' => null,
+                'action_url' => null,
+                'meta' => [],
+                'category' => 'system',
+                'severity' => 'info',
+            ], $data),
             'read_at' => $notification->read_at?->toIso8601String(),
             'created_at' => Carbon::parse($notification->created_at)->toIso8601String(),
         ];

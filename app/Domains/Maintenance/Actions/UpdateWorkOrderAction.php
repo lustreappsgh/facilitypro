@@ -5,6 +5,7 @@ namespace App\Domains\Maintenance\Actions;
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\WorkOrder;
@@ -15,7 +16,8 @@ class UpdateWorkOrderAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(WorkOrder $workOrder, array $attributes): WorkOrder
@@ -46,6 +48,8 @@ class UpdateWorkOrderAction
             $before['status'] ?? null,
             $workOrder->status
         );
+
+        $this->operationalNotificationService->workOrderUpdated($workOrder);
 
         return $workOrder;
     }

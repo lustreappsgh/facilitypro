@@ -5,6 +5,7 @@ namespace App\Domains\Users\Actions;
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Domains\Users\DTOs\ManagerAccessData;
 use App\Models\User;
 use Illuminate\Support\Arr;
@@ -14,7 +15,8 @@ class GrantMaintenanceManagerAccessAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(ManagerAccessData $data): User
@@ -44,6 +46,8 @@ class GrantMaintenanceManagerAccessAction
             before: $before,
             after: $after,
         ));
+
+        $this->operationalNotificationService->managerAccessGranted($manager);
 
         return $manager;
     }

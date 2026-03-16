@@ -1,9 +1,11 @@
 export interface NotificationPayload {
-    event: string;
-    title: string;
-    body: string;
+    event: string | null;
+    title: string | null;
+    body: string | null;
     action_url?: string | null;
     meta?: Record<string, unknown>;
+    category?: string | null;
+    severity?: string | null;
 }
 
 export interface AppNotification {

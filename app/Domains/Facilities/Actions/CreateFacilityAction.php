@@ -6,6 +6,7 @@ use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Domains\Facilities\DTOs\FacilityData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Models\Facility;
 
 class CreateFacilityAction
@@ -13,7 +14,8 @@ class CreateFacilityAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(FacilityData $data): Facility
@@ -28,6 +30,8 @@ class CreateFacilityAction
             before: null,
             after: $facility->getAttributes(),
         ));
+
+        $this->operationalNotificationService->facilityCreated($facility);
 
         return $facility;
     }

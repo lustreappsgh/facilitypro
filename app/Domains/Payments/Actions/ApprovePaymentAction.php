@@ -4,6 +4,7 @@ namespace App\Domains\Payments\Actions;
 
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Enums\MaintenanceStatus;
 use App\Models\Payment;
 use App\Models\PaymentApproval;
@@ -13,7 +14,8 @@ use DomainException;
 class ApprovePaymentAction
 {
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(Payment $payment, int $userId, ?string $comments = null): Payment
@@ -79,6 +81,8 @@ class ApprovePaymentAction
             before: $before,
             after: $payment->getAttributes(),
         ));
+
+        $this->operationalNotificationService->paymentApproved($payment);
 
         return $payment;
     }

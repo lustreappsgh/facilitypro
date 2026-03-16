@@ -10,6 +10,19 @@ import MaintenanceManagerDashboard from '@/components/Dashboard/MaintenanceManag
 import FacilityManagerDashboard from '@/components/Dashboard/FacilityManagerDashboard.vue';
 import { HeadsetIcon } from 'lucide-vue-next';
 
+interface NotificationHighlightsData {
+    unread_count: number;
+    items: {
+        id: string;
+        title: string | null;
+        body: string | null;
+        category: string | null;
+        severity: string | null;
+        action_url?: string | null;
+        created_at?: string | null;
+    }[];
+}
+
 interface FacilityManagerData {
     inspectionsSubmitted: number;
     openMaintenanceRequests: number;
@@ -18,6 +31,7 @@ interface FacilityManagerData {
     todosThisWeek?: number;
     pendingTodos?: number;
     pendingRequests?: number;
+    notifications?: NotificationHighlightsData;
 }
 
 interface MaintenanceManagerData {
@@ -32,6 +46,7 @@ interface MaintenanceManagerData {
         pending: number;
         rejected: number;
     };
+    notifications?: NotificationHighlightsData;
     users?: {
         id: number;
         name: string;
@@ -89,6 +104,7 @@ interface ManagerData {
         pending: number;
         rejected: number;
     };
+    notifications?: NotificationHighlightsData;
 }
 
 interface AdminData {
@@ -114,7 +130,8 @@ interface AdminData {
         overdueWorkOrders: number;
         staleMaintenanceRequests: number;
         staleThresholdDays: number;
-    };
+        };
+        notifications?: NotificationHighlightsData;
         users: {
             id: number;
             name: string;

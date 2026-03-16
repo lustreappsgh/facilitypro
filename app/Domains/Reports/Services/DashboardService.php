@@ -8,6 +8,7 @@ use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\Inspection;
 use App\Models\MaintenanceRequest;
+use App\Models\Notification;
 use App\Models\Payment;
 use App\Models\RequestType;
 use App\Models\Todo;
@@ -47,6 +48,7 @@ class DashboardService
                 'pendingRequests' => MaintenanceRequest::maintenanceScope($user)
                     ->whereIn('status', MaintenanceStatus::approvalQueue())
                     ->count(),
+                'notifications' => $this->notificationHighlights($user),
             ];
         }
 
@@ -83,6 +85,7 @@ class DashboardService
                     'rejected' => (clone $ownRequests)->where('status', MaintenanceStatus::Rejected->value)->count(),
                 ],
                 'users' => $user->can('users.manage') ? [] : $this->maintenanceManagerUserCards(),
+                'notifications' => $this->notificationHighlights($user),
             ];
         }
 
@@ -130,6 +133,7 @@ class DashboardService
                 'users' => $user->can('users.manage') ? [] : $this->userCardsForManager($user),
                 'todoSummary' => $todoSummary,
                 'inspectionSummary' => $inspectionSummary,
+                'notifications' => $this->notificationHighlights($user),
             ];
         }
 
@@ -182,6 +186,7 @@ class DashboardService
                 ],
                 'facilityManagers' => $facilityManagers,
                 'users' => $userCards,
+                'notifications' => $this->notificationHighlights($user),
             ];
         }
 
@@ -195,10 +200,7 @@ class DashboardService
             ->role('Facility Manager')
             ->withCount('facilities')
             ->get(['id', 'name', 'email', 'profile_photo_path', 'is_active'])
-            ->sortBy(fn (User $user) => [
-                $user->id === $manager->id ? 0 : 1,
-                $user->name,
-            ])
+            ->sortBy(fn (User $user) => $user->name)
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -364,6 +366,33 @@ class DashboardService
                 ->whereDate('inspection_date', '>=', Carbon::now()->subDays(7))
                 ->count(),
             'latest_date' => $latest?->inspection_date?->toDateString(),
+        ];
+    }
+
+    protected function notificationHighlights(User $user): array
+    {
+        $unreadQuery = $user->unreadNotifications();
+
+        $highPriority = (clone $unreadQuery)
+            ->whereIn('data->severity', ['warning', 'danger'])
+            ->latest()
+            ->limit(4)
+            ->get()
+            ->map(fn (Notification $notification) => [
+                'id' => $notification->id,
+                'title' => $notification->data['title'] ?? null,
+                'body' => $notification->data['body'] ?? null,
+                'category' => $notification->data['category'] ?? 'system',
+                'severity' => $notification->data['severity'] ?? 'info',
+                'action_url' => $notification->data['action_url'] ?? null,
+                'created_at' => $notification->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'unread_count' => $user->unreadNotifications()->count(),
+            'items' => $highPriority,
         ];
     }
 }

@@ -125,6 +125,15 @@ onMounted(async () => {
                     </div>
                 </DropdownMenuItem>
             </div>
+            <DropdownMenuSeparator />
+            <div class="px-4 py-3">
+                <Link
+                    href="/notifications/inbox"
+                    class="inline-flex text-xs font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                    View all notifications
+                </Link>
+            </div>
         </DropdownMenuContent>
     </DropdownMenu>
 </template>

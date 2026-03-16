@@ -8,6 +8,7 @@ use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Domains\Inspections\DTOs\InspectionData;
 use App\Domains\Maintenance\Actions\CreateMaintenanceRequestAction;
 use App\Domains\Maintenance\DTOs\MaintenanceRequestData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Models\Facility;
 use App\Models\Inspection;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -19,6 +20,7 @@ class CreateInspectionAction
     public function __construct(
         protected CreateMaintenanceRequestAction $createMaintenanceRequestAction,
         protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService,
     ) {}
 
     public function execute(InspectionData $data): Inspection
@@ -45,16 +47,18 @@ class CreateInspectionAction
             after: $inspection->getAttributes(),
         ));
 
+        $this->operationalNotificationService->inspectionCreated($inspection);
+
         if ($data->condition !== 'Good' && $data->maintenance_request_type_id) {
-             $maintenanceData = new MaintenanceRequestData(
-                 facility_id: $data->facility_id,
-                 request_type_id: $data->maintenance_request_type_id,
-                 description: "Generated from Inspection #{$inspection->id}: " . ($data->comments ?? 'Issue found'),
-                 status: 'pending',
-                 cost: null,
-                 requested_by: $data->added_by,
-             );
-             $this->createMaintenanceRequestAction->execute($maintenanceData);
+            $maintenanceData = new MaintenanceRequestData(
+                facility_id: $data->facility_id,
+                request_type_id: $data->maintenance_request_type_id,
+                description: "Generated from Inspection #{$inspection->id}: ".($data->comments ?? 'Issue found'),
+                status: 'pending',
+                cost: null,
+                requested_by: $data->added_by,
+            );
+            $this->createMaintenanceRequestAction->execute($maintenanceData);
         }
 
         return $inspection;

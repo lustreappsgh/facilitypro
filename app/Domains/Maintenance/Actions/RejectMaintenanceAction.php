@@ -5,8 +5,7 @@ namespace App\Domains\Maintenance\Actions;
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
-use App\Domains\Notifications\Actions\SendUserNotificationAction;
-use App\Domains\Notifications\DTOs\UserNotificationData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use DomainException;
@@ -17,7 +16,7 @@ class RejectMaintenanceAction
 
     public function __construct(
         protected RecordAuditLogAction $recordAuditLogAction,
-        protected SendUserNotificationAction $sendUserNotificationAction
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(MaintenanceRequest $request, string $reason): MaintenanceRequest
@@ -67,20 +66,7 @@ class RejectMaintenanceAction
             after: $request->getAttributes(),
         ));
 
-        $this->sendUserNotificationAction->execute(new UserNotificationData(
-            user_id: (int) $request->requested_by,
-            event: $isFinalApprover
-                ? 'maintenance_request.final_rejected'
-                : 'maintenance_request.rejected',
-            title: 'Maintenance request rejected',
-            body: 'Request #'.$request->id.' was rejected. Reason: '.$reason,
-            action_url: route('maintenance.show', $request),
-            meta: [
-                'maintenance_request_id' => $request->id,
-                'status' => $request->status,
-                'rejection_reason' => $reason,
-            ],
-        ));
+        $this->operationalNotificationService->maintenanceRequestRejected($request, $reason);
 
         return $request;
     }

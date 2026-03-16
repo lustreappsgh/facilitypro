@@ -6,6 +6,7 @@ use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
 use App\Domains\AuditLogs\Traits\ResolvesAuditActor;
 use App\Domains\Maintenance\DTOs\MaintenanceRequestData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\MaintenanceRequest;
@@ -16,7 +17,8 @@ class CreateMaintenanceRequestAction
     use ResolvesAuditActor;
 
     public function __construct(
-        protected RecordAuditLogAction $recordAuditLogAction
+        protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService
     ) {}
 
     public function execute(MaintenanceRequestData $data): MaintenanceRequest
@@ -42,6 +44,8 @@ class CreateMaintenanceRequestAction
             before: null,
             after: $request->getAttributes(),
         ));
+
+        $this->operationalNotificationService->maintenanceRequestCreated($request);
 
         return $request;
     }

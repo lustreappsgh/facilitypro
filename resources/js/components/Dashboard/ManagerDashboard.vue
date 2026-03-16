@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import StatsCard from '@/components/StatsCard.vue';
+import NotificationHighlights from '@/components/Dashboard/NotificationHighlights.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,17 @@ interface Props {
             total: number;
             pending: number;
             rejected: number;
+        };
+        notifications?: {
+            unread_count: number;
+            items: {
+                id: string;
+                title: string | null;
+                body: string | null;
+                category: string | null;
+                severity: string | null;
+                action_url?: string | null;
+            }[];
         };
     };
     permissions?: string[];
@@ -431,5 +443,10 @@ const actionCenterItems = computed(() => {
                 </div>
             </CardContent>
         </Card>
+
+        <NotificationHighlights
+            :unread-count="props.data.notifications?.unread_count ?? 0"
+            :items="props.data.notifications?.items ?? []"
+        />
     </div>
 </template>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domains\AuditLogs\Actions\RecordAuditLogAction;
 use App\Domains\AuditLogs\DTOs\AuditLogData;
+use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Domains\Users\Actions\CreateUserAction;
 use App\Domains\Users\Actions\GrantMaintenanceManagerAccessAction;
 use App\Domains\Users\Actions\RevokeMaintenanceManagerAccessAction;
@@ -39,6 +40,7 @@ class UsersController extends Controller
         protected CreateUserAction $createUserAction,
         protected UpdateUserAction $updateUserAction,
         protected RecordAuditLogAction $recordAuditLogAction,
+        protected OperationalNotificationService $operationalNotificationService,
         protected GrantMaintenanceManagerAccessAction $grantMaintenanceManagerAccessAction,
         protected RevokeMaintenanceManagerAccessAction $revokeMaintenanceManagerAccessAction,
         protected UpdateManagerReportsAction $updateManagerReportsAction,
@@ -437,6 +439,10 @@ class UsersController extends Controller
                 before: $before,
                 after: $user->getAttributes(),
             ));
+
+            if ($isActive) {
+                $this->operationalNotificationService->userActivated($user);
+            }
         }
 
         $label = $isActive ? 'activated' : 'deactivated';
