@@ -223,7 +223,9 @@ class PaymentController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
-            'canManageQueue' => $user->can('users.manage'),
+            'canManageQueue' => $user->can('users.manage')
+                || $user->can('payments.approve')
+                || $user->can('payments.reject'),
             'routes' => [
                 'index' => route('payments.index'),
             ],
@@ -252,7 +254,6 @@ class PaymentController extends Controller
 
     public function approve(ApprovePaymentRequest $request, Payment $payment)
     {
-        abort_unless($request->user()->can('users.manage'), 403);
         $this->authorize('approve', $payment);
 
         try {
@@ -272,7 +273,6 @@ class PaymentController extends Controller
 
     public function reject(RejectPaymentRequest $request, Payment $payment)
     {
-        abort_unless($request->user()->can('users.manage'), 403);
         $this->authorize('reject', $payment);
 
         try {
@@ -292,7 +292,6 @@ class PaymentController extends Controller
 
     public function bulkApprove(BulkApprovePaymentsRequest $request)
     {
-        abort_unless($request->user()->can('users.manage'), 403);
         $paymentIds = $request->validated('payment_ids', []);
         $comments = $request->validated('comments');
         $actorId = $request->user()->id;
@@ -330,7 +329,6 @@ class PaymentController extends Controller
 
     public function bulkReject(BulkRejectPaymentsRequest $request)
     {
-        abort_unless($request->user()->can('users.manage'), 403);
         $paymentIds = $request->validated('payment_ids', []);
         $comments = $request->validated('comments');
         $actorId = $request->user()->id;

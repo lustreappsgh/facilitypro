@@ -13,6 +13,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -104,7 +108,7 @@ const props = defineProps<Props>();
 const paymentApprovalsUrl = '/payment-approvals';
 
 const statusFilter = ref(props.filters.status ?? 'pending');
-const facilityFilter = ref(props.filters.facility ?? 'all');
+const facilityFilter = ref(props.filters.facility ?? '');
 const startDateFilter = ref(props.filters.start_date ?? '');
 const endDateFilter = ref(props.filters.end_date ?? '');
 const minAmountFilter = ref(props.filters.min_amount ?? '');
@@ -345,26 +349,22 @@ watch(
                 </SelectContent>
             </Select>
 
-            <input
-                type="hidden"
+            <NativeSelect
+                v-model="facilityFilter"
                 name="facility"
-                :value="facilityFilter === 'all' ? '' : facilityFilter"
-            />
-            <Select v-model="facilityFilter">
-                <SelectTrigger class="min-w-[170px]">
-                    <SelectValue placeholder="All facilities" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">All facilities</SelectItem>
-                    <SelectItem
-                        v-for="facility in facilities"
-                        :key="facility.id"
-                        :value="String(facility.id)"
-                    >
-                        {{ facility.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+                class="min-w-[170px]"
+            >
+                <NativeSelectOption value="">
+                    All facilities
+                </NativeSelectOption>
+                <NativeSelectOption
+                    v-for="facility in facilities"
+                    :key="facility.id"
+                    :value="String(facility.id)"
+                >
+                    {{ facility.name }}
+                </NativeSelectOption>
+            </NativeSelect>
 
             <DatePicker
                 v-model="startDateFilter"

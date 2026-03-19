@@ -55,8 +55,8 @@ class MaintenanceRequest extends BaseModel
     public function getMonthWeekAttribute(): string
     {
         $reference = $this->week_start ?? $this->created_at;
-        $startOfWeek = $reference->copy()->startOfWeek(Carbon::MONDAY);
-        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SUNDAY);
+        $startOfWeek = $reference->copy()->startOfWeek(Carbon::SUNDAY);
+        $endOfWeek = $reference->copy()->endOfWeek(Carbon::SATURDAY);
 
         $weekNumber = $startOfWeek->weekOfMonth;
         $monthName = $startOfWeek->format('F');

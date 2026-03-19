@@ -71,11 +71,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
-const getUpcomingMonday = () => {
+const getWeekStartSunday = () => {
     const date = new Date();
     const day = date.getDay();
-    const diffToNextMonday = (8 - day) % 7 || 7;
-    date.setDate(date.getDate() + diffToNextMonday);
+    date.setDate(date.getDate() - day);
     return date.toISOString().slice(0, 10);
 };
 
@@ -97,7 +96,7 @@ const defaultRequestTypeId = ref<string | null>(
     props.requestTypes[0] ? String(props.requestTypes[0].id) : null,
 );
 const defaultPriority = ref<Priority>('medium');
-const defaultWeekStart = ref(getUpcomingMonday());
+const defaultWeekStart = ref(getWeekStartSunday());
 const rows = ref<BulkRow[]>([]);
 
 const filteredFacilities = computed(() => {

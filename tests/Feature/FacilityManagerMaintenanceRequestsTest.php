@@ -119,7 +119,7 @@ test('maintenance requests index ignores facility filters in the payload', funct
         'cost' => 200,
         'status' => 'pending',
         'requested_by' => $user->id,
-        'week_start' => now()->startOfWeek()->toDateString(),
+        'week_start' => now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString(),
     ]);
     MaintenanceRequest::create([
         'facility_id' => $facilityB->id,
@@ -128,7 +128,7 @@ test('maintenance requests index ignores facility filters in the payload', funct
         'cost' => 300,
         'status' => 'submitted',
         'requested_by' => $user->id,
-        'week_start' => now()->startOfWeek()->toDateString(),
+        'week_start' => now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString(),
     ]);
 
     $this->actingAs($user);

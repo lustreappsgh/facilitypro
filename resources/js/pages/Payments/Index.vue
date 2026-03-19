@@ -8,6 +8,10 @@ import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -111,7 +115,7 @@ const currencyFormat = createCurrencyFormatter();
 
 const searchFilter = ref(props.filters.search ?? '');
 const statusFilter = ref(props.filters.status ?? 'all');
-const facilityFilter = ref(props.filters.facility ?? 'all');
+const facilityFilter = ref(props.filters.facility ?? '');
 const vendorFilter = ref(props.filters.vendor ?? 'all');
 const startDateFilter = ref(props.filters.start_date ?? '');
 const endDateFilter = ref(props.filters.end_date ?? '');
@@ -354,30 +358,22 @@ const columns: ColumnDef<Payment>[] = [
                             </SelectContent>
                         </Select>
 
-                        <input
-                            type="hidden"
+                        <NativeSelect
+                            v-model="facilityFilter"
                             name="facility"
-                            :value="
-                                facilityFilter === 'all' ? '' : facilityFilter
-                            "
-                        />
-                        <Select v-model="facilityFilter">
-                            <SelectTrigger class="min-w-[170px]">
-                                <SelectValue placeholder="All facilities" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all"
-                                    >All facilities</SelectItem
-                                >
-                                <SelectItem
-                                    v-for="facility in facilities"
-                                    :key="facility.id"
-                                    :value="String(facility.id)"
-                                >
-                                    {{ facility.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            class="min-w-[170px]"
+                        >
+                            <NativeSelectOption value="">
+                                All facilities
+                            </NativeSelectOption>
+                            <NativeSelectOption
+                                v-for="facility in facilities"
+                                :key="facility.id"
+                                :value="String(facility.id)"
+                            >
+                                {{ facility.name }}
+                            </NativeSelectOption>
+                        </NativeSelect>
 
                         <input
                             type="hidden"

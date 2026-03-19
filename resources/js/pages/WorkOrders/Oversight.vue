@@ -17,6 +17,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
+import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
@@ -111,13 +115,6 @@ const selectedVendorLabel = computed(() => {
         (vendor) => String(vendor.id) === vendorFilter.value,
     );
     return match?.name ?? 'All vendors';
-});
-
-const selectedFacilityLabel = computed(() => {
-    const match = props.facilities.find(
-        (facility) => String(facility.id) === facilityFilter.value,
-    );
-    return match?.name ?? 'All facilities';
 });
 
 const workOrderTotals = computed(() => ({
@@ -385,37 +382,22 @@ const columns: ColumnDef<WorkOrder>[] = [
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <input
-                            type="hidden"
+                        <NativeSelect
+                            v-model="facilityFilter"
                             name="facility"
-                            :value="facilityFilter"
-                        />
-                        <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                                <Button
-                                    variant="outline"
-                                    class="min-w-[170px] justify-between"
-                                >
-                                    {{ selectedFacilityLabel }}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-72">
-                                <DropdownMenuLabel>Facility</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem @click="facilityFilter = ''">
-                                    All facilities
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    v-for="facility in facilities"
-                                    :key="facility.id"
-                                    @click="
-                                        facilityFilter = String(facility.id)
-                                    "
-                                >
-                                    {{ facility.name }}
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            class="min-w-[170px]"
+                        >
+                            <NativeSelectOption value="">
+                                All facilities
+                            </NativeSelectOption>
+                            <NativeSelectOption
+                                v-for="facility in facilities"
+                                :key="facility.id"
+                                :value="String(facility.id)"
+                            >
+                                {{ facility.name }}
+                            </NativeSelectOption>
+                        </NativeSelect>
 
                         <DatePicker
                             v-model="startDateFilter"

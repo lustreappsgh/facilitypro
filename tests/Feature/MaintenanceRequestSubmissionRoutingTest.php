@@ -3,6 +3,7 @@
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
+use App\Models\Payment;
 use App\Models\RequestType;
 use App\Models\User;
 use App\Models\Vendor;
@@ -100,7 +101,7 @@ test('maintenance manager cannot review a request routed to admin', function () 
         'status' => 'submitted',
         'submission_route' => MaintenanceRequest::SubmissionRouteAdmin,
         'requested_by' => $maintenanceManager->id,
-        'week_start' => now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString(),
+        'week_start' => now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString(),
     ]);
 
     $vendor = Vendor::create([
@@ -152,7 +153,7 @@ test('admin can review a request routed to admin from submitted status', functio
         'status' => 'submitted',
         'submission_route' => MaintenanceRequest::SubmissionRouteAdmin,
         'requested_by' => $admin->id,
-        'week_start' => now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString(),
+        'week_start' => now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString(),
     ]);
 
     $vendor = Vendor::create([
@@ -174,6 +175,8 @@ test('admin can review a request routed to admin from submitted status', functio
     $response->assertRedirect();
     expect($maintenance->refresh()->status)->toBe('in_progress');
     expect($maintenance->workOrders()->latest('id')->first()?->status)->toBe('in_progress');
+    expect(Payment::query()->where('maintenance_request_id', $maintenance->id)->latest('id')->first()?->status)
+        ->toBe('pending');
 });
 
 test('maintenance index excludes admin-routed requests for maintenance manager scope', function () {
@@ -190,7 +193,7 @@ test('maintenance index excludes admin-routed requests for maintenance manager s
         'managed_by' => $maintenanceManager->id,
     ]);
     $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
-    $weekStart = now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString();
+    $weekStart = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString();
 
     $managerRouted = MaintenanceRequest::create([
         'facility_id' => $facility->id,

@@ -506,8 +506,42 @@ class WorkOrderController extends Controller
             $query->whereDate('scheduled_date', '<=', $endDate);
         }
 
+        $workOrders = $query->latest()
+            ->paginate(10)
+            ->withQueryString()
+            ->through(function (WorkOrder $workOrder) use ($request): array {
+                $maintenanceRequest = $workOrder->maintenanceRequest;
+
+                return [
+                    'id' => $workOrder->id,
+                    'status' => $workOrder->status,
+                    'scheduled_date' => $workOrder->scheduled_date?->toDateString(),
+                    'created_at' => $workOrder->created_at?->toDateString(),
+                    'vendor' => $workOrder->vendor
+                        ? [
+                            'id' => $workOrder->vendor->id,
+                            'name' => $workOrder->vendor->name,
+                        ]
+                        : null,
+                    'maintenanceRequest' => $maintenanceRequest
+                        ? [
+                            'id' => $maintenanceRequest->id,
+                            'status' => $maintenanceRequest->status,
+                            'can_approve' => $maintenanceRequest->canBeReviewedBy($request->user(), 'approve'),
+                            'can_reject' => $maintenanceRequest->canBeReviewedBy($request->user(), 'reject'),
+                            'facility' => $maintenanceRequest->facility
+                                ? [
+                                    'id' => $maintenanceRequest->facility->id,
+                                    'name' => $maintenanceRequest->facility->name,
+                                ]
+                                : null,
+                        ]
+                        : null,
+                ];
+            });
+
         return Inertia::render('WorkOrders/AdminIndex', [
-            'workOrders' => $query->latest()->paginate(10)->withQueryString(),
+            'workOrders' => $workOrders,
             'vendors' => Vendor::orderBy('name')->get(['id', 'name']),
             'facilities' => Facility::maintenanceFacilities($request->user())
                 ->orderBy('name')

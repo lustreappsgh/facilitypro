@@ -429,7 +429,7 @@ test('manager can review a direct report maintenance request from the request in
         'cost' => 640,
         'status' => 'submitted',
         'requested_by' => $directReport->id,
-        'week_start' => now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString(),
+        'week_start' => now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString(),
     ]);
 
     $this->actingAs($manager);

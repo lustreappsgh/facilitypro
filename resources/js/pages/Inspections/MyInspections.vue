@@ -13,6 +13,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -286,20 +290,21 @@ const columns: ColumnDef<Inspection>[] = [
                             </SelectItem>
                         </SelectContent>
                     </Select>
-                    <Select v-model="filterFacilityId">
-                        <SelectTrigger class="min-w-[180px]">
-                            <SelectValue placeholder="All facilities" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem
-                                v-for="facility in facilities"
-                                :key="facility.id"
-                                :value="String(facility.id)"
-                            >
-                                {{ facility.name }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <NativeSelect
+                        v-model="filterFacilityId"
+                        class="min-w-[180px]"
+                    >
+                        <NativeSelectOption value="">
+                            All facilities
+                        </NativeSelectOption>
+                        <NativeSelectOption
+                            v-for="facility in facilities"
+                            :key="facility.id"
+                            :value="String(facility.id)"
+                        >
+                            {{ facility.name }}
+                        </NativeSelectOption>
+                    </NativeSelect>
                     <div class="flex items-center gap-2">
                         <Button @click="applyFilters"> Apply filters </Button>
                         <Button variant="ghost" @click="clearFilters">

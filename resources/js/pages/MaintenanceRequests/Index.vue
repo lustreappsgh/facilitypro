@@ -36,6 +36,8 @@ import {
     destroy,
     edit,
     index as maintenanceIndex,
+    approve as maintenanceApprove,
+    reject as maintenanceReject,
     show,
 } from '@/routes/maintenance';
 import {
@@ -47,6 +49,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
 import {
     CheckCircle2,
+    Check,
     ClipboardCheck,
     ClipboardList,
     Eye,
@@ -55,6 +58,7 @@ import {
     Timer,
     Trash2,
     Wrench,
+    X,
 } from 'lucide-vue-next';
 import { usePage } from '@inertiajs/vue3';
 import { computed, h, ref, watch } from 'vue';
@@ -452,6 +456,47 @@ const canReviewRequest = (request: MaintenanceRequest) =>
     !request.is_self_request &&
     (request.can_approve !== false || request.can_reject !== false);
 
+const reviewableStatuses = new Set([
+    'submitted',
+    'pending',
+    'approved',
+    'assigned',
+    'work_order_created',
+]);
+
+const canApproveRequest = (request: MaintenanceRequest) =>
+    request.can_approve !== false && reviewableStatuses.has(request.status);
+
+const canRejectRequest = (request: MaintenanceRequest) =>
+    request.can_reject !== false && reviewableStatuses.has(request.status);
+
+const approveRequest = (request: MaintenanceRequest) => {
+    const comments = window.prompt('Approval comments');
+
+    if (comments === null) {
+        return;
+    }
+
+    router.post(
+        maintenanceApprove(request.id).url,
+        { comments: comments.trim() },
+        { preserveScroll: true },
+    );
+};
+
+const rejectRequest = (request: MaintenanceRequest) => {
+    const reason = window.prompt('Rejection reason');
+    if (!reason || !reason.trim()) {
+        return;
+    }
+
+    router.post(
+        maintenanceReject(request.id).url,
+        { rejection_reason: reason.trim() },
+        { preserveScroll: true },
+    );
+};
+
 const dateRangeLabel = computed(
     () => `${filterStartDate.value} to ${filterEndDate.value}`,
 );
@@ -763,6 +808,51 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                                   TooltipContent,
                                   { side: 'top' },
                                   () => 'Delete',
+                              ),
+                          ])
+                        : null,
+                    canApproveRequest(row.original)
+                        ? h(Tooltip, {}, () => [
+                              h(TooltipTrigger, { asChild: true }, () =>
+                                  h(
+                                      Button,
+                                      {
+                                          variant: 'ghost',
+                                          size: 'icon-sm',
+                                          class: 'rounded-none border-l border-border/60 shadow-none',
+                                          onClick: () =>
+                                              approveRequest(row.original),
+                                      },
+                                      () =>
+                                          h(Check, { class: 'h-3.5 w-3.5' }),
+                                  ),
+                              ),
+                              h(
+                                  TooltipContent,
+                                  { side: 'top' },
+                                  () => 'Approve',
+                              ),
+                          ])
+                        : null,
+                    canRejectRequest(row.original)
+                        ? h(Tooltip, {}, () => [
+                              h(TooltipTrigger, { asChild: true }, () =>
+                                  h(
+                                      Button,
+                                      {
+                                          variant: 'ghost',
+                                          size: 'icon-sm',
+                                          class: 'rounded-none border-l border-border/60 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 shadow-none',
+                                          onClick: () =>
+                                              rejectRequest(row.original),
+                                      },
+                                      () => h(X, { class: 'h-3.5 w-3.5' }),
+                                  ),
+                              ),
+                              h(
+                                  TooltipContent,
+                                  { side: 'top' },
+                                  () => 'Reject',
                               ),
                           ])
                         : null,

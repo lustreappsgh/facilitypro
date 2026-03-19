@@ -8,12 +8,10 @@ use App\Domains\Maintenance\DTOs\WorkOrderData;
 use App\Domains\Maintenance\Requests\BulkDeleteMaintenanceRequestsRequest;
 use App\Domains\Maintenance\Requests\MaintenanceRequestRequest;
 use App\Domains\Maintenance\Services\MaintenanceService;
-use App\Domains\Payments\Services\PaymentService;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
-use App\Models\Payment;
 use App\Models\RequestType;
 use App\Models\User;
 use App\Models\Vendor;
@@ -33,8 +31,7 @@ class MaintenanceRequestController extends Controller
 
     public function __construct(
         protected MaintenanceService $maintenanceService,
-        protected CreateWorkOrderAction $createWorkOrderAction,
-        protected PaymentService $paymentService
+        protected CreateWorkOrderAction $createWorkOrderAction
     ) {}
 
     public function index(Request $request): Response
@@ -54,8 +51,8 @@ class MaintenanceRequestController extends Controller
         $userId = $request->input('user_id');
         $search = $request->string('search')->trim()->toString();
 
-        $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $defaultStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
+        $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SATURDAY)->toDateString();
 
         $startDate = $startDateInput ?: $defaultStart;
         $endDate = $endDateInput ?: $defaultEnd;
@@ -85,8 +82,17 @@ class MaintenanceRequestController extends Controller
         ])->withCount('workOrders');
 
         $weeksByYearMonth = (clone $baseQuery)
-            ->whereNotNull('week_start')
             ->get()
+            ->map(function (MaintenanceRequest $maintenanceRequest): MaintenanceRequest {
+                if (! $maintenanceRequest->week_start && $maintenanceRequest->created_at) {
+                    $maintenanceRequest->week_start = $maintenanceRequest->created_at
+                        ->copy()
+                        ->startOfWeek(Carbon::SUNDAY);
+                }
+
+                return $maintenanceRequest;
+            })
+            ->filter(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start)
             ->sortByDesc(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->toDateString() ?? '')
             ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->format('Y-m'))
             ->map(function ($monthItems, $monthKey) {
@@ -147,7 +153,20 @@ class MaintenanceRequestController extends Controller
             ->get();
 
         $groups = $filteredRequests
-            ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->toDateString() ?? 'unscheduled')
+            ->groupBy(function (MaintenanceRequest $maintenanceRequest): string {
+                if ($maintenanceRequest->week_start) {
+                    return $maintenanceRequest->week_start->toDateString();
+                }
+
+                if ($maintenanceRequest->created_at) {
+                    return $maintenanceRequest->created_at
+                        ->copy()
+                        ->startOfWeek(Carbon::SUNDAY)
+                        ->toDateString();
+                }
+
+                return 'unscheduled';
+            })
             ->map(fn ($items, $weekStart) => [
                 'week_start' => $weekStart,
                 'week_label' => $weekStart === 'unscheduled'
@@ -554,6 +573,7 @@ class MaintenanceRequestController extends Controller
     {
         $this->authorize('approve', $maintenance);
 
+        $comments = request()->string('comments')->trim()->toString();
         $isFinalApproval = request()->user()?->can('users.manage') === true;
         $isAdminFastTrack = $isFinalApproval && in_array($maintenance->status, [
             MaintenanceStatus::Submitted->value,
@@ -563,8 +583,9 @@ class MaintenanceRequestController extends Controller
 
         if (! $isFinalApproval || $isAdminFastTrack) {
             $validated = request()->validate([
+                'comments' => ['nullable', 'string', 'max:1000'],
                 'vendor_id' => ['nullable', 'exists:vendors,id'],
-                'estimated_cost' => ['required', 'integer', 'min:0'],
+                'estimated_cost' => ['nullable', 'integer', 'min:0'],
                 'scheduled_date' => ['nullable', 'date'],
             ]);
         }
@@ -588,29 +609,13 @@ class MaintenanceRequestController extends Controller
                 }
 
                 if ($isAdminFastTrack) {
-                    $workOrder = $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
+                    $this->createWorkOrderAction->execute(WorkOrderData::fromRequest([
                         'maintenance_request_id' => $maintenance->id,
                         'vendor_id' => $validated['vendor_id'],
                         'estimated_cost' => $validated['estimated_cost'],
                         'scheduled_date' => $validated['scheduled_date'] ?? null,
                         'status' => 'assigned',
                     ]));
-
-                    $payment = Payment::query()
-                        ->where('maintenance_request_id', $maintenance->id)
-                        ->where('work_order_id', $workOrder->id)
-                        ->latest('id')
-                        ->first();
-
-                    if (! $payment) {
-                        throw new DomainException('Payment record not found for the created work order.');
-                    }
-
-                    $this->paymentService->approve(
-                        $payment,
-                        request()->user()->id,
-                        'Approved directly by admin from maintenance request.'
-                    );
                 }
 
                 if ($isFinalApproval) {
@@ -624,7 +629,7 @@ class MaintenanceRequestController extends Controller
         }
 
         if ($isAdminFastTrack) {
-            return back()->with('success', 'Request approved, work order created, and payment approved.');
+            return back()->with('success', 'Request approved, work order created, and payment sent for approval.');
         }
 
         if ($isFinalApproval) {
@@ -760,8 +765,56 @@ class MaintenanceRequestController extends Controller
             $query->whereDate('created_at', '<=', $endDate);
         }
 
+        $requests = $query->latest()
+            ->paginate(10)
+            ->withQueryString()
+            ->through(function (MaintenanceRequest $maintenanceRequest) use ($request): array {
+                $requestType = $maintenanceRequest->requestType;
+                $requestedBy = $maintenanceRequest->requestedBy;
+
+                return [
+                    'id' => $maintenanceRequest->id,
+                    'status' => $maintenanceRequest->status,
+                    'cost' => $maintenanceRequest->cost,
+                    'description' => $maintenanceRequest->description,
+                    'created_at' => $maintenanceRequest->created_at?->toDateString(),
+                    'facility' => $maintenanceRequest->facility
+                        ? [
+                            'id' => $maintenanceRequest->facility->id,
+                            'name' => $maintenanceRequest->facility->name,
+                        ]
+                        : null,
+                    'requestedBy' => $requestedBy
+                        ? [
+                            'id' => $requestedBy->id,
+                            'name' => $requestedBy->name,
+                        ]
+                        : null,
+                    'requested_by' => $requestedBy
+                        ? [
+                            'id' => $requestedBy->id,
+                            'name' => $requestedBy->name,
+                        ]
+                        : null,
+                    'requestType' => $requestType
+                        ? [
+                            'id' => $requestType->id,
+                            'name' => $requestType->name,
+                        ]
+                        : null,
+                    'request_type' => $requestType
+                        ? [
+                            'id' => $requestType->id,
+                            'name' => $requestType->name,
+                        ]
+                        : null,
+                    'can_approve' => $maintenanceRequest->canBeReviewedBy($request->user(), 'approve'),
+                    'can_reject' => $maintenanceRequest->canBeReviewedBy($request->user(), 'reject'),
+                ];
+            });
+
         return Inertia::render('MaintenanceRequests/AdminIndex', [
-            'requests' => $query->latest()->paginate(10)->withQueryString(),
+            'requests' => $requests,
             'statuses' => collect(MaintenanceStatus::cases())->map(fn (MaintenanceStatus $status) => [
                 'value' => $status->value,
                 'label' => $status->label(),

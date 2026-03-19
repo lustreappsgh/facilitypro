@@ -37,7 +37,7 @@ test('maintenance requests are ordered by priority within the weekly group', fun
     ]);
 
     $requestType = RequestType::firstOrCreate(['name' => 'Electrical']);
-    $weekStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
+    $weekStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
 
     $low = MaintenanceRequest::create([
         'facility_id' => $facility->id,

@@ -15,6 +15,10 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { createCurrencyFormatter } from '@/lib/currency';
 import { sumByNumber } from '@/lib/totals';
@@ -105,13 +109,6 @@ const selectedStatusLabel = computed(() => {
         return 'All statuses';
     }
     return statusFilter.value.replace('_', ' ');
-});
-
-const selectedFacilityLabel = computed(() => {
-    const match = props.facilities.find(
-        (facility) => String(facility.id) === facilityFilter.value,
-    );
-    return match?.name ?? 'All facilities';
 });
 
 const selectedVendorLabel = computed(() => {
@@ -325,37 +322,22 @@ const columns: ColumnDef<Payment>[] = [
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <input
-                            type="hidden"
+                        <NativeSelect
+                            v-model="facilityFilter"
                             name="facility"
-                            :value="facilityFilter"
-                        />
-                        <DropdownMenu>
-                            <DropdownMenuTrigger as-child>
-                                <Button
-                                    variant="outline"
-                                    class="min-w-[180px] justify-between"
-                                >
-                                    {{ selectedFacilityLabel }}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" class="w-64">
-                                <DropdownMenuLabel>Facility</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem @click="facilityFilter = ''">
-                                    All facilities
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    v-for="facility in facilities"
-                                    :key="facility.id"
-                                    @click="
-                                        facilityFilter = String(facility.id)
-                                    "
-                                >
-                                    {{ facility.name }}
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            class="min-w-[180px]"
+                        >
+                            <NativeSelectOption value="">
+                                All facilities
+                            </NativeSelectOption>
+                            <NativeSelectOption
+                                v-for="facility in facilities"
+                                :key="facility.id"
+                                :value="String(facility.id)"
+                            >
+                                {{ facility.name }}
+                            </NativeSelectOption>
+                        </NativeSelect>
 
                         <input
                             type="hidden"

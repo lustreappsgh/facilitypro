@@ -8,7 +8,7 @@ use App\Models\RequestType;
 use App\Models\Todo;
 use App\Models\User;
 
-test('maintenance request todo and inspection week labels start on monday', function () {
+test('maintenance request week labels start on sunday', function () {
     $user = User::factory()->create();
     $facilityType = FacilityType::create(['name' => 'Campus']);
     $facility = Facility::create([
@@ -50,7 +50,7 @@ test('maintenance request todo and inspection week labels start on monday', func
         'created_at' => '2026-03-01 10:00:00',
     ])->save();
 
-    expect($maintenanceRequest->fresh()->month_week)->toBe('February wk 4 (Feb 23 - Mar 01)');
+    expect($maintenanceRequest->fresh()->month_week)->toBe('March wk 1 (Mar 01 - Mar 07)');
     expect($todo->fresh()->month_week)->toBe('February wk 4 (Feb 23 - Mar 01)');
     expect($inspection->fresh()->month_week)->toBe('February wk 4 (Feb 23 - Mar 01)');
 });

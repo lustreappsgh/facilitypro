@@ -23,6 +23,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
+import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
@@ -34,13 +38,15 @@ import { formatLocaleDateRange } from '@/lib/locale';
 import { sumByNumber } from '@/lib/totals';
 import {
     admin as maintenanceAdmin,
+    approve as maintenanceApprove,
+    reject as maintenanceReject,
     show as maintenanceShow,
 } from '@/routes/maintenance';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { endOfWeek, format, startOfWeek, subMonths } from 'date-fns';
-import { Eye, Search } from 'lucide-vue-next';
+import { Check, Eye, Search, X } from 'lucide-vue-next';
 import { computed, h, onMounted, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -66,6 +72,8 @@ interface MaintenanceRequest {
     cost?: number | null;
     description?: string | null;
     created_at?: string | null;
+    can_approve?: boolean;
+    can_reject?: boolean;
     facility?: Facility | null;
     requestedBy?: RequestedBy | null;
     requested_by?: RequestedBy | null;
@@ -148,13 +156,6 @@ const selectedRequestTypeLabel = computed(() => {
     return match?.name ?? 'All request types';
 });
 
-const selectedFacilityLabel = computed(() => {
-    const match = props.facilities.find(
-        (facility) => String(facility.id) === facilityFilter.value,
-    );
-    return match?.name ?? 'All facilities';
-});
-
 const statusBadgeClass = (status: string) => {
     if (status === 'completed') {
         return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
@@ -180,16 +181,57 @@ const requestedByName = (request: MaintenanceRequest) =>
 const groupCostTotal = (requests: MaintenanceRequest[]) =>
     sumByNumber(requests, (request) => request.cost);
 
+const reviewableStatuses = new Set([
+    'submitted',
+    'pending',
+    'approved',
+    'assigned',
+    'work_order_created',
+]);
+
+const canApproveRequest = (request: MaintenanceRequest) =>
+    request.can_approve !== false && reviewableStatuses.has(request.status);
+
+const canRejectRequest = (request: MaintenanceRequest) =>
+    request.can_reject !== false && reviewableStatuses.has(request.status);
+
+const approveRequest = (request: MaintenanceRequest) => {
+    const comments = window.prompt('Approval comments');
+
+    if (comments === null) {
+        return;
+    }
+
+    router.post(
+        maintenanceApprove(request.id).url,
+        { comments: comments.trim() },
+        { preserveScroll: true },
+    );
+};
+
+const rejectRequest = (request: MaintenanceRequest) => {
+    const reason = window.prompt('Rejection reason');
+    if (!reason || !reason.trim()) {
+        return;
+    }
+
+    router.post(
+        maintenanceReject(request.id).url,
+        { rejection_reason: reason.trim() },
+        { preserveScroll: true },
+    );
+};
+
 const groupedByWeek = computed(() => {
     const groups = new Map<string, MaintenanceRequest[]>();
 
     props.requests.data.forEach((request) => {
         const dateValue = parseDate(request.created_at);
         const weekStart = dateValue
-            ? startOfWeek(dateValue, { weekStartsOn: 1 })
+            ? startOfWeek(dateValue, { weekStartsOn: 0 })
             : null;
         const weekEnd = dateValue
-            ? endOfWeek(dateValue, { weekStartsOn: 1 })
+            ? endOfWeek(dateValue, { weekStartsOn: 0 })
             : null;
         const label = dateValue
             ? formatLocaleDateRange(weekStart, weekEnd)
@@ -311,6 +353,46 @@ const columns: ColumnDef<MaintenanceRequest>[] = [
         header: 'Actions',
         cell: ({ row }) =>
             h(ButtonGroup, {}, () => [
+                ...(canApproveRequest(row.original)
+                    ? [
+                          h(Tooltip, {}, () => [
+                              h(TooltipTrigger, { asChild: true }, () =>
+                                  h(
+                                      Button,
+                                      {
+                                          variant: 'ghost',
+                                          size: 'icon-sm',
+                                          class: 'rounded-none border-0 shadow-none',
+                                          onClick: () =>
+                                              approveRequest(row.original),
+                                      },
+                                      () => h(Check, { class: 'h-3.5 w-3.5' }),
+                                  ),
+                              ),
+                              h(TooltipContent, { side: 'top' }, () => 'Approve'),
+                          ]),
+                      ]
+                    : []),
+                ...(canRejectRequest(row.original)
+                    ? [
+                          h(Tooltip, {}, () => [
+                              h(TooltipTrigger, { asChild: true }, () =>
+                                  h(
+                                      Button,
+                                      {
+                                          variant: 'ghost',
+                                          size: 'icon-sm',
+                                          class: 'rounded-none border-0 shadow-none text-rose-500 hover:text-rose-500',
+                                          onClick: () =>
+                                              rejectRequest(row.original),
+                                      },
+                                      () => h(X, { class: 'h-3.5 w-3.5' }),
+                                  ),
+                              ),
+                              h(TooltipContent, { side: 'top' }, () => 'Reject'),
+                          ]),
+                      ]
+                    : []),
                 h(Tooltip, {}, () => [
                     h(TooltipTrigger, { asChild: true }, () =>
                         h(
@@ -426,35 +508,22 @@ const columns: ColumnDef<MaintenanceRequest>[] = [
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <input
-                        type="hidden"
+                    <NativeSelect
+                        v-model="facilityFilter"
                         name="facility"
-                        :value="facilityFilter"
-                    />
-                    <DropdownMenu>
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="outline"
-                                class="min-w-[180px] justify-between"
-                            >
-                                {{ selectedFacilityLabel }}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" class="w-64">
-                            <DropdownMenuLabel>Facility</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem @click="facilityFilter = ''">
-                                All facilities
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                v-for="facility in facilities"
-                                :key="facility.id"
-                                @click="facilityFilter = String(facility.id)"
-                            >
-                                {{ facility.name }}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        class="min-w-[180px]"
+                    >
+                        <NativeSelectOption value="">
+                            All facilities
+                        </NativeSelectOption>
+                        <NativeSelectOption
+                            v-for="facility in facilities"
+                            :key="facility.id"
+                            :value="String(facility.id)"
+                        >
+                            {{ facility.name }}
+                        </NativeSelectOption>
+                    </NativeSelect>
 
                     <DatePicker
                         v-model="startDateFilter"

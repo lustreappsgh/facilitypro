@@ -14,14 +14,22 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DataTable from '@/components/data-table/DataTable.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import {
+    approve as maintenanceApprove,
+    reject as maintenanceReject,
+} from '@/routes/maintenance';
 import { admin as workOrdersAdmin, show as workOrdersShow } from '@/routes/work-orders';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
-import { Eye, Search } from 'lucide-vue-next';
+import { Check, Eye, Search, X } from 'lucide-vue-next';
 import { computed, h, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -38,6 +46,9 @@ interface Facility {
 
 interface MaintenanceRequest {
     id: number;
+    status: string;
+    can_approve?: boolean;
+    can_reject?: boolean;
     facility?: Facility | null;
 }
 
@@ -100,13 +111,6 @@ const selectedVendorLabel = computed(() => {
     return match?.name ?? 'All vendors';
 });
 
-const selectedFacilityLabel = computed(() => {
-    const match = props.facilities.find(
-        (facility) => String(facility.id) === facilityFilter.value,
-    );
-    return match?.name ?? 'All facilities';
-});
-
 const selectedStatusLabel = computed(() => {
     if (!statusFilter.value) {
         return 'All statuses';
@@ -124,6 +128,51 @@ const statusBadgeClass = (status: string) => {
     }
 
     return 'bg-slate-500/10 text-slate-700 dark:text-slate-300';
+};
+
+const reviewableStatuses = new Set([
+    'submitted',
+    'pending',
+    'approved',
+    'assigned',
+    'work_order_created',
+]);
+
+const canApproveRequest = (request?: MaintenanceRequest | null) =>
+    Boolean(request) &&
+    request?.can_approve !== false &&
+    reviewableStatuses.has(request.status);
+
+const canRejectRequest = (request?: MaintenanceRequest | null) =>
+    Boolean(request) &&
+    request?.can_reject !== false &&
+    reviewableStatuses.has(request.status);
+
+const approveRequest = (request: MaintenanceRequest) => {
+    const comments = window.prompt('Approval comments');
+
+    if (comments === null) {
+        return;
+    }
+
+    router.post(
+        maintenanceApprove(request.id).url,
+        { comments: comments.trim() },
+        { preserveScroll: true },
+    );
+};
+
+const rejectRequest = (request: MaintenanceRequest) => {
+    const reason = window.prompt('Rejection reason');
+    if (!reason || !reason.trim()) {
+        return;
+    }
+
+    router.post(
+        maintenanceReject(request.id).url,
+        { rejection_reason: reason.trim() },
+        { preserveScroll: true },
+    );
 };
 
 const columns: ColumnDef<WorkOrder>[] = [
@@ -166,6 +215,50 @@ const columns: ColumnDef<WorkOrder>[] = [
         header: 'Actions',
         cell: ({ row }) =>
             h(ButtonGroup, {}, () => [
+                ...(canApproveRequest(row.original.maintenanceRequest)
+                    ? [
+                          h(Tooltip, {}, () => [
+                              h(TooltipTrigger, { asChild: true }, () =>
+                                  h(
+                                      Button,
+                                      {
+                                          variant: 'ghost',
+                                          size: 'icon-sm',
+                                          class: 'rounded-none border-0 shadow-none',
+                                          onClick: () =>
+                                              approveRequest(
+                                                  row.original.maintenanceRequest!,
+                                              ),
+                                      },
+                                      () => h(Check, { class: 'h-3.5 w-3.5' }),
+                                  ),
+                              ),
+                              h(TooltipContent, { side: 'top' }, () => 'Approve'),
+                          ]),
+                      ]
+                    : []),
+                ...(canRejectRequest(row.original.maintenanceRequest)
+                    ? [
+                          h(Tooltip, {}, () => [
+                              h(TooltipTrigger, { asChild: true }, () =>
+                                  h(
+                                      Button,
+                                      {
+                                          variant: 'ghost',
+                                          size: 'icon-sm',
+                                          class: 'rounded-none border-0 shadow-none text-rose-500 hover:text-rose-500',
+                                          onClick: () =>
+                                              rejectRequest(
+                                                  row.original.maintenanceRequest!,
+                                              ),
+                                      },
+                                      () => h(X, { class: 'h-3.5 w-3.5' }),
+                                  ),
+                              ),
+                              h(TooltipContent, { side: 'top' }, () => 'Reject'),
+                          ]),
+                      ]
+                    : []),
                 h(Tooltip, {}, () => [
                     h(TooltipTrigger, { asChild: true }, () =>
                         h(
@@ -269,28 +362,22 @@ const columns: ColumnDef<WorkOrder>[] = [
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <input type="hidden" name="facility" :value="facilityFilter" />
-                <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                        <Button variant="outline" class="min-w-[180px] justify-between">
-                            {{ selectedFacilityLabel }}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-64">
-                        <DropdownMenuLabel>Facility</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem @click="facilityFilter = ''">
-                            All facilities
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            v-for="facility in facilities"
-                            :key="facility.id"
-                            @click="facilityFilter = String(facility.id)"
-                        >
-                            {{ facility.name }}
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <NativeSelect
+                    v-model="facilityFilter"
+                    name="facility"
+                    class="min-w-[180px]"
+                >
+                    <NativeSelectOption value="">
+                        All facilities
+                    </NativeSelectOption>
+                    <NativeSelectOption
+                        v-for="facility in facilities"
+                        :key="facility.id"
+                        :value="String(facility.id)"
+                    >
+                        {{ facility.name }}
+                    </NativeSelectOption>
+                </NativeSelect>
 
                 <DatePicker
                     v-model="startDateFilter"

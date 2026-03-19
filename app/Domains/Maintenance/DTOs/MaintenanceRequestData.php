@@ -23,8 +23,10 @@ class MaintenanceRequestData
         ?string $defaultSubmissionRoute = MaintenanceRequest::SubmissionRouteMaintenanceManager
     ): self {
         $weekStart = isset($data['week_start']) && $data['week_start']
-            ? (string) $data['week_start']
-            : now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->toDateString();
+            ? \Carbon\Carbon::parse((string) $data['week_start'])
+                ->startOfWeek(\Carbon\Carbon::SUNDAY)
+                ->toDateString()
+            : now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString();
 
         $submissionRoute = $data['submission_route'] ?? $defaultSubmissionRoute;
 

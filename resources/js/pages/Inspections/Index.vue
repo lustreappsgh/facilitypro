@@ -6,6 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import {
+    NativeSelect,
+    NativeSelectOption,
+} from '@/components/ui/native-select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { create, index as inspectionsIndex, show } from '@/routes/inspections';
@@ -122,7 +126,9 @@ const defaultRange = getPreviousAndCurrentWeekRange();
 const filterStartDate = ref(props.data.filters.start_date || defaultRange.start);
 const filterEndDate = ref(props.data.filters.end_date || defaultRange.end);
 const searchFilter = ref(props.data.filters.search ?? '');
-const filterFacilityId = ref(props.data.filters.facility_id ? String(props.data.filters.facility_id) : 'all');
+const filterFacilityId = ref(
+    props.data.filters.facility_id ? String(props.data.filters.facility_id) : '',
+);
 const filterUserId = ref(props.data.filters.user_id ? String(props.data.filters.user_id) : 'all');
 let searchDebounceTimer: number | null = null;
 
@@ -153,7 +159,7 @@ const applyFilters = () => {
             start_date: filterStartDate.value || undefined,
             end_date: filterEndDate.value || undefined,
             search: searchFilter.value || undefined,
-            facility_id: filterFacilityId.value === 'all' ? undefined : filterFacilityId.value,
+            facility_id: filterFacilityId.value || undefined,
             user_id: filterUserId.value === 'all' ? undefined : filterUserId.value,
         },
         { preserveState: true, preserveScroll: true },
@@ -164,7 +170,7 @@ const clearFilters = () => {
     filterStartDate.value = defaultRange.start;
     filterEndDate.value = defaultRange.end;
     searchFilter.value = '';
-    filterFacilityId.value = 'all';
+    filterFacilityId.value = '';
     filterUserId.value = 'all';
 
     router.get(
@@ -307,17 +313,18 @@ onMounted(() => {
                         <DatePicker v-model="filterStartDate" class="h-9 w-full" placeholder="Start date" />
                         <DatePicker v-model="filterEndDate" class="h-9 w-full" placeholder="End date" />
                     </div>
-                    <Select v-model="filterFacilityId">
-                        <SelectTrigger class="h-9 w-full">
-                            <SelectValue placeholder="All facilities" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All facilities</SelectItem>
-                            <SelectItem v-for="facility in data.facilities" :key="facility.id" :value="String(facility.id)">
-                                {{ facility.name }}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <NativeSelect v-model="filterFacilityId" class="h-9 w-full">
+                        <NativeSelectOption value="">
+                            All facilities
+                        </NativeSelectOption>
+                        <NativeSelectOption
+                            v-for="facility in data.facilities"
+                            :key="facility.id"
+                            :value="String(facility.id)"
+                        >
+                            {{ facility.name }}
+                        </NativeSelectOption>
+                    </NativeSelect>
                     <Select v-if="data.users && data.users.length" v-model="filterUserId">
                         <SelectTrigger class="h-9 w-full">
                             <SelectValue placeholder="All users" />
