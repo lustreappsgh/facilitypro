@@ -11,6 +11,7 @@ use App\Enums\TodoStatus;
 use App\Models\Facility;
 use App\Models\Todo;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class CreateTodoAction
@@ -34,6 +35,10 @@ class CreateTodoAction
         $todo = Todo::create(array_merge($data->toArray(), [
             'status' => TodoStatus::Pending->value,
         ]));
+        $todo->forceFill([
+            'week_start' => $todo->created_at?->copy()->startOfWeek(Carbon::SUNDAY)->toDateString(),
+        ])->save();
+        $todo = $todo->refresh();
 
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),

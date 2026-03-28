@@ -38,8 +38,8 @@ class InspectionController extends Controller
         $userId = $request->input('user_id');
         $search = $request->string('search')->trim()->toString();
 
-        $defaultStart = now()->subWeek()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $defaultEnd = now()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $defaultStart = now()->startOfWeek(Carbon::SUNDAY)->subMonth()->toDateString();
+        $defaultEnd = now()->endOfWeek(Carbon::SATURDAY)->toDateString();
 
         $startDate = $startDateInput ?: $defaultStart;
         $endDate = $endDateInput ?: $defaultEnd;
@@ -67,14 +67,14 @@ class InspectionController extends Controller
         ]);
 
         $weeksByYearMonth = (clone $baseQuery)
-            ->whereNotNull('inspection_date')
+            ->whereNotNull('created_at')
             ->get()
-            ->sortByDesc(fn (Inspection $inspection) => $inspection->inspection_date?->toDateString() ?? '')
-            ->groupBy(fn (Inspection $inspection) => $inspection->inspection_date?->format('Y-m'))
+            ->sortByDesc(fn (Inspection $inspection) => $inspection->created_at?->toDateTimeString() ?? '')
+            ->groupBy(fn (Inspection $inspection) => $inspection->created_at?->copy()->startOfWeek(Carbon::SUNDAY)->format('Y-m'))
             ->map(function ($monthItems, $monthKey) {
                 $reference = Carbon::createFromFormat('Y-m', $monthKey);
                 $weeks = $monthItems
-                    ->groupBy(fn (Inspection $inspection) => $inspection->inspection_date?->startOfWeek(Carbon::MONDAY)->toDateString())
+                    ->groupBy(fn (Inspection $inspection) => $inspection->created_at?->copy()->startOfWeek(Carbon::SUNDAY)->toDateString())
                     ->keys()
                     ->sortDesc()
                     ->values()
@@ -95,7 +95,7 @@ class InspectionController extends Controller
             ->all();
 
         $filteredInspections = (clone $baseQuery)
-            ->whereBetween('inspection_date', [$startDate, $endDate])
+            ->whereBetween('created_at', ["{$startDate} 00:00:00", "{$endDate} 23:59:59"])
             ->when($facilityId, fn ($query) => $query->where('facility_id', $facilityId))
             ->when($canViewAllInspections && $userId, fn ($query) => $query->where('added_by', $userId))
             ->when($search !== '', function ($query) use ($search, $canViewAllInspections) {
@@ -109,12 +109,12 @@ class InspectionController extends Controller
                     }
                 });
             })
+            ->orderByDesc('created_at')
             ->orderByDesc('inspection_date')
-            ->latest()
             ->get();
 
         $groups = $filteredInspections
-            ->groupBy(fn (Inspection $inspection) => $inspection->inspection_date?->startOfWeek(Carbon::MONDAY)->toDateString() ?? 'unscheduled')
+            ->groupBy(fn (Inspection $inspection) => $inspection->created_at?->copy()->startOfWeek(Carbon::SUNDAY)->toDateString() ?? 'unscheduled')
             ->map(fn ($items, $weekStart) => [
                 'week_start' => $weekStart,
                 'week_label' => $weekStart === 'unscheduled'

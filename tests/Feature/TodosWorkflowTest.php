@@ -50,7 +50,7 @@ test('facility manager can create a weekly todo', function () {
     expect($todo)->not()->toBeNull()
         ->and($todo->status)->toBe(TodoStatus::Pending->value)
         ->and($todo->user_id)->toBe($user->id)
-        ->and($todo->week_start->format('Y-m-d'))->toBe(now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'));
+        ->and($todo->week_start->format('Y-m-d'))->toBe(now()->startOfWeek(Carbon::SUNDAY)->format('Y-m-d'));
 
     expect(AuditLog::query()
         ->where('action', 'todo.created')
@@ -75,7 +75,7 @@ test('pending todo can be completed', function () {
         'user_id' => $user->id,
         'facility_id' => $facility->id,
         'description' => 'Inspect fire exits',
-        'week_start' => now()->next('Monday'),
+        'week_start' => now()->copy()->startOfWeek(Carbon::SUNDAY)->addWeek(),
         'status' => TodoStatus::Pending->value,
     ]);
 
@@ -99,21 +99,19 @@ test('overdue todo command marks past pending todos as overdue', function () {
         'managed_by' => $user->id,
     ]);
 
-    // Create a todo for 2 weeks ago
     $pendingTodo = Todo::create([
         'user_id' => $user->id,
         'facility_id' => $facility->id,
         'description' => 'Old task',
-        'week_start' => now()->subWeeks(2)->startOfWeek(),
+        'week_start' => now()->subWeeks(2)->startOfWeek(Carbon::SUNDAY),
         'status' => TodoStatus::Pending->value,
     ]);
 
-    // Create a todo for next week (should stay pending)
     $futureTodo = Todo::create([
         'user_id' => $user->id,
         'facility_id' => $facility->id,
         'description' => 'Future task',
-        'week_start' => now()->next('Monday'),
+        'week_start' => now()->copy()->startOfWeek(Carbon::SUNDAY)->addWeek(),
         'status' => TodoStatus::Pending->value,
     ]);
 

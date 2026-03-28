@@ -361,7 +361,7 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h1 class="font-display text-3xl font-semibold tracking-tight text-foreground">Weekly todos</h1>
-                    <p class="text-sm text-muted-foreground">Plan and manage todos by Monday-start week.</p>
+                    <p class="text-sm text-muted-foreground">Plan and manage todos by Sunday-start submission week.</p>
                 </div>
                 <Button
                     v-if="can('todos.create')"
@@ -427,7 +427,7 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
                     </ButtonGroup>
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Default range shows the current and upcoming Monday-start weeks: {{ dateRangeLabel }}.
+                    Default range shows the current week plus the last month: {{ dateRangeLabel }}.
                 </p>
             </div>
 
@@ -507,3 +507,5 @@ const columns = computed<ColumnDef<Todo>[]>(() => {
         </div>
     </AppLayout>
 </template>
+
+

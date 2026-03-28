@@ -21,8 +21,10 @@ class UpdateMaintenanceRequestAction
     public function execute(MaintenanceRequest $request, MaintenanceRequestData $data): MaintenanceRequest
     {
         $before = $request->getOriginal();
+        $payload = $data->toArray();
+        unset($payload['week_start']);
 
-        $request->update($data->toArray());
+        $request->update($payload);
 
         $request = $request->refresh();
 

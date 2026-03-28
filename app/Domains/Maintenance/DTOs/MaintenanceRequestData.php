@@ -9,24 +9,20 @@ class MaintenanceRequestData
     public function __construct(
         public int $facility_id,
         public int $request_type_id,
-        public string $priority,
-        public ?string $description,
-        public ?int $cost,
-        public string $week_start,
-        public ?string $status,
-        public ?string $submission_route,
-        public int $requested_by,
+        public string $priority = MaintenanceRequest::PriorityMedium,
+        public ?string $description = null,
+        public ?int $cost = null,
+        public ?string $week_start = null,
+        public ?string $status = null,
+        public ?string $submission_route = null,
+        public int $requested_by = 0,
     ) {}
 
     public static function fromRequest(
         array $data,
         ?string $defaultSubmissionRoute = MaintenanceRequest::SubmissionRouteMaintenanceManager
     ): self {
-        $weekStart = isset($data['week_start']) && $data['week_start']
-            ? \Carbon\Carbon::parse((string) $data['week_start'])
-                ->startOfWeek(\Carbon\Carbon::SUNDAY)
-                ->toDateString()
-            : now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString();
+        $weekStart = now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString();
 
         $submissionRoute = $data['submission_route'] ?? $defaultSubmissionRoute;
 
@@ -51,7 +47,7 @@ class MaintenanceRequestData
             'priority' => $this->priority,
             'description' => $this->description,
             'cost' => $this->cost,
-            'week_start' => $this->week_start,
+            'week_start' => $this->week_start ?? now()->startOfWeek(\Carbon\Carbon::SUNDAY)->toDateString(),
             'requested_by' => $this->requested_by,
         ];
 

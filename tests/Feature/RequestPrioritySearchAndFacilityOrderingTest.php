@@ -24,7 +24,7 @@ function workflowUserWithPermissions(array $permissions): User
     return $user;
 }
 
-test('maintenance requests are ordered by priority within the weekly group', function () {
+test('maintenance requests are ordered by submission date then status within the weekly group', function () {
     $user = workflowUserWithPermissions(['maintenance.view']);
 
     $facilityType = FacilityType::create(['name' => 'Campus']);
@@ -134,7 +134,7 @@ test('todo index supports live search query filtering', function () {
         'user_id' => $user->id,
         'facility_id' => $facility->id,
         'description' => 'Check fire extinguishers',
-        'week_start' => now()->startOfWeek(Carbon::MONDAY),
+        'week_start' => now()->startOfWeek(Carbon::SUNDAY),
         'status' => 'pending',
     ]);
 
@@ -142,7 +142,7 @@ test('todo index supports live search query filtering', function () {
         'user_id' => $user->id,
         'facility_id' => $facility->id,
         'description' => 'Inspect corridor lights',
-        'week_start' => now()->startOfWeek(Carbon::MONDAY),
+        'week_start' => now()->startOfWeek(Carbon::SUNDAY),
         'status' => 'pending',
     ]);
 
@@ -204,3 +204,5 @@ test('my facilities page is ordered by facility type parent and facility name', 
             ->where('facilityGroups.0.facilities.2.name', 'Bravo Child')
             ->where('facilityGroups.1.facility_type.name', 'Residential'));
 });
+
+

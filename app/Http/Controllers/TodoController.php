@@ -38,8 +38,8 @@ class TodoController extends Controller
         $userId = $request->input('user_id');
         $search = $request->string('search')->trim()->toString();
 
-        $defaultStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
-        $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $defaultStart = now()->startOfWeek(Carbon::SUNDAY)->subMonth()->toDateString();
+        $defaultEnd = now()->endOfWeek(Carbon::SATURDAY)->toDateString();
 
         $startDate = $startDateInput ?: $defaultStart;
         $endDate = $endDateInput ?: $defaultEnd;
@@ -112,6 +112,7 @@ class TodoController extends Controller
                 });
             })
             ->orderByDesc('week_start')
+            ->orderByDesc('created_at')
             ->orderByRaw(
                 "CASE status
                     WHEN 'pending' THEN 0
@@ -119,7 +120,6 @@ class TodoController extends Controller
                     ELSE 2
                 END"
             )
-            ->latest()
             ->get();
 
         $groups = $filteredTodos
@@ -257,7 +257,7 @@ class TodoController extends Controller
                 $data = new TodoData(
                     facility_id: (int) $facilityId,
                     description: $validated['description'],
-                    week: $validated['week'] ?? now()->next('Monday')->format('Y-m-d'),
+                    week: now()->startOfWeek(Carbon::SUNDAY)->format('Y-m-d'),
                     user_id: auth()->id(),
                 );
                 $this->todoService->create($data);

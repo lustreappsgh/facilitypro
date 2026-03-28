@@ -25,12 +25,10 @@ class MaintenanceRequestRequest extends FormRequest
             'bulk_requests.*.priority' => ['nullable', Rule::in(MaintenanceRequest::priorities())],
             'bulk_requests.*.description' => ['nullable', 'string'],
             'bulk_requests.*.cost' => ['nullable', 'numeric'],
-            'bulk_requests.*.week_start' => ['nullable', 'date'],
             'request_type_id' => ['required_without:bulk_requests', 'exists:request_types,id'],
             'priority' => ['nullable', Rule::in(MaintenanceRequest::priorities())],
             'description' => ['nullable', 'string'],
             'cost' => ['nullable', 'numeric'],
-            'week_start' => ['nullable', 'date'],
             'submission_route' => ['nullable', 'string', Rule::in(MaintenanceRequest::submissionRoutes())],
             'status' => ['nullable', 'string'],
         ];

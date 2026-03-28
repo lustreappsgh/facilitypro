@@ -108,7 +108,7 @@ test('facility manager cannot create an inspection in the future', function () {
     expect(Inspection::query()->count())->toBe(0);
 });
 
-test('inspections index defaults to previous and current week', function () {
+test('inspections index defaults to the current week plus the last month by submission week', function () {
     Carbon::setTestNow(Carbon::parse('2026-03-07 09:00:00'));
 
     $user = User::factory()->create();
@@ -126,27 +126,27 @@ test('inspections index defaults to previous and current week', function () {
     ]);
 
     Inspection::forceCreate([
-        'inspection_date' => '2026-02-17',
+        'inspection_date' => '2026-01-15',
         'facility_id' => $facility->id,
         'condition' => 'Good',
-        'comments' => null,
+        'comments' => 'Too old',
         'image' => null,
         'added_by' => $user->id,
         'updated_by' => $user->id,
-        'created_at' => now(),
-        'updated_at' => now(),
+        'created_at' => '2026-01-31 10:00:00',
+        'updated_at' => '2026-01-31 10:00:00',
     ]);
 
     Inspection::forceCreate([
         'inspection_date' => '2026-02-24',
         'facility_id' => $facility->id,
         'condition' => 'Good',
-        'comments' => 'Previous week',
+        'comments' => 'Last month',
         'image' => null,
         'added_by' => $user->id,
         'updated_by' => $user->id,
-        'created_at' => now(),
-        'updated_at' => now(),
+        'created_at' => '2026-02-08 10:00:00',
+        'updated_at' => '2026-02-08 10:00:00',
     ]);
 
     Inspection::forceCreate([
@@ -157,8 +157,8 @@ test('inspections index defaults to previous and current week', function () {
         'image' => null,
         'added_by' => $user->id,
         'updated_by' => $user->id,
-        'created_at' => now(),
-        'updated_at' => now(),
+        'created_at' => '2026-03-04 10:00:00',
+        'updated_at' => '2026-03-04 10:00:00',
     ]);
 
     $this->actingAs($user);
@@ -168,11 +168,13 @@ test('inspections index defaults to previous and current week', function () {
     $response->assertSuccessful();
     $response->assertInertia(
         fn (Assert $page) => $page
-            ->where('data.filters.start_date', '2026-02-23')
-            ->where('data.filters.end_date', '2026-03-08')
+            ->where('data.filters.start_date', '2026-02-01')
+            ->where('data.filters.end_date', '2026-03-07')
             ->has('data.groups', 2)
+            ->where('data.groups.0.week_start', '2026-03-01')
             ->where('data.groups.0.inspections.0.comments', 'Current week')
-            ->where('data.groups.1.inspections.0.comments', 'Previous week')
+            ->where('data.groups.1.week_start', '2026-02-08')
+            ->where('data.groups.1.inspections.0.comments', 'Last month')
     );
 
     Carbon::setTestNow();

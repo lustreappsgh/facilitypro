@@ -73,7 +73,7 @@ const selectedPriority = ref(props.request.priority ?? 'medium');
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Edit maintenance request" subtitle="Update request details and costs." />
+            <PageHeader title="Edit maintenance request" subtitle="Update request details. The original Sunday-start submission week stays fixed." />
 
             <Form
                 v-bind="MaintenanceRequestController.update.form(request)"
@@ -163,17 +163,6 @@ const selectedPriority = ref(props.request.priority ?? 'medium');
                         :model-value="request.cost ?? ''"
                     />
                     <InputError :message="errors.cost" />
-                </div>
-
-                <div class="grid gap-2">
-                    <Label for="week_start">Week start</Label>
-                    <Input
-                        id="week_start"
-                        name="week_start"
-                        type="date"
-                        :model-value="request.week_start ?? ''"
-                    />
-                    <InputError :message="errors.week_start" />
                 </div>
 
                 <div class="flex items-center gap-4">

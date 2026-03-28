@@ -3,8 +3,6 @@ import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -45,19 +43,6 @@ const props = defineProps<Props>();
 const description = ref(props.data.todo.description);
 const facilityId = ref(String(props.data.todo.facility_id));
 
-const getUpcomingMonday = () => {
-    const date = new Date();
-    const day = date.getDay();
-    const diffToNextMonday = (8 - day) % 7 || 7;
-    date.setDate(date.getDate() + diffToNextMonday);
-    return date.toISOString().slice(0, 10);
-};
-
-const upcomingMonday = getUpcomingMonday();
-const minimumWeekStart = props.data.todo.week_start && props.data.todo.week_start < upcomingMonday
-    ? props.data.todo.week_start
-    : upcomingMonday;
-
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Weekly Todos',
@@ -78,7 +63,7 @@ const textAreaClass =
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-            <PageHeader title="Edit todo" subtitle="Update the task while keeping it aligned to a Monday-start week." />
+            <PageHeader title="Edit todo" subtitle="Update the task details. The original Sunday-start submission week stays fixed." />
 
             <Form
                 v-bind="update.form(data.todo)"
@@ -106,22 +91,6 @@ const textAreaClass =
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="week">Week starting Monday</Label>
-                    <Input
-                        id="week"
-                        name="week"
-                        type="date"
-                        :value="data.todo.week_start ?? upcomingMonday"
-                        :min="minimumWeekStart"
-                        required
-                    />
-                    <p class="text-xs text-muted-foreground">
-                        Keep the existing scheduled week or move it to a future Monday-start week.
-                    </p>
-                    <InputError :message="errors.week" />
-                </div>
-
-                <div class="grid gap-2">
                     <Label for="description">Description</Label>
                     <textarea
                         id="description"
@@ -143,3 +112,4 @@ const textAreaClass =
         </div>
     </AppLayout>
 </template>
+

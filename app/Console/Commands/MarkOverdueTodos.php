@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\TodoStatus;
 use App\Models\Todo;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class MarkOverdueTodos extends Command
@@ -27,13 +28,7 @@ class MarkOverdueTodos extends Command
      */
     public function handle()
     {
-        // A week ends on Sunday. If today is past the end of the week, the todo is overdue.
-        // week_start is Monday. End of week is Sunday.
-        // If now() > week_start + 6 days (end of week), it is overdue?
-        // Actually, if we are in the week *after*, it's overdue.
-        // So if week_start is older than start of this week (last Monday or earlier).
-        
-        $currentWeekStart = now()->startOfWeek();
+        $currentWeekStart = now()->startOfWeek(Carbon::SUNDAY);
 
         $count = Todo::query()
             ->where('status', TodoStatus::Pending)

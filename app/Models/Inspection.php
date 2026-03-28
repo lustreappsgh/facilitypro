@@ -38,8 +38,8 @@ class Inspection extends BaseModel
 
     public function getMonthWeekAttribute(): string
     {
-        $startOfWeek = $this->created_at->copy()->startOfWeek(Carbon::MONDAY);
-        $endOfWeek = $this->created_at->copy()->endOfWeek(Carbon::SUNDAY);
+        $startOfWeek = $this->created_at->copy()->startOfWeek(Carbon::SUNDAY);
+        $endOfWeek = $this->created_at->copy()->endOfWeek(Carbon::SATURDAY);
 
         $weekNumber = $startOfWeek->weekOfMonth;
         $monthName = $startOfWeek->format('F');

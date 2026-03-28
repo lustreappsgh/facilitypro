@@ -10,6 +10,7 @@ use App\Domains\Notifications\Services\OperationalNotificationService;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\MaintenanceRequest;
+use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class CreateMaintenanceRequestAction
@@ -35,6 +36,10 @@ class CreateMaintenanceRequestAction
         $payload['submission_route'] = $payload['submission_route'] ?? MaintenanceRequest::SubmissionRouteMaintenanceManager;
 
         $request = MaintenanceRequest::create($payload);
+        $request->forceFill([
+            'week_start' => $request->created_at?->copy()->startOfWeek(Carbon::SUNDAY)->toDateString(),
+        ])->save();
+        $request = $request->refresh();
 
         $this->recordAuditLogAction->execute(new AuditLogData(
             actor_id: $this->resolveActorId(),

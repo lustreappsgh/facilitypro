@@ -53,7 +53,6 @@ interface BulkRow {
     priority: Priority;
     description: string;
     cost: string;
-    week_start: string;
     selected: boolean;
 }
 
@@ -70,13 +69,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
-
-const getWeekStartSunday = () => {
-    const date = new Date();
-    const day = date.getDay();
-    date.setDate(date.getDate() - day);
-    return date.toISOString().slice(0, 10);
-};
 
 const hasPrefilledFacility = computed(() => Boolean(props.selectedFacilityId));
 const prefilledFacility = computed(() =>
@@ -96,7 +88,6 @@ const defaultRequestTypeId = ref<string | null>(
     props.requestTypes[0] ? String(props.requestTypes[0].id) : null,
 );
 const defaultPriority = ref<Priority>('medium');
-const defaultWeekStart = ref(getWeekStartSunday());
 const rows = ref<BulkRow[]>([]);
 
 const filteredFacilities = computed(() => {
@@ -134,7 +125,6 @@ const initializeRows = () => {
         priority: defaultPriority.value,
         description: '',
         cost: '',
-        week_start: defaultWeekStart.value,
         selected: hasPrefilledFacility.value
             ? facility.id === props.selectedFacilityId
             : true,
@@ -151,7 +141,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <PageHeader
                 title="Create maintenance request"
-                subtitle="Create requests in bulk by facility type."
+                subtitle="Requests are assigned automatically to the Sunday-start week in which they are submitted."
             />
 
             <div
@@ -262,9 +252,6 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 <th class="px-3 py-2 text-left font-semibold">
                                     Estimated cost
                                 </th>
-                                <th class="px-3 py-2 text-left font-semibold">
-                                    Week start
-                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/50">
@@ -338,16 +325,10 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                         placeholder="0"
                                     />
                                 </td>
-                                <td class="px-3 py-2">
-                                    <Input
-                                        v-model="row.week_start"
-                                        type="date"
-                                    />
-                                </td>
                             </tr>
                             <tr v-if="rows.length === 0">
                                 <td
-                                    colspan="7"
+                                    colspan="6"
                                     class="px-3 py-8 text-center text-sm text-muted-foreground"
                                 >
                                     Select a facility type to load facilities.
@@ -385,11 +366,6 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                         type="hidden"
                         :name="`bulk_requests[${index}][cost]`"
                         :value="row.cost"
-                    />
-                    <input
-                        type="hidden"
-                        :name="`bulk_requests[${index}][week_start]`"
-                        :value="row.week_start"
                     />
                 </div>
 

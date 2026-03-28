@@ -291,17 +291,17 @@ const toDateString = (value: Date) => {
     return `${year}-${month}-${day}`;
 };
 
-const getCurrentAndUpcomingWeekRange = () => {
+const getCurrentWeekRange = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const mondayOffset = (dayOfWeek + 6) % 7;
+    const sundayOffset = dayOfWeek;
 
     const start = new Date(today);
     start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - mondayOffset);
+    start.setDate(start.getDate() - sundayOffset);
 
     const end = new Date(start);
-    end.setDate(end.getDate() + 13);
+    end.setDate(end.getDate() + 6);
 
     return {
         start: toDateString(start),
@@ -310,7 +310,7 @@ const getCurrentAndUpcomingWeekRange = () => {
 };
 
 const applyNeedsActionNow = () => {
-    const range = getCurrentAndUpcomingWeekRange();
+    const range = getCurrentWeekRange();
 
     filterStartDate.value = range.start;
     filterEndDate.value = range.end;
@@ -983,7 +983,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                         Maintenance requests
                     </h1>
                     <p class="text-sm text-muted-foreground">
-                        Track and resolve maintenance requests by week.
+                        Track and resolve maintenance requests by Sunday-start submission week.
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -1085,7 +1085,7 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                     </div>
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Default range shows the current and upcoming week:
+                    Default range shows the current week plus the last month:
                     {{ dateRangeLabel }}.
                 </p>
                 <p class="mt-1 text-xs text-muted-foreground">
@@ -1324,3 +1324,4 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
         </div>
     </AppLayout>
 </template>
+

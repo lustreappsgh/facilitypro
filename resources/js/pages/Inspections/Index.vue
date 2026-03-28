@@ -103,14 +103,14 @@ const toDateString = (value: Date) => {
     return `${year}-${month}-${day}`;
 };
 
-const getPreviousAndCurrentWeekRange = () => {
+const getCurrentWeekPlusLastMonthRange = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const mondayOffset = (dayOfWeek + 6) % 7;
+    const sundayOffset = dayOfWeek;
 
     const start = new Date(today);
     start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - mondayOffset - 7);
+    start.setDate(start.getDate() - sundayOffset);
 
     const end = new Date(start);
     end.setDate(end.getDate() + 13);
@@ -121,7 +121,7 @@ const getPreviousAndCurrentWeekRange = () => {
     };
 };
 
-const defaultRange = getPreviousAndCurrentWeekRange();
+const defaultRange = getCurrentWeekPlusLastMonthRange();
 
 const filterStartDate = ref(props.data.filters.start_date || defaultRange.start);
 const filterEndDate = ref(props.data.filters.end_date || defaultRange.end);
@@ -287,7 +287,7 @@ onMounted(() => {
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h1 class="font-display text-3xl font-semibold tracking-tight text-foreground">Inspections</h1>
-                    <p class="text-sm text-muted-foreground">Schedule and review inspections by week.</p>
+                    <p class="text-sm text-muted-foreground">Review inspections by Sunday-start submission week.</p>
                 </div>
                 <Button
                     v-if="can('inspections.create')"
@@ -342,7 +342,7 @@ onMounted(() => {
                     </div>
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Default range shows the previous and current week: {{ dateRangeLabel }}.
+                    Default range shows the current week plus the last month: {{ dateRangeLabel }}.
                 </p>
             </div>
 
@@ -390,3 +390,5 @@ onMounted(() => {
         </div>
     </AppLayout>
 </template>
+
+

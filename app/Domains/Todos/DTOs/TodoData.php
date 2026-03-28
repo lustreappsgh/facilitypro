@@ -16,8 +16,8 @@ class TodoData
     public static function fromRequest(array $data): self
     {
         $week = isset($data['week']) && $data['week']
-            ? Carbon::parse((string) $data['week'])->startOfWeek(Carbon::MONDAY)->toDateString()
-            : now()->startOfWeek(Carbon::MONDAY)->toDateString();
+            ? Carbon::parse((string) $data['week'])->startOfWeek(Carbon::SUNDAY)->toDateString()
+            : now()->startOfWeek(Carbon::SUNDAY)->toDateString();
 
         return new self(
             facility_id: (int) $data['facility_id'],

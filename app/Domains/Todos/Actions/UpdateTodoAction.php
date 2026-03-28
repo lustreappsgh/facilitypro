@@ -27,8 +27,10 @@ class UpdateTodoAction
         }
 
         $before = $todo->getOriginal();
+        $payload = $data->toArray();
+        unset($payload['week_start']);
 
-        $todo->update($data->toArray());
+        $todo->update($payload);
 
         $todo = $todo->refresh();
 

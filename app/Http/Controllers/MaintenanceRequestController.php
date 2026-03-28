@@ -12,6 +12,7 @@ use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\FacilityType;
 use App\Models\MaintenanceRequest;
+use App\Models\Payment;
 use App\Models\RequestType;
 use App\Models\User;
 use App\Models\Vendor;
@@ -51,8 +52,8 @@ class MaintenanceRequestController extends Controller
         $userId = $request->input('user_id');
         $search = $request->string('search')->trim()->toString();
 
-        $defaultStart = now()->startOfWeek(Carbon::SUNDAY)->toDateString();
-        $defaultEnd = now()->addWeek()->endOfWeek(Carbon::SATURDAY)->toDateString();
+        $defaultStart = now()->startOfWeek(Carbon::SUNDAY)->subMonth()->toDateString();
+        $defaultEnd = now()->endOfWeek(Carbon::SATURDAY)->toDateString();
 
         $startDate = $startDateInput ?: $defaultStart;
         $endDate = $endDateInput ?: $defaultEnd;
@@ -131,7 +132,8 @@ class MaintenanceRequestController extends Controller
                         ->orWhereHas('requestedBy', fn ($userQuery) => $userQuery->where('name', 'like', "%{$search}%"));
                 });
             })
-            ->orderByRaw(MaintenanceRequest::prioritySortCase())
+            ->orderByDesc('week_start')
+            ->orderByDesc('created_at')
             ->orderByRaw(
                 "CASE
                     WHEN status = 'pending' AND work_orders_count = 0 THEN 0
@@ -148,8 +150,6 @@ class MaintenanceRequestController extends Controller
                     ELSE 2
                 END"
             )
-            ->orderByDesc('week_start')
-            ->orderBy('created_at')
             ->get();
 
         $groups = $filteredRequests
@@ -834,3 +834,6 @@ class MaintenanceRequestController extends Controller
         ]);
     }
 }
+
+
+

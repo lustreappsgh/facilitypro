@@ -3,7 +3,6 @@ import InputError from '@/components/InputError.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -47,7 +46,6 @@ interface BulkRow {
     facility_id: number;
     facility_name: string;
     description: string;
-    week: string;
     selected: boolean;
 }
 
@@ -64,25 +62,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[120px] w-full rounded-md border px-3 py-2';
-
-const toDateString = (date: Date) => date.toISOString().slice(0, 10);
-
-const getCurrentWeekMonday = () => {
-    const date = new Date();
-    const day = date.getDay();
-    const diffToMonday = (day + 6) % 7;
-    date.setDate(date.getDate() - diffToMonday);
-    return toDateString(date);
-};
-
-const getNextWeekMonday = () => {
-    const date = new Date(getCurrentWeekMonday());
-    date.setDate(date.getDate() + 7);
-    return toDateString(date);
-};
-
-const minimumWeekStart = getCurrentWeekMonday();
-const maximumWeekStart = getNextWeekMonday();
 
 const hasPrefilledFacilities = computed(
     () =>
@@ -113,7 +92,6 @@ const selectedFacilityTypeId = ref<string | null>(
             : null;
     })(),
 );
-const defaultWeekStart = ref(minimumWeekStart);
 const rows = ref<BulkRow[]>([]);
 
 const filteredFacilities = computed(() => {
@@ -150,7 +128,6 @@ const initializeRows = () => {
         facility_id: facility.id,
         facility_name: facility.name,
         description: '',
-        week: defaultWeekStart.value,
         selected: hasPrefilledFacilities.value
             ? prefilledFacilityIds.value.includes(facility.id)
             : true,
@@ -167,7 +144,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <PageHeader
                 title="Create todo"
-                subtitle="Create todos for the upcoming Monday-start week."
+                subtitle="Todos are assigned automatically to the Sunday-start week in which they are submitted."
             />
 
             <Form
@@ -177,9 +154,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                 v-slot="{ errors, processing }"
             >
                 <div
-                    class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4 md:grid-cols-2"
+                    class="grid gap-4 rounded-xl border border-border/50 bg-card/50 p-4"
                 >
-                    <div class="grid gap-2">
+                    <div class="grid gap-2 md:max-w-sm">
                         <Label for="facility_type_id">Facility type</Label>
                         <Select v-model="selectedFacilityTypeId">
                             <SelectTrigger id="facility_type_id" class="w-full">
@@ -198,22 +175,9 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             </SelectContent>
                         </Select>
                     </div>
-
-                    <div class="grid gap-2">
-                        <Label for="default_week_start"
-                            >Week starting Monday</Label
-                        >
-                        <Input
-                            id="default_week_start"
-                            v-model="defaultWeekStart"
-                            type="date"
-                            :min="minimumWeekStart"
-                            :max="maximumWeekStart"
-                        />
-                        <p class="text-xs text-muted-foreground">
-                            Todo weeks always start on Monday. You can submit for the current week or the upcoming week.
-                        </p>
-                    </div>
+                    <p class="text-xs text-muted-foreground">
+                        The submission week is calculated automatically from the date you submit this form.
+                    </p>
                 </div>
 
                 <div
@@ -231,9 +195,6 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 </th>
                                 <th class="px-3 py-2 text-left font-semibold">
                                     Facility
-                                </th>
-                                <th class="px-3 py-2 text-left font-semibold">
-                                    Week start
                                 </th>
                                 <th class="px-3 py-2 text-left font-semibold">
                                     Description
@@ -254,26 +215,6 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                 </td>
                                 <td class="px-3 py-2 font-medium">
                                     {{ row.facility_name }}
-                                </td>
-                                <td class="px-3 py-2">
-                                    <Input
-                                        v-model="row.week"
-                                        type="date"
-                                        :min="minimumWeekStart"
-                                        :max="maximumWeekStart"
-                                    />
-                                    <InputError
-                                        :message="
-                                            row.selected &&
-                                            selectedRowIndexById[
-                                                row.facility_id
-                                            ] !== undefined
-                                                ? errors[
-                                                      `bulk_todos.${selectedRowIndexById[row.facility_id]}.week`
-                                                  ]
-                                                : null
-                                        "
-                                    />
                                 </td>
                                 <td class="px-3 py-2">
                                     <textarea
@@ -297,7 +238,7 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                             </tr>
                             <tr v-if="rows.length === 0">
                                 <td
-                                    colspan="4"
+                                    colspan="3"
                                     class="px-3 py-8 text-center text-sm text-muted-foreground"
                                 >
                                     Select a facility type to load facilities.
@@ -320,11 +261,6 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                         type="hidden"
                         :name="`bulk_todos[${index}][description]`"
                         :value="row.description"
-                    />
-                    <input
-                        type="hidden"
-                        :name="`bulk_todos[${index}][week]`"
-                        :value="row.week"
                     />
                 </div>
 
