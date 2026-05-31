@@ -70,6 +70,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 const textAreaClass =
     'border-input bg-transparent text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] min-h-[76px] w-full rounded-md border px-3 py-2';
 
+const nativeSelectClass =
+    'border-input bg-background text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 w-full rounded-md border px-3 py-1';
+
 const hasPrefilledFacility = computed(() => Boolean(props.selectedFacilityId));
 const prefilledFacility = computed(() =>
     props.facilities.find(
@@ -270,22 +273,19 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     {{ row.facility_name }}
                                 </td>
                                 <td class="px-3 py-2">
-                                    <Select v-model="row.request_type_id">
-                                        <SelectTrigger class="w-full">
-                                            <SelectValue
-                                                placeholder="Select type"
-                                            />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem
-                                                v-for="type in requestTypes"
-                                                :key="type.id"
-                                                :value="String(type.id)"
-                                            >
-                                                {{ type.name }}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <select
+                                        v-model="row.request_type_id"
+                                        :class="nativeSelectClass"
+                                    >
+                                        <option value="" disabled>Select type</option>
+                                        <option
+                                            v-for="type in requestTypes"
+                                            :key="type.id"
+                                            :value="String(type.id)"
+                                        >
+                                            {{ type.name }}
+                                        </option>
+                                    </select>
                                     <InputError
                                         :message="
                                             errors[
@@ -295,20 +295,18 @@ watch(selectedFacilityTypeId, initializeRows, { immediate: true });
                                     />
                                 </td>
                                 <td class="px-3 py-2">
-                                    <Select v-model="row.priority">
-                                        <SelectTrigger class="w-full">
-                                            <SelectValue placeholder="Select priority" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem
-                                                v-for="priority in priorities"
-                                                :key="priority"
-                                                :value="priority"
-                                            >
-                                                {{ priority }}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <select
+                                        v-model="row.priority"
+                                        :class="nativeSelectClass"
+                                    >
+                                        <option
+                                            v-for="priority in priorities"
+                                            :key="priority"
+                                            :value="priority"
+                                        >
+                                            {{ priority }}
+                                        </option>
+                                    </select>
                                 </td>
                                 <td class="px-3 py-2">
                                     <textarea

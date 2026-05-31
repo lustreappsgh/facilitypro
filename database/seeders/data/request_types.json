@@ -148,5 +148,11 @@
         "name": "BMCDR Meals",
         "created_at": null,
         "updated_at": null
+    },
+    {
+        "id": 34,
+        "name": "General requests",
+        "created_at": null,
+        "updated_at": null
     }
 ]

@@ -35,6 +35,7 @@ import {
     create,
     destroy,
     edit,
+    exportMethod as maintenanceExport,
     index as maintenanceIndex,
     approve as maintenanceApprove,
     reject as maintenanceReject,
@@ -47,8 +48,7 @@ import {
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
-import {
-    CheckCircle2,
+import { FileSpreadsheet, CheckCircle2,
     Check,
     ClipboardCheck,
     ClipboardList,
@@ -58,8 +58,7 @@ import {
     Timer,
     Trash2,
     Wrench,
-    X,
-} from 'lucide-vue-next';
+    X, } from 'lucide-vue-next';
 import { usePage } from '@inertiajs/vue3';
 import { computed, h, ref, watch } from 'vue';
 
@@ -339,6 +338,16 @@ const clearFilters = () => {
         {},
         { preserveState: true, preserveScroll: true },
     );
+};
+
+const downloadExport = () => {
+    const query: Record<string, string> = {};
+    if (filterStartDate.value) { query.start_date = filterStartDate.value; }
+    if (filterEndDate.value) { query.end_date = filterEndDate.value; }
+    if (searchFilter.value) { query.search = searchFilter.value; }
+
+    const url = maintenanceExport({ query }).url;
+    window.location.href = url;
 };
 
 const confirmDeleteRequest = (requestId: number) => {
@@ -1005,6 +1014,16 @@ const columns = computed<ColumnDef<MaintenanceRequest>[]>(() => {
                             <ClipboardList class="mr-2 h-4 w-4" />
                             Bulk review
                         </Link>
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="h-9 rounded-lg px-4"
+                        aria-label="Export to XLSX"
+                        @click="downloadExport"
+                    >
+                        <FileSpreadsheet class="mr-2 h-4 w-4" />
+                        Export XLSX
                     </Button>
                     <Button
                         v-if="

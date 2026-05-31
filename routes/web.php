@@ -73,11 +73,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('inspections', InspectionController::class);
 
     Route::get('maintenance/my', [MaintenanceRequestController::class, 'myRequests'])->name('maintenance.my');
-    Route::get('maintenance/admin', [MaintenanceRequestController::class, 'index'])
+    Route::get('maintenance/admin', [MaintenanceRequestController::class, 'adminIndex'])
         ->name('maintenance.admin')
         ->middleware('throttle:admin-actions');
     Route::get('maintenance/oversight', [MaintenanceRequestController::class, 'index'])
         ->name('maintenance.oversight');
+    Route::get('maintenance/export', [MaintenanceRequestController::class, 'export'])
+        ->name('maintenance.export');
     Route::resource('maintenance', MaintenanceRequestController::class);
     Route::post('maintenance/bulk-delete', [MaintenanceRequestController::class, 'bulkDestroy'])
         ->name('maintenance.bulk-destroy');

@@ -8,6 +8,7 @@ use App\Domains\Maintenance\DTOs\WorkOrderData;
 use App\Domains\Maintenance\Requests\BulkDeleteMaintenanceRequestsRequest;
 use App\Domains\Maintenance\Requests\MaintenanceRequestRequest;
 use App\Domains\Maintenance\Services\MaintenanceService;
+use App\Domains\Maintenance\Services\SimpleXlsxExport;
 use App\Enums\MaintenanceStatus;
 use App\Models\Facility;
 use App\Models\FacilityType;
@@ -82,7 +83,8 @@ class MaintenanceRequestController extends Controller
             'workOrders' => fn ($builder) => $builder->latest()->limit(1),
         ])->withCount('workOrders');
 
-        $weeksByYearMonth = (clone $baseQuery)
+        $weeksByYearMonth = MaintenanceRequest::maintenanceScope($user)
+            ->select('week_start', 'created_at')
             ->get()
             ->map(function (MaintenanceRequest $maintenanceRequest): MaintenanceRequest {
                 if (! $maintenanceRequest->week_start && $maintenanceRequest->created_at) {
@@ -94,6 +96,7 @@ class MaintenanceRequestController extends Controller
                 return $maintenanceRequest;
             })
             ->filter(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start)
+            ->unique(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->toDateString())
             ->sortByDesc(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->toDateString() ?? '')
             ->groupBy(fn (MaintenanceRequest $maintenanceRequest) => $maintenanceRequest->week_start?->format('Y-m'))
             ->map(function ($monthItems, $monthKey) {
@@ -833,7 +836,98 @@ class MaintenanceRequestController extends Controller
             ],
         ]);
     }
+
+    public function export(Request $request): \Illuminate\Http\Response
+    {
+        $this->authorize('viewAny', MaintenanceRequest::class);
+
+        $user = $request->user();
+        $startDateInput = $request->string('start_date')->trim()->toString();
+        $endDateInput = $request->string('end_date')->trim()->toString();
+        $search = $request->string('search')->trim()->toString();
+
+        $defaultStart = now()->startOfWeek(Carbon::SUNDAY)->subMonth()->toDateString();
+        $defaultEnd = now()->endOfWeek(Carbon::SATURDAY)->toDateString();
+
+        $startDate = $startDateInput ?: $defaultStart;
+        $endDate = $endDateInput ?: $defaultEnd;
+
+        if ($startDate > $endDate) {
+            [$startDate, $endDate] = [$endDate, $startDate];
+        }
+
+        $canViewAll = $user->can('maintenance.manage_all');
+        $showRequesterName = $canViewAll || $user->can('maintenance_requests.view');
+        $showManagerName = $canViewAll;
+
+        $query = MaintenanceRequest::maintenanceScope($user)->with([
+            'facility.manager',
+            'requestedBy',
+            'requestType',
+        ])
+            ->whereBetween('week_start', [$startDate, $endDate])
+            ->when($search !== '', function ($builder) use ($search) {
+                $builder->where(function ($q) use ($search) {
+                    $q->where('description', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhereHas('facility', fn ($fq) => $fq->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('requestType', fn ($tq) => $tq->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('requestedBy', fn ($uq) => $uq->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderByDesc('week_start')
+            ->orderByDesc('created_at');
+
+        $headers = array_filter([
+            'ID',
+            'Week',
+            'Date submitted',
+            'Facility',
+            $showManagerName ? 'Facility manager' : null,
+            $showRequesterName ? 'Requested by' : null,
+            'Request type',
+            'Description',
+            'Priority',
+            'Status',
+            'Cost (GHS)',
+        ]);
+
+        $rows = $query->get()->map(function (MaintenanceRequest $mr) use ($showRequesterName, $showManagerName): array {
+            $row = [
+                $mr->id,
+                $mr->week_start?->toDateString() ?? '',
+                $mr->created_at?->toDateString() ?? '',
+                $mr->facility?->name ?? '',
+            ];
+
+            if ($showManagerName) {
+                $row[] = $mr->facility?->manager?->name ?? '';
+            }
+
+            if ($showRequesterName) {
+                $row[] = $mr->requestedBy?->name ?? '';
+            }
+
+            $row[] = $mr->requestType?->name ?? '';
+            $row[] = $mr->description ?? '';
+            $row[] = $mr->priority ?? '';
+            $row[] = $mr->status ?? '';
+            $row[] = $mr->cost !== null ? (float) $mr->cost : '';
+
+            return $row;
+        })->all();
+
+        $xlsx = (new SimpleXlsxExport)
+            ->setHeaders(array_values($headers))
+            ->addRows($rows)
+            ->build();
+
+        $filename = 'maintenance-requests-'.now()->format('Ymd-His').'.xlsx';
+
+        return response($xlsx, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => strlen($xlsx),
+        ]);
+    }
 }
-
-
-

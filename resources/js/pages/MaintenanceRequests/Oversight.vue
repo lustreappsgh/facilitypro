@@ -32,12 +32,12 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { createCurrencyFormatter } from '@/lib/currency';
 import { formatLocaleDateRange } from '@/lib/locale';
 import { sumByNumber } from '@/lib/totals';
-import { oversight as maintenanceOversight, show } from '@/routes/maintenance';
+import { oversight as maintenanceOversight, show, exportMethod as maintenanceExport } from '@/routes/maintenance';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import type { ColumnDef } from '@tanstack/vue-table';
 import { endOfWeek, format, startOfWeek, subMonths } from 'date-fns';
-import { Eye, Search } from 'lucide-vue-next';
+import { Eye, Search, FileSpreadsheet } from 'lucide-vue-next';
 import { computed, h, onMounted, ref } from 'vue';
 
 const filtersVisible = ref(false);
@@ -344,7 +344,29 @@ const columns: ColumnDef<MaintenanceRequest>[] = [
                 :show-filters-toggle="true"
                 :filters-visible="filtersVisible"
                 @toggle-filters="filtersVisible = !filtersVisible"
-            />
+            >
+                <template #actions>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="h-9 rounded-lg px-4"
+                        aria-label="Export to XLSX"
+                        as-child
+                    >
+                        <a :href="maintenanceExport({ query: {
+                            search: searchFilter || undefined,
+                            status: statusFilter || undefined,
+                            request_type: requestTypeFilter || undefined,
+                            facility: facilityFilter || undefined,
+                            start_date: startDateFilter || undefined,
+                            end_date: endDateFilter || undefined,
+                        } }).url">
+                            <FileSpreadsheet class="mr-2 h-4 w-4" />
+                            Export XLSX
+                        </a>
+                    </Button>
+                </template>
+            </PageHeader>
 
             <div class="space-y-4">
                 <form
